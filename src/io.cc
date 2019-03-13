@@ -1,12 +1,12 @@
 #include "io.h"
-#include "psidm.h"
+#include "common.h"
 
 // TODO: Add simulation parameters to constructor
 // TODO: Add write overload for analysis function
 // TODO: MPI
 // TODO: read function
 OutputFile::OutputFile(const Parameters& params) {
-    file = H5Fcreate(params.filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
+    file = H5Fcreate(params.out_file.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
                      H5P_DEFAULT);
     auto state_group = H5Gcreate(file, "SimulationState", H5P_DEFAULT,
                                  H5P_DEFAULT, H5P_DEFAULT);
@@ -33,7 +33,7 @@ void OutputFile::write(const SimState& state, const Parameters& params) {
     // Step 2: Add step information to the n_group
     hsize_t dims = 2;
     auto dataspace_attr = H5Screate_simple(1, &dims, NULL);
-    double attr_buffer[] = {state.t, state.a};
+    double attr_buffer[] = {state.tau, state.a};
     auto attr_time = H5Acreate2(n_group, "tau a(tau)", H5T_NATIVE_DOUBLE,
                                 dataspace_attr, H5P_DEFAULT, H5P_DEFAULT);
     H5Awrite(attr_time, H5T_NATIVE_DOUBLE, &attr_buffer);

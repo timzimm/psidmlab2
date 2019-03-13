@@ -461,3 +461,6 @@ enzo/
 
 #dat files
 *.dat
+
+#HDF5 files
+*.h5

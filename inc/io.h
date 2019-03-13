@@ -1,7 +1,7 @@
 #ifndef __IO__
 #define __IO__
+#include "common.h"
 #include "hdf5.h"
-#include "psidm.h"
 
 class OutputFile {
    private:
