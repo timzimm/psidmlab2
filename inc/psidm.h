@@ -1,7 +1,9 @@
 #ifndef __PSIDM__
 #define __PSIDM__
 #include <complex>
+#include <string>
 #include <vector>
+
 /*This header defines all required simulation parameters as well as what we
  * consider a "simulation state" that gets passed around the code
  * We use structs as we really don't care bout encapsulation at this point. Both
@@ -17,21 +19,23 @@ using c_vector = std::vector<complex>;
 using d_vector = std::vector<double>;
 
 struct Parameters {
-    double tau_start;  // initial super conformal time
-    double tau_end;    // final super conformal time
-    double a_start;    // initial scalefactor
-    double a_end;      // final scalefactor
-    int N;             // Number of spatial points
-    int M;             // Number of wavefunctions
-    double dx;         // spatial resolution
-    double mu;         // phase space resolution
+    std::string filename;  // output filename
+    double tau_start;      // initial super conformal time
+    double tau_end;        // final super conformal time
+    double a_start;        // initial scalefactor
+    double a_end;          // final scalefactor
+    size_t N;              // Number of spatial points
+    size_t M;              // Number of wavefunctions
+    double dx;             // spatial resolution
+    double mu;             // phase space resolution
 };
 
 struct SimState {
-    std::vector<c_vector> psi;
-    std::vector<d_vector> V;
-    double t;
-    double a;
+    c_vector psis;
+    d_vector Vs;
+    int n;     // time step number
+    double t;  // current time
+    double a;  // current scale factor
 };
 
 #endif
