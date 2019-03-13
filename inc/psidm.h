@@ -27,6 +27,7 @@ struct Parameters {
     size_t N;              // Number of spatial points
     size_t M;              // Number of wavefunctions
     double dx;             // spatial resolution
+    double L;              // box size
     double mu;             // phase space resolution
 };
 
