@@ -448,16 +448,12 @@ __pycache__/
 # ZIP Files
 *.zip
 
-#Object file folder
-src/obj/
-
 #tex file folder
 tex/Reports
 
-#data file folder
-data/
-docs/
-enzo/
+#junk folders
+script/
+debug/
 
 #dat files
 *.dat
