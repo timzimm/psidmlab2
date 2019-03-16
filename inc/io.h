@@ -3,6 +3,7 @@
 #include "common.h"
 #include "hdf5.h"
 
+// TODO Switch to H5CPP to allow for blaze vectors
 class OutputFile {
    private:
     hid_t file;
@@ -12,7 +13,9 @@ class OutputFile {
     OutputFile(const Parameters& params);
     void write(const SimState& state, const Parameters& params);
     void read(const SimState& state, const Parameters& params) const;
+
+    // Used for debugging
+    void write(const d_vector& data, const std::string& dset_name);
     ~OutputFile();
 };
-
 #endif
