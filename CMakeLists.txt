@@ -6,7 +6,7 @@ project(psiDM2 VERSION 0.1
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 
-add_executable(psidm src/main.cc src/io.cc src/common.cc)
+add_executable(psidm src/main.cc src/io.cc src/common.cc src/cosmology.cc)
 target_compile_features(psidm PUBLIC cxx_std_11)
 
 target_include_directories(psidm 
