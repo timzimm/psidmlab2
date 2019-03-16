@@ -28,12 +28,12 @@ using d_vector = std::vector<double>;
 
 struct Parameters {
     enum class IC { Spherical, GRF };
-    enum class Cosmology { Static, EDS, LCDM };
+    enum class Model { Static, EDS, LCDM };
     enum class Integrator { USOFFT, USOLW };
     std::string out_file;   // output filename
     std::string ps_file;    // powerspectrum filename
     IC ic;                  // initial condition type
-    Cosmology cosmo;        // cosmological model
+    Model cosmo;            // cosmological model
     Integrator integrator;  // integration algorithm
     double tau_start;       // initial super conformal time
     double tau_end;         // final super conformal time
@@ -42,10 +42,12 @@ struct Parameters {
     double a_end;           // final scalefactor
     size_t N;               // Number of spatial points
     size_t M;               // Number of wavefunctions
+    size_t A;               // Number of points of the scalefactor grid
     double ev_thr;          // eigenvalue threshold
     double dx;              // spatial resolution
     double L;               // box size
     double mu;              // phase space resolution
+    double omega_m0;        // matter density parameter
     boost::property_tree::ptree tree;
 
     Parameters(const std::string& filename);
