@@ -10,10 +10,10 @@ Parameters::Parameters(const std::string& filename) {
 
     // Location information
     out_file = tree.get<std::string>("General.output_file");
-    ps_file = tree.get<std::string>("General.ps_file");
+    ic_source_file = tree.get<std::string>("Initial_Conditions.source_file");
 
     // Categorical information
-    ic = static_cast<IC>(tree.get<int>("Initial_Conditions.ic_type"));
+    ic = static_cast<IC>(tree.get<int>("Initial_Conditions.ic_source"));
     cosmo = static_cast<Model>(tree.get<int>("Simulation.cosmology"));
     integrator = static_cast<Integrator>(tree.get<int>("Simulation.algorithm"));
 
@@ -30,7 +30,7 @@ Parameters::Parameters(const std::string& filename) {
     a_start = Cosmology::a_of_z(tree.get<double>("Simulation.z_start"));
 
     // inferred information
-    dx = L / (N - 1);
+    dx = L / N;
     omega_m0 =
         (cosmo == Model::EDS) ? 1 : tree.get<double>("Simulation.omega_m0");
     a_end = (cosmo == Model::Static)
