@@ -37,6 +37,8 @@ Parameters::Parameters(const std::string& filename) {
                 ? a_start
                 : Cosmology::a_of_z(tree.get<double>("Simulation.z_end"));
 }
+SimState::SimState(const Parameters& param)
+    : n(0), tau(param.tau_start), a(param.a_start), Vs(param.N) {}
 
 std::ostream& operator<<(std::ostream& stream, const Parameters& param) {
     stream << INFOTAG("Simulation Parameters") << std::endl;

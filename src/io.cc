@@ -75,7 +75,8 @@ void OutputFile::write(const SimState& state, const Parameters& params) {
     H5Gclose(state_group);
 }
 
-void OutputFile::write(const d_vector& data, const std::string& dset_name) {
+void OutputFile::write(const std::vector<double>& data,
+                       const std::string& dset_name) {
     const int rank = 1;
     hsize_t dim_data = static_cast<hsize_t>(data.size());
     auto dataspace_data = H5Screate_simple(rank, &dim_data, NULL);

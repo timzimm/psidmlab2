@@ -7,6 +7,7 @@
 #include <limits>
 #include <numeric>
 #include <string>
+#include "debugging.h"
 #include "fftw_alloc.h"
 
 ICGenerator::ICGenerator(const Parameters& param)
@@ -59,19 +60,27 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     fftw_execute(plan);
     fftw_destroy_plan(plan);
 
-    // The modulus of the Fourier coefficients are the eigenvalues of the
-    // integral operator eigenvalue problem to solve. We only care about
-    // dominant modes in the statistic mixture, hence we order all coefficients
-    // by magnitude. In fact, we also need information about the mode number n
-    // to sample from the correct harmonics later on. Therefore, we compute the
-    // permution index array that yields a sorted coefficient list.
+    // Forget about the DC mode
+    /* rho_fft.erase(rho_fft.begin()); */
 
-    std::vector<int> mode(rho_fft.size());
-    std::iota(mode.begin(), mode.end(), 0);
+    // The rescaled modulus of the Fourier coefficients are the eigenvalues
+    // of the integral operator eigenvalue problem to solve...
+    std::vector<double> eigenvalues(rho_fft.size());
+    for (int i = 0; i < rho_fft.size(); ++i)
+        eigenvalues[i] = 2.0 / data_N * abs(rho_fft[i]);
+
+    // We only care about dominant modes in the statistic mixture, hence we
+    // sort all eigenvalues by magnitude. In fact, we also need information
+    // about the mode number n to sample from the correct harmonics later on.
+    // Therefore, we compute the permutation index array that yields a sorted
+    // coefficient list.
+
+    std::vector<int> mode(rho_fft.size() - 1);
+    std::iota(mode.begin(), mode.end(), 1);
 
     // Sort in descending order of coefficient modulus
-    std::sort(mode.begin(), mode.end(), [&](const int a, const int b) {
-        return (norm(rho_fft[a]) < norm(rho_fft[b]));
+    std::sort(mode.begin(), mode.end(), [&](const int& a, const int& b) {
+        return eigenvalues[a] > eigenvalues[b];
     });
 
     int M_true;
@@ -86,44 +95,65 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     // (ii) rel_threshold > 0 -> min(M s.t. all ev >
     // ev_threshold,#fourier_modes)
     else {
+        double abs_thr = rel_threshold * eigenvalues[mode[1]];
         std::cout << INFOTAG(
                          "Determine No. of wavefunctions by given threshold")
                   << std::endl;
+        std::cout << INFOTAG("Absolut eigenvalue threshold: " << abs_thr)
+                  << std::endl;
+
         // min(..) is already taken care of.
         M_true = std::count_if(mode.begin(), mode.end(), [&](const int m) {
-            return rel_threshold * norm(rho_fft[0]) < norm(rho_fft[m]);
+            return abs_thr < eigenvalues[m];
         });
     }
 
-    std::cout << INFOTAG("Construct" << M_true << " wavefunctions")
+    // No. of wavefunction different from M_true as we still have to take the DC
+    // signal into account modeling the homogeneous background
+    M_true += (M_true % 2 == 0) ? 1 : 2;
+    state.M = M_true;
+    std::cout << INFOTAG("Construct " << M_true << " wavefunctions")
               << std::endl;
 
     // Construct initial wave functions
     // For each mode there are two equally dominant solutions namely
     // lambda(+) and lambda(i)
-    for (int m = 0; m < M_true; m += 2) {
+    for (int m = 0; m < M_true - 1; m += 2) {
+        // both solution have the same wave number
         int n = mode[m / 2];
-        std::complex<double> c = rho_fft[n];
-        double a = 2 * c.real();
-        double b = -2 * c.imag();
+        // Extract cos() and sin() coefficient from exp() coefficient
+        double a = 2.0 / data_N * rho_fft[n].real();
+        double b = -2.0 / data_N * rho_fft[n].imag();
 
-        double lambda = abs(c);
-        double normal = 1 / std::sqrt((a + lambda) * (a + lambda) + b * b);
+        double lambda = eigenvalues[n];
+        double normal = 1.0 / std::sqrt((a + lambda) * (a + lambda) + b * b);
         // Append (+)-solution
         for (int i = 0; i < N; ++i) {
             state.psis.push_back(
-                normal * ((a + lambda) * std::cos(2 * M_PI * n * dx * i / L) +
-                          b * std::sin(2 * M_PI * n * dx * i / L)));
+                normal * ((a + lambda) * std::cos(M_PI * n * dx * i / L) +
+                          b * std::sin(M_PI * n * dx * i / L)));
         }
+        state.lambda.push_back(lambda);
 
         lambda *= -1.0;
-        normal = 1 / std::sqrt((a + lambda) * (a + lambda) + b * b);
+        normal = 1.0 / std::sqrt((a + lambda) * (a + lambda) + b * b);
         // Append (-)-solution
         for (int i = 0; i < N; ++i) {
             state.psis.push_back(
-                normal * ((a + lambda) * std::cos(2 * M_PI * n * dx * i / L) +
-                          b * std::sin(2 * M_PI * n * dx * i / L)));
+                normal * ((a + lambda) * std::cos(M_PI * n * dx * i / L) +
+                          b * std::sin(M_PI * n * dx * i / L)));
         }
+        state.lambda.push_back(lambda);
     }
+    // Add constant wavefunction for background
+    for (int i = 0; i < N; ++i) {
+        state.psis.push_back(1.0);
+    }
+    state.lambda.push_back(1.0 / data_N * rho_fft[0].real());
+
+    // Test
+    for (int i = 0; i < M_true; ++i)
+        for (int n = 0; n < N; ++n)
+            state.Vs[n] += state.lambda[i] * norm(state.psis[n + i * N]);
 }
 void ICGenerator::psi_from_power(SimState& state) const {}

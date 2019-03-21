@@ -9,7 +9,7 @@ class Cosmology {
     double a_end;
     double A;
     double delta_a;
-    d_vector a_grid;
+    std::vector<double> a_grid;
     Parameters::Model model;
     double omega_m0;
     std::unordered_map<double, double> tau_a_map;

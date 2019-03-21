@@ -22,10 +22,6 @@
 #define WARNINGTAG(message) "\033[1;33m[WARNING]\033[0m " << message
 #define ERRORTAG(message) "\031[1;33m[ERROR]\033[0m " << message
 
-using complex = std::complex<double>;
-using c_vector = std::vector<complex>;
-using d_vector = std::vector<double>;
-
 struct Parameters {
     enum class IC { Density, Powerspectrum };
     enum class Model { Static, EDS, LCDM };
@@ -56,11 +52,17 @@ struct Parameters {
 std::ostream& operator<<(std::ostream& stream, const Parameters& param);
 
 struct SimState {
-    c_vector psis;
-    d_vector Vs;
     int n;       // time step number
     double tau;  // current time
     double a;    // current scale factor
+    std::vector<double> Vs;
+
+    // state = sum_i lambda_i * |psi_i><psi_i|
+    int M;
+    std::vector<std::complex<double>> psis;
+    std::vector<double> lambda;
+
+    SimState(const Parameters& param);
 };
 
 #endif

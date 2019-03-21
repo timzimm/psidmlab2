@@ -1,6 +1,7 @@
 #include <iostream>
 #include "common.h"
 #include "cosmology.h"
+#include "fftw_alloc.h"
 #include "ic.h"
 #include "io.h"
 
@@ -17,15 +18,15 @@ int main(int argc, char** argv) {
     // a(tau) and tau(a)
     Cosmology cosmo(param);
 
-    // At this point tau_end is set for the static case as specified in the ini
-    // file. This might be wrong, so let's check.
+    // At this point tau_end is set for the static case as specified in the
+    // ini file. This might be wrong, so let's check.
     if (param.cosmo != Parameters::Model::Static)
         param.tau_end = cosmo.tau_of_a(param.a_end);
 
     // Parameters are now correctly initialized. Print them.
     std::cout << param;
 
-    SimState state;
+    SimState state(param);
     ICGenerator ic(param);
     ic.generate(state);
 
@@ -33,8 +34,10 @@ int main(int argc, char** argv) {
     OutputFile file(param);
 
 #ifndef NDEBUG
+    file.write(state.Vs, "rho");
+    file.write(state.lambda, "lambda");
     std::cout << INFOTAG("Saving a(tau) to file") << std::endl;
-    d_vector tau_grid, a_values;
+    std::vector<double> tau_grid, a_values;
     double tau = param.tau_start;
     while (tau < param.tau_end) {
         tau_grid.push_back(tau);
