@@ -75,7 +75,7 @@ void OutputFile::write(const SimState& state, const Parameters& params) {
     H5Gclose(state_group);
 }
 
-void OutputFile::write(const std::vector<double>& data,
+void OutputFile::write(const blaze::DynamicVector<double>& data,
                        const std::string& dset_name) {
     const int rank = 1;
     hsize_t dim_data = static_cast<hsize_t>(data.size());

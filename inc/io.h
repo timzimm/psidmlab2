@@ -15,7 +15,8 @@ class OutputFile {
     void read(const SimState& state, const Parameters& params) const;
 
     // Used for debugging
-    void write(const std::vector<double>& data, const std::string& dset_name);
+    void write(const blaze::DynamicVector<double>& data,
+               const std::string& dset_name);
     ~OutputFile();
 };
 #endif

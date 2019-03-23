@@ -1,11 +1,12 @@
 #ifndef __COMMON__
 #define __COMMON__
+#include <blaze/DynamicMatrix.h>
+#include <blaze/DynamicVector.h>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <complex>
 #include <ostream>
 #include <string>
-#include <vector>
 
 /*This header defines all required simulation parameters as well as what we
  * consider a "simulation state" that gets passed around the code
@@ -55,12 +56,12 @@ struct SimState {
     int n;       // time step number
     double tau;  // current time
     double a;    // current scale factor
-    std::vector<double> Vs;
+    blaze::DynamicMatrix<double> Vs;
 
     // state = sum_i lambda_i * |psi_i><psi_i|
     int M;
-    std::vector<std::complex<double>> psis;
-    std::vector<double> lambda;
+    blaze::DynamicMatrix<std::complex<double>> psis;
+    blaze::DynamicVector<double> lambda;
 
     SimState(const Parameters& param);
 };

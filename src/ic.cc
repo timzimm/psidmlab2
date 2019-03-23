@@ -1,4 +1,5 @@
 #include "ic.h"
+#include <blaze/Blaze.h>
 #include <fftw3.h>
 #include <algorithm>
 #include <cmath>
@@ -8,7 +9,6 @@
 #include <numeric>
 #include <string>
 #include "debugging.h"
-#include "fftw_alloc.h"
 
 ICGenerator::ICGenerator(const Parameters& param)
     : type(param.ic),
@@ -43,10 +43,11 @@ void ICGenerator::generate(SimState& state) const {
 }
 
 void ICGenerator::psi_from_rho(SimState& state) const {
+    using namespace blaze;
+
     // Read in density data from file
-    std::vector<double, FFTWAlloc<double>> rho(data_N);
-    std::vector<std::complex<double>, FFTWAlloc<std::complex<double>>> rho_fft(
-        data_N / 2 + 1);
+    DynamicVector<double> rho(data_N);
+    DynamicVector<std::complex<double>> rho_fft(data_N / 2 + 1);
     for (int i = 0; i < data_N; ++i) {
         ic_file >> rho[i] >> rho[i];
         if (!ic_file) break;
@@ -60,64 +61,104 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     fftw_execute(plan);
     fftw_destroy_plan(plan);
 
-    // Forget about the DC mode
-    /* rho_fft.erase(rho_fft.begin()); */
-
-    // The rescaled modulus of the Fourier coefficients are the eigenvalues
-    // of the integral operator eigenvalue problem to solve...
-    std::vector<double> eigenvalues(rho_fft.size());
-    for (int i = 0; i < rho_fft.size(); ++i)
-        eigenvalues[i] = 2.0 / data_N * abs(rho_fft[i]);
-
     // We only care about dominant modes in the statistic mixture, hence we
-    // sort all eigenvalues by magnitude. In fact, we also need information
-    // about the mode number n to sample from the correct harmonics later on.
-    // Therefore, we compute the permutation index array that yields a sorted
-    // coefficient list.
-
-    std::vector<int> mode(rho_fft.size() - 1);
+    // sort all eigenvalues, the modulus of the fourier coefficients, by
+    // magnitude. In fact, we also need information about the mode number n to
+    // sample from the correct harmonics later on. Therefore, we compute the
+    // permutation index array that yields a sorted coefficient list.
+    DynamicVector<int> mode(rho_fft.size() - 1);
     std::iota(mode.begin(), mode.end(), 1);
 
-    // Sort in descending order of coefficient modulus
+    // Construct the permuatation/mode-number vector
     std::sort(mode.begin(), mode.end(), [&](const int& a, const int& b) {
-        return eigenvalues[a] > eigenvalues[b];
+        return norm(rho_fft[a]) > norm(rho_fft[b]);
     });
 
+    // Sort the actual coefficient vector according to the permutation
+    auto rho_fft_sorted = elements(rho_fft, mode.data(), mode.size());
+
+    // Determine dominant modes by threshold or max number of wavefunctions
     int M_true;
-    // Deduce operation type...
-    // (i) rel_threshold <= 0 -> min(M, #fourier_modes)
+    // (i) rel_threshold <= 0 -> min(M, 2 * #fourier_modes)
     if (rel_threshold <= 0) {
         std::cout << INFOTAG("Determine No. of wavefunctions by fiven M")
                   << std::endl;
-        M_true = std::min(M, static_cast<int>(rho_fft.size()));
+        M_true = std::min(M, 2 * static_cast<int>(rho_fft_sorted.size()));
+        M_true += (M_true % 2 == 0) ? 0 : 1;
     }
 
     // (ii) rel_threshold > 0 -> min(M s.t. all ev >
     // ev_threshold,#fourier_modes)
     else {
-        double abs_thr = rel_threshold * eigenvalues[mode[1]];
+        double abs_thr = rel_threshold * std::norm(rho_fft_sorted[0]);
         std::cout << INFOTAG(
                          "Determine No. of wavefunctions by given threshold")
                   << std::endl;
-        std::cout << INFOTAG("Absolut eigenvalue threshold: " << abs_thr)
+        std::cout << INFOTAG("Absolut coefficient threshold: " << abs_thr)
                   << std::endl;
 
         // min(..) is already taken care of.
-        M_true = std::count_if(mode.begin(), mode.end(), [&](const int m) {
-            return abs_thr < eigenvalues[m];
-        });
-    }
+        M_true = std::count_if(rho_fft_sorted.begin(), rho_fft_sorted.end(),
+                               [&](const std::complex<double>& c) {
+                                   return abs_thr < std::norm(c);
+                               });
 
+        M_true *= 2;
+    }
     // No. of wavefunction different from M_true as we still have to take the DC
     // signal into account modeling the homogeneous background
-    M_true += (M_true % 2 == 0) ? 1 : 2;
-    state.M = M_true;
+    M_true += 1;
+
+    // No .of wavefuntions with the same eigenvalue sign
+    double M_half = (M_true - 1) / 2.0;
+
     std::cout << INFOTAG("Construct " << M_true << " wavefunctions")
               << std::endl;
 
-    // Construct initial wave functions
-    // For each mode there are two equally dominant solutions namely
-    // lambda(+) and lambda(i)
+    // At this point the matrix sizes for psi and V are clear. Set them.
+    state.M = M_true;
+    state.psis.resize(M_true, N);
+    state.Vs.resize(M_true, N);
+    state.lambda.resize(M_true);
+
+    // Discard all irrelvant Fourier coefficients and modes
+    auto rho_fft_trunc = subvector(rho_fft_sorted, 0, M_half);
+    auto mode_trunc = subvector(mode, 0, M_half);
+
+    // The rescaled modulus of the Fourier coefficients are the eigenvalues
+    // of the integral operator eigenvalue problem to solve.
+    auto lambda_plus = subvector(state.lambda, 0, M_half);
+    auto lambda_minus = subvector(state.lambda, M_half, M_half);
+    lambda_plus = 2.0 / data_N * abs(rho_fft_trunc);
+    lambda_minus = -2.0 / data_N * abs(rho_fft_trunc);
+    state.lambda[M_true - 1] = 1.0 / data_N * rho_fft[0].real();
+
+    // DC mode wavefunction is trivial
+    row(state.psis, M_true - 1) = 1.0;
+
+    // Equidistant x grid
+    DynamicVector<double, rowVector> x(N);
+    for (int i = 0; i < N; ++i) x[i] = dx * i;
+
+    // Cosinus coefficients
+    DiagonalMatrix<DynamicMatrix<double>> alpha(M_half, M_half);
+    // Sinus coefficients
+    DiagonalMatrix<DynamicMatrix<double>> beta(M_half, M_half);
+
+    for (int i = 0; i < 2; ++i) {
+        auto lambda = subvector(state.lambda, M_half * i, M_half);
+        auto psi = submatrix(state.psis, M_half * i, 0, M_half, N);
+        diagonal(alpha) = 2.0 / data_N * blaze::real(rho_fft_trunc) + lambda;
+        diagonal(beta) = -2.0 / data_N * blaze::imag(rho_fft_trunc);
+
+        // Normalization - decldiag() ???
+        auto N = blaze::invsqrt(alpha * alpha + beta * beta);
+
+        // Construct initial wave functions
+        psi = N * (alpha * blaze::cos(M_PI / L * mode_trunc * x) +
+                   beta * blaze::sin(M_PI / L * mode_trunc * x));
+    }
+
     for (int m = 0; m < M_true - 1; m += 2) {
         // both solution have the same wave number
         int n = mode[m / 2];
