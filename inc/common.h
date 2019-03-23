@@ -1,7 +1,8 @@
 #ifndef __COMMON__
 #define __COMMON__
-#include <blaze/DynamicMatrix.h>
-#include <blaze/DynamicVector.h>
+#include <blaze/math/DiagonalMatrix.h>
+#include <blaze/math/DynamicMatrix.h>
+#include <blaze/math/DynamicVector.h>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <complex>
@@ -61,7 +62,7 @@ struct SimState {
     // state = sum_i lambda_i * |psi_i><psi_i|
     int M;
     blaze::DynamicMatrix<std::complex<double>> psis;
-    blaze::DynamicVector<double> lambda;
+    blaze::DiagonalMatrix<blaze::DynamicMatrix<double>> lambda;
 
     SimState(const Parameters& param);
 };
