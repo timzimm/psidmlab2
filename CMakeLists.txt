@@ -9,6 +9,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 find_package(FFTW REQUIRED)
+find_package(blaze REQUIRED)
 
 # # Create target for FFTW
 # message(STATUS "${FFTW_LIBRARIES}")
@@ -38,5 +39,5 @@ target_include_directories(psidm
             inc
 )
 
-target_link_libraries(psidm ${HDF5_C_LIBRARIES} ${FFTW_LIBRARIES})
+target_link_libraries(psidm ${HDF5_C_LIBRARIES} ${FFTW_LIBRARIES} blaze::blaze)
 
