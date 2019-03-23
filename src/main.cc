@@ -1,3 +1,4 @@
+#include <blaze/math/Row.h>
 #include <iostream>
 #include "common.h"
 #include "cosmology.h"
@@ -34,18 +35,18 @@ int main(int argc, char** argv) {
     OutputFile file(param);
 
 #ifndef NDEBUG
-    file.write(state.Vs, "rho");
-    file.write(state.lambda, "lambda");
-    std::cout << INFOTAG("Saving a(tau) to file") << std::endl;
-    std::vector<double> tau_grid, a_values;
-    double tau = param.tau_start;
-    while (tau < param.tau_end) {
-        tau_grid.push_back(tau);
-        a_values.push_back(cosmo.a_of_tau(tau));
-        tau += param.dtau;
-    }
-    file.write(tau_grid, "tau");
-    file.write(a_values, "a_of_tau");
+    file.write(blaze::trans(blaze::row(state.Vs, 0)), "rho");
+    /* file.write(state.lambda, "lambda"); */
+    /* std::cout << INFOTAG("Saving a(tau) to file") << std::endl; */
+    /* std::vector<double> tau_grid, a_values; */
+    /* double tau = param.tau_start; */
+    /* while (tau < param.tau_end) { */
+    /*     tau_grid.push_back(tau); */
+    /*     a_values.push_back(cosmo.a_of_tau(tau)); */
+    /*     tau += param.dtau; */
+    /* } */
+    /* file.write(tau_grid, "tau"); */
+    /* file.write(a_values, "a_of_tau"); */
 #endif
 
     return 0;

@@ -1,13 +1,15 @@
 #include "ic.h"
-#include <blaze/Blaze.h>
+#include <blaze/math/Band.h>
+#include <blaze/math/DiagonalMatrix.h>
+#include <blaze/math/Elements.h>
+#include <blaze/math/Row.h>
+#include <blaze/math/Submatrix.h>
 #include <fftw3.h>
 #include <algorithm>
 #include <cmath>
-#include <complex>
 #include <iostream>
 #include <limits>
 #include <numeric>
-#include <string>
 #include "debugging.h"
 
 ICGenerator::ICGenerator(const Parameters& param)
@@ -19,10 +21,9 @@ ICGenerator::ICGenerator(const Parameters& param)
       rel_threshold(param.ev_thr),
       source_name(param.ic_source_file),
       ic_file(source_name) {
-    // Altpugh the input file format is generic for rho and powerspectrum
+    // Altough the input file format is generic for rho and powerspectrum
     // type initial conditions, we leave the exact way of parsing the data to
-    // the generator routines to allow for specialized malloc's such as done by
-    // FFTW3. Here, we only discard the file header and count lines
+    // the generator routines to allow for specialized malloc's.
     ic_file.ignore(std::numeric_limits<int>::max(), '\n');
 
     // Number of lines
@@ -110,7 +111,7 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     M_true += 1;
 
     // No .of wavefuntions with the same eigenvalue sign
-    double M_half = (M_true - 1) / 2.0;
+    int M_half = (M_true - 1) / 2;
 
     std::cout << INFOTAG("Construct " << M_true << " wavefunctions")
               << std::endl;
@@ -119,7 +120,7 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     state.M = M_true;
     state.psis.resize(M_true, N);
     state.Vs.resize(M_true, N);
-    state.lambda.resize(M_true);
+    state.lambda.resize(M_true, M_true);
 
     // Discard all irrelvant Fourier coefficients and modes
     auto rho_fft_trunc = subvector(rho_fft_sorted, 0, M_half);
@@ -127,11 +128,12 @@ void ICGenerator::psi_from_rho(SimState& state) const {
 
     // The rescaled modulus of the Fourier coefficients are the eigenvalues
     // of the integral operator eigenvalue problem to solve.
-    auto lambda_plus = subvector(state.lambda, 0, M_half);
-    auto lambda_minus = subvector(state.lambda, M_half, M_half);
+    auto lambdas = diagonal(state.lambda);
+    auto lambda_plus = subvector(lambdas, 0, M_half);
+    auto lambda_minus = subvector(lambdas, M_half, M_half);
     lambda_plus = 2.0 / data_N * abs(rho_fft_trunc);
     lambda_minus = -2.0 / data_N * abs(rho_fft_trunc);
-    state.lambda[M_true - 1] = 1.0 / data_N * rho_fft[0].real();
+    lambdas[M_true - 1] = 1.0 / data_N * rho_fft[0].real();
 
     // DC mode wavefunction is trivial
     row(state.psis, M_true - 1) = 1.0;
@@ -146,55 +148,19 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     DiagonalMatrix<DynamicMatrix<double>> beta(M_half, M_half);
 
     for (int i = 0; i < 2; ++i) {
-        auto lambda = subvector(state.lambda, M_half * i, M_half);
+        auto lambda = subvector(lambdas, M_half * i, M_half);
         auto psi = submatrix(state.psis, M_half * i, 0, M_half, N);
-        diagonal(alpha) = 2.0 / data_N * blaze::real(rho_fft_trunc) + lambda;
-        diagonal(beta) = -2.0 / data_N * blaze::imag(rho_fft_trunc);
+        diagonal(alpha) = 2.0 / data_N * real(rho_fft_trunc) + lambda;
+        diagonal(beta) = -2.0 / data_N * imag(rho_fft_trunc);
 
-        // Normalization - decldiag() ???
-        auto N = blaze::invsqrt(alpha * alpha + beta * beta);
+        // Normalization
+        auto N = decldiag(invsqrt(alpha * alpha + beta * beta));
 
         // Construct initial wave functions
-        psi = N * (alpha * blaze::cos(M_PI / L * mode_trunc * x) +
-                   beta * blaze::sin(M_PI / L * mode_trunc * x));
+        psi = N * (alpha * cos(M_PI / L * mode_trunc * x) +
+                   beta * sin(M_PI / L * mode_trunc * x));
     }
 
-    for (int m = 0; m < M_true - 1; m += 2) {
-        // both solution have the same wave number
-        int n = mode[m / 2];
-        // Extract cos() and sin() coefficient from exp() coefficient
-        double a = 2.0 / data_N * rho_fft[n].real();
-        double b = -2.0 / data_N * rho_fft[n].imag();
-
-        double lambda = eigenvalues[n];
-        double normal = 1.0 / std::sqrt((a + lambda) * (a + lambda) + b * b);
-        // Append (+)-solution
-        for (int i = 0; i < N; ++i) {
-            state.psis.push_back(
-                normal * ((a + lambda) * std::cos(M_PI * n * dx * i / L) +
-                          b * std::sin(M_PI * n * dx * i / L)));
-        }
-        state.lambda.push_back(lambda);
-
-        lambda *= -1.0;
-        normal = 1.0 / std::sqrt((a + lambda) * (a + lambda) + b * b);
-        // Append (-)-solution
-        for (int i = 0; i < N; ++i) {
-            state.psis.push_back(
-                normal * ((a + lambda) * std::cos(M_PI * n * dx * i / L) +
-                          b * std::sin(M_PI * n * dx * i / L)));
-        }
-        state.lambda.push_back(lambda);
-    }
-    // Add constant wavefunction for background
-    for (int i = 0; i < N; ++i) {
-        state.psis.push_back(1.0);
-    }
-    state.lambda.push_back(1.0 / data_N * rho_fft[0].real());
-
-    // Test
-    for (int i = 0; i < M_true; ++i)
-        for (int n = 0; n < N; ++n)
-            state.Vs[n] += state.lambda[i] * norm(state.psis[n + i * N]);
+    // Generate Initial Potentials
 }
 void ICGenerator::psi_from_power(SimState& state) const {}
