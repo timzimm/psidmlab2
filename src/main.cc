@@ -1,10 +1,12 @@
 #include <blaze/math/Row.h>
 #include <iostream>
+#include <memory>
 #include "common.h"
 #include "cosmology.h"
 #include "fftw_alloc.h"
 #include "ic.h"
 #include "io.h"
+#include "poisson_solver.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -28,6 +30,7 @@ int main(int argc, char** argv) {
     std::cout << param;
 
     SimState state(param);
+
     ICGenerator ic(param);
     ic.generate(state);
 
@@ -35,7 +38,30 @@ int main(int argc, char** argv) {
     OutputFile file(param);
 
 #ifndef NDEBUG
-    file.write(blaze::trans(blaze::row(state.Vs, 0)), "rho");
+    /* file.write(blaze::trans(blaze::row(state.Vs, 0)), "rho"); */
+
+    // Poisson Solver Test
+    param.N = 256;
+    param.L = 2 * M_PI;
+    param.dx = param.L / param.N;
+    blaze::DynamicVector<double, blaze::rowVector> source(param.N);
+
+    std::unique_ptr<Solvers::Poisson> poisson =
+        std::make_unique<Solvers::FFT>(param);
+    for (int j = 0; j < 10; ++j) {
+        double delta = param.L / 20 * j;
+        for (int i = 0; i < source.size(); ++i)
+            source[i] = delta + param.dx * i;
+        source = blaze::cos(source);
+        blaze::subvector(source, 10, 20) = 1;
+        blaze::row(state.Vs, 2 * j) = source;
+        blaze::row(state.Vs, 2 * j + 1) = poisson->solve(source);
+        std::string sou = std::string("source") + std::to_string(j);
+        std::string rho = std::string("rho") + std::to_string(j);
+        file.write(blaze::trans(blaze::row(state.Vs, 2 * j)), sou);
+        file.write(blaze::trans(blaze::row(state.Vs, 2 * j + 1)), rho);
+    }
+
     /* file.write(state.lambda, "lambda"); */
     /* std::cout << INFOTAG("Saving a(tau) to file") << std::endl; */
     /* std::vector<double> tau_grid, a_values; */

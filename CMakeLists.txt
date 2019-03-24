@@ -28,6 +28,7 @@ add_executable(psidm
     src/common.cc 
     src/cosmology.cc
     src/ic.cc
+    src/fft_poisson.cc
 )
 
 target_compile_features(psidm PUBLIC cxx_std_11)
