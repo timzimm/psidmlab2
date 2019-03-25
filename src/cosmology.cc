@@ -10,13 +10,13 @@ double Cosmology::a_of_z(const double z) { return 1.0 / (z + 1); }
 double Cosmology::E(const double a) const {
     double E;
     switch (model) {
-        case Parameters::Model::Static:
+        case CosmoModel::Static:
             E = sqrt(omega_m0);
             break;
-        case Parameters::Model::EDS:
+        case CosmoModel::EDS:
             E = sqrt(omega_m0 / (a * a * a));
             break;
-        case Parameters::Model::LCDM:
+        case CosmoModel::LCDM:
             E = sqrt(omega_m0 / (a * a * a) + (1 - omega_m0));
             break;
     }
@@ -41,7 +41,7 @@ Cosmology::Cosmology(const Parameters& param)
     // tau increases strictly monotone so our time parameter can be interpreted
     // as a proper time.
 
-    if (model != Parameters::Model::Static) {
+    if (model != CosmoModel::Static) {
         double tau = 0;
         double a = a_start;
         for (int j = 0; j < A; j++) {
@@ -82,7 +82,7 @@ double Cosmology::tau_of_a(const double a) const {
 double Cosmology::a_of_tau(double tau) const {
     using namespace boost::math::tools;
 
-    if (model == Parameters::Model::Static) return a_start;
+    if (model == CosmoModel::Static) return a_start;
 
     // Simulation start
     if (tau <= tau_a_map.at(a_grid[0])) return a_start;

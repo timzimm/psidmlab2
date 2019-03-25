@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include "common.h"
 
+enum class CosmoModel { Static, EDS, LCDM };
+
 class Cosmology {
    private:
     double a_start;
@@ -10,7 +12,7 @@ class Cosmology {
     double A;
     double delta_a;
     std::vector<double> a_grid;
-    Parameters::Model model;
+    CosmoModel model;
     double omega_m0;
     std::unordered_map<double, double> tau_a_map;
 

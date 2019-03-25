@@ -2,12 +2,16 @@
 #define __IC__
 
 #include <fstream>
+#include <memory>
 #include <string>
 #include "common.h"
+#include "poisson_solver.h"
+
+enum class ICType { Density, Powerspectrum };
 
 class ICGenerator {
    private:
-    Parameters::IC type;
+    ICType type;
     int N;
     double dx;
     double L;
@@ -16,6 +20,7 @@ class ICGenerator {
     std::string source_name;
     mutable std::ifstream ic_file;
     int data_N;
+    std::unique_ptr<Poisson::Solver> poisson;
 
     void psi_from_rho(SimState& state) const;
     void psi_from_power(SimState& state) const;

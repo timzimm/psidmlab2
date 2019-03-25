@@ -1,8 +1,8 @@
 #include "common.h"
 #include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <iomanip>
 #include "cosmology.h"
+#include "poisson_solver.h"
 
 Parameters::Parameters(const std::string& filename) {
     namespace pt = boost::property_tree;
@@ -13,9 +13,12 @@ Parameters::Parameters(const std::string& filename) {
     ic_source_file = tree.get<std::string>("Initial_Conditions.source_file");
 
     // Categorical information
-    ic = static_cast<IC>(tree.get<int>("Initial_Conditions.ic_source"));
-    cosmo = static_cast<Model>(tree.get<int>("Simulation.cosmology"));
-    integrator = static_cast<Integrator>(tree.get<int>("Simulation.algorithm"));
+    ic = static_cast<ICType>(tree.get<int>("Initial_Conditions.ic_source"));
+    cosmo = static_cast<CosmoModel>(tree.get<int>("Simulation.cosmology"));
+    integrator =
+        static_cast<Integrator>(tree.get<int>("Simulation.integrator"));
+    psolver =
+        static_cast<Poisson::Type>(tree.get<int>("Simulation.poisson_solver"));
 
     // Numerical information
     mu = tree.get<double>("Simulation.mu");
@@ -31,9 +34,10 @@ Parameters::Parameters(const std::string& filename) {
 
     // inferred information
     dx = L / N;
-    omega_m0 =
-        (cosmo == Model::EDS) ? 1 : tree.get<double>("Simulation.omega_m0");
-    a_end = (cosmo == Model::Static)
+    omega_m0 = (cosmo == CosmoModel::EDS)
+                   ? 1
+                   : tree.get<double>("Simulation.omega_m0");
+    a_end = (cosmo == CosmoModel::Static)
                 ? a_start
                 : Cosmology::a_of_z(tree.get<double>("Simulation.z_end"));
 }

@@ -1,5 +1,6 @@
 #include "ic.h"
 #include <blaze/math/Band.h>
+#include <blaze/math/CompressedMatrix.h>
 #include <blaze/math/DiagonalMatrix.h>
 #include <blaze/math/Elements.h>
 #include <blaze/math/Row.h>
@@ -20,10 +21,11 @@ ICGenerator::ICGenerator(const Parameters& param)
       M(param.M),
       rel_threshold(param.ev_thr),
       source_name(param.ic_source_file),
-      ic_file(source_name) {
+      ic_file(source_name),
+      poisson(Poisson::Factory::create(param.psolver, param)) {
     // Altough the input file format is generic for rho and powerspectrum
-    // type initial conditions, we leave the exact way of parsing the data to
-    // the generator routines to allow for specialized malloc's.
+    // type initial conditions, we leave the exact way of parsing the data
+    // to the generator routines to allow for specialized malloc's.
     ic_file.ignore(std::numeric_limits<int>::max(), '\n');
 
     // Number of lines
@@ -37,7 +39,7 @@ ICGenerator::ICGenerator(const Parameters& param)
 // Dispatches the correct generator routine depending on
 // Parameters::IC parameter at runtime
 void ICGenerator::generate(SimState& state) const {
-    if (type == Parameters::IC::Density)
+    if (type == ICType::Density)
         psi_from_rho(state);
     else
         psi_from_power(state);
@@ -54,6 +56,7 @@ void ICGenerator::psi_from_rho(SimState& state) const {
         if (!ic_file) break;
     }
 
+    // TODO Move into constructor
     // Compute FFT to obtain coefficients for the expansion of rho in
     // harmonic base functions
     auto plan = fftw_plan_dft_r2c_1d(
@@ -64,9 +67,9 @@ void ICGenerator::psi_from_rho(SimState& state) const {
 
     // We only care about dominant modes in the statistic mixture, hence we
     // sort all eigenvalues, the modulus of the fourier coefficients, by
-    // magnitude. In fact, we also need information about the mode number n to
-    // sample from the correct harmonics later on. Therefore, we compute the
-    // permutation index array that yields a sorted coefficient list.
+    // magnitude. In fact, we also need information about the mode number n
+    // to sample from the correct harmonics later on. Therefore, we compute
+    // the permutation index array that yields a sorted coefficient list.
     DynamicVector<int> mode(rho_fft.size() - 1);
     std::iota(mode.begin(), mode.end(), 1);
 
@@ -106,12 +109,9 @@ void ICGenerator::psi_from_rho(SimState& state) const {
 
         M_true *= 2;
     }
-    // No. of wavefunction different from M_true as we still have to take the DC
-    // signal into account modeling the homogeneous background
-    M_true += 1;
 
     // No .of wavefuntions with the same eigenvalue sign
-    int M_half = (M_true - 1) / 2;
+    int M_half = M_true / 2;
 
     std::cout << INFOTAG("Construct " << M_true << " wavefunctions")
               << std::endl;
@@ -119,7 +119,8 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     // At this point the matrix sizes for psi and V are clear. Set them.
     state.M = M_true;
     state.psis.resize(M_true, N);
-    state.Vs.resize(M_true, N);
+    state.V.resize(N);
+    state.rho_bg.resize(N);
     state.lambda.resize(M_true, M_true);
 
     // Discard all irrelvant Fourier coefficients and modes
@@ -133,15 +134,18 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     auto lambda_minus = subvector(lambdas, M_half, M_half);
     lambda_plus = 2.0 / data_N * abs(rho_fft_trunc);
     lambda_minus = -2.0 / data_N * abs(rho_fft_trunc);
-    lambdas[M_true - 1] = 1.0 / data_N * rho_fft[0].real();
+
+    // DC mode represents the homogenous background
+    state.rho_bg = 1.0 / data_N * rho_fft[0].real();
 
     // DC mode wavefunction is trivial
-    row(state.psis, M_true - 1) = 1.0;
+    auto psi_bg = row(state.psis, M_true - 1) = 1.0;
 
     // Equidistant x grid
     DynamicVector<double, rowVector> x(N);
     for (int i = 0; i < N; ++i) x[i] = dx * i;
 
+    // TODO switch to Sparse Matrix ?
     // Cosinus coefficients
     DiagonalMatrix<DynamicMatrix<double>> alpha(M_half, M_half);
     // Sinus coefficients
@@ -155,12 +159,16 @@ void ICGenerator::psi_from_rho(SimState& state) const {
 
         // Normalization
         auto N = decldiag(invsqrt(alpha * alpha + beta * beta));
+        std::cout << l2Norm(diagonal(N)) << std::endl;
 
         // Construct initial wave functions
         psi = N * (alpha * cos(M_PI / L * mode_trunc * x) +
                    beta * sin(M_PI / L * mode_trunc * x));
     }
 
-    // Generate Initial Potentials
+    // Generate Initial Potential
+    auto psi2 = real(state.psis % state.psis);
+    auto source = sum<columnwise>(state.lambda * psi2);
+    state.V = poisson->solve(source);
 }
 void ICGenerator::psi_from_power(SimState& state) const {}

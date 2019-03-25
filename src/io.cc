@@ -47,28 +47,28 @@ void OutputFile::write(const SimState& state, const Parameters& params) {
     H5Awrite(attr_time, H5T_NATIVE_DOUBLE, &attr_buffer);
 
     // Step 3: Create new datasets in n_group
-    // Dataspace is the same for psis and Vs. The only difference is the
-    // datatype
     const int rank = 2;
-    hsize_t dim_psiVs[] = {params.M, params.N};
-    auto dataspace_psiVs = H5Screate_simple(rank, dim_psiVs, NULL);
-
-    auto ds_Vs = H5Dcreate(n_group, "Vs", H5T_NATIVE_DOUBLE, dataspace_psiVs,
-                           H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-    auto ds_psis = H5Dcreate(n_group, "psis", complex_type, dataspace_psiVs,
+    hsize_t dim_psis[] = {params.M, params.N};
+    auto dataspace_psis = H5Screate_simple(rank, dim_psis, NULL);
+    auto ds_psis = H5Dcreate(n_group, "psis", H5T_NATIVE_DOUBLE, dataspace_psis,
                              H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
+    hsize_t dim_V = params.N;
+    auto dataspace_V = H5Screate_simple(1, &dim_V, NULL);
+    auto ds_V = H5Dcreate(n_group, "V", H5T_NATIVE_DOUBLE, dataspace_V,
+                          H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
     // Write to file
-    H5Dwrite(ds_Vs, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-             state.Vs.data());
+    H5Dwrite(ds_V, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+             state.V.data());
     H5Dwrite(ds_psis, complex_type, H5S_ALL, H5S_ALL, H5P_DEFAULT,
              state.psis.data());
 
     // Close all file handles (dataspaces, sets, attributes)
-    H5Dclose(ds_Vs);
-    H5Sclose(dataspace_psiVs);
+    H5Sclose(dataspace_psis);
+    H5Sclose(dataspace_V);
     H5Sclose(dataspace_attr);
+    H5Dclose(ds_V);
     H5Dclose(ds_psis);
     H5Aclose(attr_time);
     H5Gclose(n_group);
