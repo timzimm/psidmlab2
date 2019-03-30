@@ -5,6 +5,7 @@
 #include "cosmology.h"
 #include "ic.h"
 #include "io.h"
+#include "schroedinger.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -35,12 +36,15 @@ int main(int argc, char** argv) {
     // Setup HDF5 file
     OutputFile file(param);
 
+    auto stepper = Schroedinger::Factory::create(
+        Schroedinger::AlgorithmType::USO_DKD, param);
+
 #ifndef NDEBUG
     /* auto psi = blaze::row(state.psis, 1); */
     /* auto psi_source = blaze::real(psi); */
     /* file.write(blaze::trans(psi_source), "psi2"); */
 
-    file.write(blaze::trans(state.V), "V");
+    file.write(state.V, "V");
     /* std::cout << INFOTAG("Saving a(tau) to file") << std::endl; */
     /* std::vector<double> tau_grid, a_values; */
     /* double tau = param.tau_start; */

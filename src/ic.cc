@@ -11,7 +11,6 @@
 #include <iostream>
 #include <limits>
 #include <numeric>
-#include "debugging.h"
 
 ICGenerator::ICGenerator(const Parameters& param)
     : type(param.ic),
@@ -22,7 +21,8 @@ ICGenerator::ICGenerator(const Parameters& param)
       rel_threshold(param.ev_thr),
       source_name(param.ic_source_file),
       ic_file(source_name),
-      poisson(Poisson::Factory::create(param.psolver, param)) {
+      potential(Potential::Factory::create(
+          Potential::AlgorithmType::Poisson_FFT, param)) {
     // Altough the input file format is generic for rho and powerspectrum
     // type initial conditions, we leave the exact way of parsing the data
     // to the generator routines to allow for specialized malloc's.
@@ -120,7 +120,6 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     state.M = M_true;
     state.psis.resize(M_true, N);
     state.V.resize(N);
-    state.rho_bg.resize(N);
     state.lambda.resize(M_true, M_true);
 
     // Discard all irrelvant Fourier coefficients and modes
@@ -134,12 +133,6 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     auto lambda_minus = subvector(lambdas, M_half, M_half);
     lambda_plus = 2.0 / data_N * abs(rho_fft_trunc);
     lambda_minus = -2.0 / data_N * abs(rho_fft_trunc);
-
-    // DC mode represents the homogenous background
-    state.rho_bg = 1.0 / data_N * rho_fft[0].real();
-
-    // DC mode wavefunction is trivial
-    auto psi_bg = row(state.psis, M_true - 1) = 1.0;
 
     // Equidistant x grid
     DynamicVector<double, rowVector> x(N);
@@ -159,16 +152,15 @@ void ICGenerator::psi_from_rho(SimState& state) const {
 
         // Normalization
         auto N = decldiag(invsqrt(alpha * alpha + beta * beta));
-        std::cout << l2Norm(diagonal(N)) << std::endl;
 
         // Construct initial wave functions
         psi = N * (alpha * cos(M_PI / L * mode_trunc * x) +
                    beta * sin(M_PI / L * mode_trunc * x));
     }
 
-    // Generate Initial Potential
-    auto psi2 = real(state.psis % state.psis);
-    auto source = sum<columnwise>(state.lambda * psi2);
-    state.V = poisson->solve(source);
+    // Construct initial potential
+    (*potential)(state);
 }
+
+// TODO implement power spectrum initial conditions.
 void ICGenerator::psi_from_power(SimState& state) const {}

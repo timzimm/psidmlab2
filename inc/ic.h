@@ -5,8 +5,9 @@
 #include <memory>
 #include <string>
 #include "common.h"
-#include "poisson_solver.h"
+#include "potential.h"
 
+// Forward Declarations
 enum class ICType { Density, Powerspectrum };
 
 class ICGenerator {
@@ -19,8 +20,8 @@ class ICGenerator {
     double rel_threshold;
     std::string source_name;
     mutable std::ifstream ic_file;
+    std::unique_ptr<Potential::Algorithm> potential;
     int data_N;
-    std::unique_ptr<Poisson::Solver> poisson;
 
     void psi_from_rho(SimState& state) const;
     void psi_from_power(SimState& state) const;

@@ -28,7 +28,9 @@ add_executable(psidm
     src/common.cc 
     src/cosmology.cc
     src/ic.cc
-    src/fft_poisson.cc
+    src/potential/poisson/fft.cc
+    src/schroedinger/uso_dkd.cc
+    src/schroedinger/uso_kdk.cc
 )
 
 target_compile_features(psidm PUBLIC cxx_std_11)
@@ -38,6 +40,7 @@ target_include_directories(psidm
             ${Boost_INCLUDE_DIRS} 
             ${FFTW_INCLUDE_DIRS} 
             inc
+            inc/schroedinger
 )
 
 target_link_libraries(psidm ${HDF5_C_LIBRARIES} ${FFTW_LIBRARIES} blaze::blaze)

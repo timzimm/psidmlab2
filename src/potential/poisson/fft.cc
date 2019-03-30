@@ -1,13 +1,12 @@
 #include <cassert>
-#include <complex>
-#include <iostream>
-#include <memory>
-#include "poisson_solver.h"
+#include "common.h"
+#include "potential.h"
 
-namespace Poisson {
+namespace Potential::Poisson {
 FFT::FFT(const Parameters& p)
-    : N(p.N), L(p.L), potential(N), fft(N / 2 + 1), inv_k_sq(N / 2 + 1) {
-    RRV source_dummy(N), potential_dummy(N);
+    : N(p.N), L(p.L), fft(N / 2 + 1), inv_k_sq(N / 2 + 1) {
+    RRV source_dummy(N);
+    RCV potential_dummy(N);
     forwards = fftw_plan_dft_r2c_1d(N, source_dummy.data(),
                                     reinterpret_cast<fftw_complex*>(fft.data()),
                                     FFTW_ESTIMATE);
@@ -15,7 +14,7 @@ FFT::FFT(const Parameters& p)
         fftw_plan_dft_c2r_1d(N, reinterpret_cast<fftw_complex*>(fft.data()),
                              potential_dummy.data(), FFTW_ESTIMATE);
 
-    auto diag = diagonal(inv_k_sq);
+    auto diag = blaze::diagonal(inv_k_sq);
     for (int k = 1; k < N / 2 + 1; ++k)
         diag[k] = -L * L / (4 * M_PI * M_PI * N) / (k * k);
     // makes the DC constraint manifest
@@ -27,17 +26,17 @@ FFT::~FFT() {
     fftw_destroy_plan(backwards);
 }
 
-FFT::RRV FFT::solve(const RRV& source) {
-    assert(source.size() == N);
-    RRV potential(N);
+void FFT::operator()(SimState& state) {
+    // Calculate source term
+    auto psi2 = blaze::real(state.psis % state.psis);
+    RRV source = blaze::sum<blaze::columnwise>(state.lambda * psi2);
+
     // fftw_execute_dft_r2c and its inverse are applicable in this situation
     // because blaze takes care of proper alignment
-    fftw_execute_dft_r2c(
-        forwards, const_cast<double*>(source.data()),  // AHHHHHHHHHHHHHHHHH
-        reinterpret_cast<fftw_complex*>(fft.data()));
+    fftw_execute_dft_r2c(forwards, source.data(),
+                         reinterpret_cast<fftw_complex*>(fft.data()));
 
     // Check if the DC constrained is satisfied
-    std::cout << std::abs(fft[0]) << std::endl;
     assert(std::abs(fft[0]) < epsilon);
 
     // Compute fourier coefficients of the potential
@@ -45,9 +44,6 @@ FFT::RRV FFT::solve(const RRV& source) {
 
     // Get potential by applying the IFFT
     fftw_execute_dft_c2r(backwards, reinterpret_cast<fftw_complex*>(fft.data()),
-                         potential.data());
-
-    // RVO not applicable. std::move explicetly to avoid deep copy
-    return std::move(potential);
+                         state.V.data());
 }
-}  // namespace Poisson
+}  // namespace Potential::Poisson

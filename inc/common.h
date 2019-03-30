@@ -23,34 +23,37 @@
 #define ERRORTAG(message) "\031[1;33m[ERROR]\033[0m " << message
 
 // Forward declarations
-namespace Poisson {
-enum class Type;
+namespace Potential {
+enum class AlgorithmType;
+}
+namespace Schroedinger {
+enum class AlgorithmType;
 }
 enum class ICType;
 enum class CosmoModel;
 
 struct Parameters {
     // TODO move enums out here!
-    enum class Integrator { USOFFT, USOLW };
-    std::string out_file;        // output filename
-    std::string ic_source_file;  // powerspectrum filename
-    ICType ic;                   // initial condition type
-    Poisson::Type psolver;       // Poisson solver type
-    CosmoModel cosmo;            // cosmological model
-    Integrator integrator;       // integration algorithm
-    double tau_start;            // initial super conformal time
-    double tau_end;              // final super conformal time
-    double dtau;                 // time increment
-    double a_start;              // initial scalefactor
-    double a_end;                // final scalefactor
-    size_t N;                    // Number of spatial points
-    size_t M;                    // Number of wavefunctions
-    size_t A;                    // Number of points of the scalefactor grid
-    double ev_thr;               // eigenvalue threshold
-    double dx;                   // spatial resolution
-    double L;                    // box size
-    double mu;                   // phase space resolution
-    double omega_m0;             // matter density parameter
+    enum class IntegratorType { USO };
+    std::string out_file;                    // output filename
+    std::string ic_source_file;              // powerspectrum filename
+    ICType ic;                               // initial condition type
+    Potential::AlgorithmType pot;            // potential algorithm type
+    CosmoModel cosmo;                        // cosmological model
+    Schroedinger::AlgorithmType integrator;  // integration algorithm
+    double tau_start;                        // initial super conformal time
+    double tau_end;                          // final super conformal time
+    double dtau;                             // time increment
+    double a_start;                          // initial scalefactor
+    double a_end;                            // final scalefactor
+    size_t N;                                // Number of spatial points
+    size_t M;                                // Number of wavefunctions
+    size_t A;         // Number of points of the scalefactor grid
+    double ev_thr;    // eigenvalue threshold
+    double dx;        // spatial resolution
+    double L;         // box size
+    double mu;        // phase space resolution
+    double omega_m0;  // matter density parameter
     boost::property_tree::ptree tree;
 
     Parameters(const std::string& filename);
@@ -59,15 +62,15 @@ struct Parameters {
 std::ostream& operator<<(std::ostream& stream, const Parameters& param);
 
 struct SimState {
-    int n;       // time step number
-    double tau;  // current time
-    double a;    // current scale factor
-    blaze::DynamicVector<double, blaze::rowVector> V;
+    int n;        // time step number
+    double tau;   // current time
+    double dtau;  // current time increment
+    double a;     // current scale factor
+    blaze::DynamicVector<double> V;
 
     // state = sum_i lambda_i * |psi_i><psi_i|
     int M;
     blaze::DynamicMatrix<std::complex<double>> psis;
-    blaze::DynamicVector<double, blaze::rowVector> rho_bg;
     blaze::DiagonalMatrix<blaze::DynamicMatrix<double>> lambda;
 
     SimState(const Parameters& param);

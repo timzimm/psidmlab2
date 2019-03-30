@@ -2,7 +2,7 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <iomanip>
 #include "cosmology.h"
-#include "poisson_solver.h"
+#include "potential.h"
 
 Parameters::Parameters(const std::string& filename) {
     namespace pt = boost::property_tree;
@@ -15,10 +15,10 @@ Parameters::Parameters(const std::string& filename) {
     // Categorical information
     ic = static_cast<ICType>(tree.get<int>("Initial_Conditions.ic_source"));
     cosmo = static_cast<CosmoModel>(tree.get<int>("Simulation.cosmology"));
-    integrator =
-        static_cast<Integrator>(tree.get<int>("Simulation.integrator"));
-    psolver =
-        static_cast<Poisson::Type>(tree.get<int>("Simulation.poisson_solver"));
+    integrator = static_cast<Schroedinger::AlgorithmType>(
+        tree.get<int>("Simulation.integrator"));
+    pot = static_cast<Potential::AlgorithmType>(
+        tree.get<int>("Simulation.potential"));
 
     // Numerical information
     mu = tree.get<double>("Simulation.mu");
@@ -42,7 +42,7 @@ Parameters::Parameters(const std::string& filename) {
                 : Cosmology::a_of_z(tree.get<double>("Simulation.z_end"));
 }
 SimState::SimState(const Parameters& param)
-    : n(0), tau(param.tau_start), a(param.a_start) {}
+    : n(0), tau(param.tau_start), dtau(param.dtau), a(param.a_start) {}
 
 std::ostream& operator<<(std::ostream& stream, const Parameters& param) {
     stream << INFOTAG("Simulation Parameters") << std::endl;
