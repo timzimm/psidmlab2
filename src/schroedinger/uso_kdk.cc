@@ -38,7 +38,7 @@ void USO_KDK::transform_matrix(const fftw_plan& plan, CRM& matrix_in,
         fftw_complex* row_in =
             reinterpret_cast<fftw_complex*>(&(matrix_in(i, 0)));
         fftw_complex* row_out =
-            reinterpret_cast<fftw_complex*>(&(matrix_in(i, 0)));
+            reinterpret_cast<fftw_complex*>(&(matrix_out(i, 0)));
         fftw_execute_dft(plan, row_in, row_out);
     }
 }
@@ -59,8 +59,8 @@ auto USO_KDK::kick(const CRM& psis_in_k, const double dt, const double weight) {
 auto USO_KDK::drift(const CRM& psis_in_x, const RCV& V, const double dt,
                     const double t, const double weight) {
     auto diag_D = blaze::diagonal(D);
-    diag_D = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * cosmo.a_of_tau(t) *
-                        V * dt);
+    diag_D =
+        blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
     // This is a dense-sparse product
     return psis_in_x * D;
 }
@@ -68,10 +68,8 @@ auto USO_KDK::drift(const CRM& psis_in_x, const RCV& V, const double dt,
 USO_KDK::~USO_KDK() {
     fftw_destroy_plan(forwards);
     fftw_destroy_plan(backwards);
-    if (forwards_op) {
-        fftw_destroy_plan(forwards_op);
-        fftw_destroy_plan(backwards_op);
-    }
+    fftw_destroy_plan(forwards_op);
+    fftw_destroy_plan(backwards_op);
 }
 
 void USO_KDK::operator()(SimState& state) {
@@ -84,7 +82,7 @@ void USO_KDK::operator()(SimState& state) {
     // representation of the last step
     if (firstStep) {
         transform_matrix(forwards_op, psis, psis_cached);
-        firstStep == false;
+        firstStep = false;
     }
 
     psis = kick(psis_cached, dt, 1.0 / 2);

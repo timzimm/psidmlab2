@@ -3,6 +3,7 @@
 #include "schroedinger.h"
 
 namespace Schroedinger {
+
 USO_DKD::USO_DKD(const Parameters& p)
     : cosmo{p},
       pot{Potential::Factory::create(p.pot, p)},
@@ -24,8 +25,6 @@ USO_DKD::USO_DKD(const Parameters& p)
     backwards = fftw_plan_dft_1d(N, in, in, FFTW_BACKWARD, FFTW_ESTIMATE);
 }
 
-// Transforms each row of matrix_on according to the passed plan and stores
-// the result in matrix_out
 void USO_DKD::transform_matrix(const fftw_plan& plan, CRM& matrix_in,
                                CRM& matrix_out) {
     assert(matrix_in.rows() == matrix_out.rows());
@@ -34,7 +33,7 @@ void USO_DKD::transform_matrix(const fftw_plan& plan, CRM& matrix_in,
         fftw_complex* row_in =
             reinterpret_cast<fftw_complex*>(&(matrix_in(i, 0)));
         fftw_complex* row_out =
-            reinterpret_cast<fftw_complex*>(&(matrix_in(i, 0)));
+            reinterpret_cast<fftw_complex*>(&(matrix_out(i, 0)));
         fftw_execute_dft(plan, row_in, row_out);
     }
 }
@@ -55,8 +54,8 @@ auto USO_DKD::kick(const CRM& psis_in_k, const double dt, const double weight) {
 auto USO_DKD::drift(const CRM& psis_in_x, const RCV& V, const double dt,
                     const double t, const double weight) {
     auto diag_D = blaze::diagonal(D);
-    diag_D = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * cosmo.a_of_tau(t) *
-                        V * dt);
+    diag_D =
+        blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
     // This is a dense-sparse product
     return psis_in_x * D;
 }
