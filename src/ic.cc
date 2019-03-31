@@ -157,9 +157,6 @@ void ICGenerator::psi_from_rho(SimState& state) const {
         psi = N * (alpha * cos(M_PI / L * mode_trunc * x) +
                    beta * sin(M_PI / L * mode_trunc * x));
     }
-
-    // Construct initial potential
-    (*potential)(state);
 }
 
 // TODO implement power spectrum initial conditions.
