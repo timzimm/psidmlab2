@@ -16,6 +16,7 @@ namespace Schroedinger {
 // share
 class Algorithm {
    public:
+    // TODO: This is not pretty. Maybe something more functional?
     virtual void operator()(SimState& state) = 0;
     virtual ~Algorithm() = default;
 };
@@ -26,7 +27,7 @@ class Algorithm {
 // Add new schroedinger algorithms here
 enum class AlgorithmType { USO_DKD, USO_KDK };
 
-// Potential solver factory. Add new solvers here.
+// Schroedinger stepper factory. Add new solvers here.
 struct Factory {
     static std::unique_ptr<Algorithm> create(const AlgorithmType& t,
                                              const Parameters& p) {
