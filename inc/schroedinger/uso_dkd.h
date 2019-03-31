@@ -18,18 +18,18 @@ class USO_DKD : public Algorithm {
     using CDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<cmplx>>;
 
     // Data members
-    Cosmology cosmo;
-    std::unique_ptr<Potential::Algorithm> pot;
-    size_t N;
-    double L;
-    CDM K;
-    CDM D;
+    Cosmology cosmo;                            // Cosmological model for a(t)
+    std::unique_ptr<Potential::Algorithm> pot;  // Potentia solver
+    size_t N;                                   // No. of spatial grid points
+    double L;                                   // Domain size
+    CDM K;  // Kick operator as sparse diagonal matrix
+    CDM D;  // Drift operator as sparse diagonal matrix
     RCV wavenumbers;
 
-    fftw_plan forwards;
-    fftw_plan backwards;
+    fftw_plan forwards;   // in-place forward FFT
+    fftw_plan backwards;  // in-place backward FFT
 
-    // Transforms each row of matrix_on according to the passed plan and stores
+    // Transforms each row of matrix_in according to the passed plan and stores
     // the result in matrix_out
     void transform_matrix(const fftw_plan& plan, CRM& matrix_in,
                           CRM& matrix_out);

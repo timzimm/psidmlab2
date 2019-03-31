@@ -18,24 +18,24 @@ class USO_KDK : public Algorithm {
     using CDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<cmplx>>;
 
     // Data members
-    Cosmology cosmo;
-    std::unique_ptr<Potential::Algorithm> pot;
-    size_t N;
-    double L;
-    bool firstStep;
-    CDM K;
-    CDM D;
+    Cosmology cosmo;                            // cosmological model for a(t)
+    std::unique_ptr<Potential::Algorithm> pot;  // potential solver
+    size_t N;                                   // No. of spatial points
+    double L;                                   // size of domain
+    bool firstStep;                             // is firstStep?
+    CDM K;  // Kick operator as sparse diagonal matrix
+    CDM D;  // Drift operator as sparse diagonal matrix
     RCV wavenumbers;
 
-    fftw_plan forwards;
-    fftw_plan backwards;
-    fftw_plan forwards_op;
-    fftw_plan backwards_op;
+    fftw_plan forwards;      // in-place forward FFT
+    fftw_plan backwards;     // in-place backward FFT
+    fftw_plan forwards_op;   // out-place forward FFT
+    fftw_plan backwards_op;  // out-place backward FFT
 
     // Buffer to store k representation of psi for KDK
     CRM psis_cached;
 
-    // Transforms each row of matrix_on according to the passed plan and stores
+    // Transforms each row of matrix_in according to the passed plan and stores
     // the result in matrix_out
     void transform_matrix(const fftw_plan& plan, CRM& matrix_in,
                           CRM& matrix_out);
