@@ -17,43 +17,32 @@
  *       voif f(SimState s, Parameters p)
  */
 
-// Some convience macros and typedefs no one wants to write out
-#define INFOTAG(message) "\033[1;34m[INFO]\033[0m " << message
-#define WARNINGTAG(message) "\033[1;33m[WARNING]\033[0m " << message
-#define ERRORTAG(message) "\031[1;33m[ERROR]\033[0m " << message
-
 // Forward declarations
-namespace Potential {
-enum class AlgorithmType;
-}
-namespace Schroedinger {
-enum class AlgorithmType;
-}
 enum class ICType;
 enum class CosmoModel;
 
 struct Parameters {
     // TODO move enums out here!
     enum class IntegratorType { USO };
-    std::string out_file;                    // output filename
-    std::string ic_source_file;              // powerspectrum filename
-    ICType ic;                               // initial condition type
-    Potential::AlgorithmType pot;            // potential algorithm type
-    CosmoModel cosmo;                        // cosmological model
-    Schroedinger::AlgorithmType integrator;  // integration algorithm
-    double tau_start;                        // initial super conformal time
-    double tau_end;                          // final super conformal time
-    double dtau;                             // time increment
-    double a_start;                          // initial scalefactor
-    double a_end;                            // final scalefactor
-    size_t N;                                // Number of spatial points
-    size_t M;                                // Number of wavefunctions
-    size_t A;         // Number of points of the scalefactor grid
-    double ev_thr;    // eigenvalue threshold
-    double dx;        // spatial resolution
-    double L;         // box size
-    double mu;        // phase space resolution
-    double omega_m0;  // matter density parameter
+    std::string out_file;        // output filename
+    std::string ic_source_file;  // powerspectrum filename
+    ICType ic;                   // initial condition type
+    std::string pot;             // potential algorithm class name
+    CosmoModel cosmo;            // cosmological model
+    std::string integrator;      // integration algorithm
+    double tau_start;            // initial super conformal time
+    double tau_end;              // final super conformal time
+    double dtau;                 // time increment
+    double a_start;              // initial scalefactor
+    double a_end;                // final scalefactor
+    size_t N;                    // Number of spatial points
+    size_t M;                    // Number of wavefunctions
+    size_t A;                    // Number of points of the scalefactor grid
+    double ev_thr;               // eigenvalue threshold
+    double dx;                   // spatial resolution
+    double L;                    // box size
+    double mu;                   // phase space resolution
+    double omega_m0;             // matter density parameter
     boost::property_tree::ptree tree;
 
     Parameters(const std::string& filename);
