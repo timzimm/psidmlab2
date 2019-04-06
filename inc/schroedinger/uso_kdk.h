@@ -1,8 +1,22 @@
+#ifndef __SCHROEDINGER_USO_KDK__
+#define __SCHROEDINGER_USO_KDK__
+
+#include <blaze/math/CompressedMatrix.h>
+#include <blaze/math/DiagonalMatrix.h>
+#include <blaze/math/DynamicMatrix.h>
+#include <blaze/math/DynamicVector.h>
+#include <fftw3.h>
+#include <complex>
+#include <memory>
+#include "cosmology.h"
+#include "interfaces.h"
+
 // Unitary split operator. Propagates psi according to
 // psi_(n+1) = exp(-i/2 * K) exp(-i * V) exp(-i/2 * K) psi_(n)
 // for separable Hamiltionian H = K + V = -1/2*del^2_x + a(t)*V(psi)
+namespace Schroedinger {
 
-class USO_KDK : public Algorithm {
+class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     // Abbreviations
     using cmplx = std::complex<double>;
 
@@ -18,11 +32,11 @@ class USO_KDK : public Algorithm {
     using CDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<cmplx>>;
 
     // Data members
-    Cosmology cosmo;                            // cosmological model for a(t)
-    std::unique_ptr<Potential::Algorithm> pot;  // potential solver
-    size_t N;                                   // No. of spatial points
-    double L;                                   // size of domain
-    bool firstStep;                             // is firstStep?
+    Cosmology cosmo;                       // cosmological model for a(t)
+    std::unique_ptr<PotentialMethod> pot;  // potential method
+    size_t N;                              // No. of spatial points
+    double L;                              // size of domain
+    bool firstStep;                        // is firstStep?
     CDM K;  // Kick operator as sparse diagonal matrix
     CDM D;  // Drift operator as sparse diagonal matrix
     RCV wavenumbers;
@@ -52,3 +66,5 @@ class USO_KDK : public Algorithm {
     ~USO_KDK();
     void operator()(SimState& state) override;
 };
+}  // namespace Schroedinger
+#endif

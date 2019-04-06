@@ -1,11 +1,13 @@
+#include "schroedinger/uso_kdk.h"
 #include <cassert>
-#include "potential.h"
-#include "schroedinger.h"
+#include "common.h"
+#include "cosmology.h"
 
 namespace Schroedinger {
+
 USO_KDK::USO_KDK(const Parameters& p)
     : cosmo{p},
-      pot{Potential::Factory::create(p.pot, p)},
+      pot{PotentialMethod::make(p.pot, p)},
       N{p.N},
       L{p.L},
       firstStep(true),
@@ -105,4 +107,5 @@ void USO_KDK::operator()(SimState& state) {
     state.tau += dt;
     state.a = cosmo.a_of_tau(t + dt);
 }
+
 }  // namespace Schroedinger

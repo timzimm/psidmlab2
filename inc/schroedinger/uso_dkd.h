@@ -1,8 +1,23 @@
+#ifndef __SCHROEDINGER_USO_DKD__
+#define __SCHROEDINGER_USO_DKD__
+
+#include <blaze/math/CompressedMatrix.h>
+#include <blaze/math/DiagonalMatrix.h>
+#include <blaze/math/DynamicMatrix.h>
+#include <blaze/math/DynamicVector.h>
+#include <fftw3.h>
+#include <complex>
+#include <memory>
+#include "cosmology.h"
+#include "interfaces.h"
+
 // Unitary split operator. Propagates psi according to
 // psi_(n+1) = exp(-i/2 * V) exp(-i * K) exp(-i/2 * V) psi_(n)
 // for separable Hamiltionian H = K + V = -1/2*del^2_x + a(t)*V(psi)
 
-class USO_DKD : public Algorithm {
+namespace Schroedinger {
+
+class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
     // Abbreviations
     using cmplx = std::complex<double>;
 
@@ -18,10 +33,10 @@ class USO_DKD : public Algorithm {
     using CDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<cmplx>>;
 
     // Data members
-    Cosmology cosmo;                            // Cosmological model for a(t)
-    std::unique_ptr<Potential::Algorithm> pot;  // Potentia solver
-    size_t N;                                   // No. of spatial grid points
-    double L;                                   // Domain size
+    Cosmology cosmo;                       // Cosmological model for a(t)
+    std::unique_ptr<PotentialMethod> pot;  // Potential method
+    size_t N;                              // No. of spatial grid points
+    double L;                              // Domain size
     CDM K;  // Kick operator as sparse diagonal matrix
     CDM D;  // Drift operator as sparse diagonal matrix
     RCV wavenumbers;
@@ -46,4 +61,5 @@ class USO_DKD : public Algorithm {
     ~USO_DKD();
     void operator()(SimState& state) override;
 };
-
+}  // namespace Schroedinger
+#endif

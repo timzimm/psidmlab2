@@ -1,6 +1,7 @@
 #include "cosmology.h"
 #include <boost/math/tools/roots.hpp>
 #include <tuple>
+#include "common.h"
 
 // Convenience definitions independent of the cosmological model
 double Cosmology::z_of_a(const double a) { return 1.0 / a - 1; }

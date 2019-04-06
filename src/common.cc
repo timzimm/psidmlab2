@@ -2,7 +2,7 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <iomanip>
 #include "cosmology.h"
-#include "potential.h"
+#include "logging.h"
 
 Parameters::Parameters(const std::string& filename) {
     namespace pt = boost::property_tree;
@@ -15,10 +15,8 @@ Parameters::Parameters(const std::string& filename) {
     // Categorical information
     ic = static_cast<ICType>(tree.get<int>("Initial_Conditions.ic_source"));
     cosmo = static_cast<CosmoModel>(tree.get<int>("Simulation.cosmology"));
-    integrator = static_cast<Schroedinger::AlgorithmType>(
-        tree.get<int>("Simulation.integrator"));
-    pot = static_cast<Potential::AlgorithmType>(
-        tree.get<int>("Simulation.potential"));
+    integrator = tree.get<std::string>("Simulation.integrator");
+    pot = tree.get<std::string>("Simulation.potential");
 
     // Numerical information
     mu = tree.get<double>("Simulation.mu");

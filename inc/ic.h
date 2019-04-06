@@ -4,10 +4,12 @@
 #include <fstream>
 #include <memory>
 #include <string>
-#include "common.h"
-#include "potential.h"
 
 // Forward Declarations
+struct SimState;
+struct Parameters;
+class PotentialMethod;
+
 enum class ICType { Density, Powerspectrum };
 
 class ICGenerator {
@@ -20,7 +22,7 @@ class ICGenerator {
     double rel_threshold;
     std::string source_name;
     mutable std::ifstream ic_file;
-    std::unique_ptr<Potential::Algorithm> potential;
+    std::unique_ptr<PotentialMethod> potential;
     int data_N;
 
     void psi_from_rho(SimState& state) const;
@@ -28,6 +30,8 @@ class ICGenerator {
 
    public:
     ICGenerator(const Parameters& param);
+    // Required to deal with incomplete PotentialMethod type
+    ~ICGenerator();
     void generate(SimState& state) const;
 };
 #endif

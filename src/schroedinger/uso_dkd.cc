@@ -1,12 +1,13 @@
+#include "schroedinger/uso_dkd.h"
 #include <cassert>
-#include "potential.h"
-#include "schroedinger.h"
+#include "common.h"
+#include "cosmology.h"
 
 namespace Schroedinger {
 
 USO_DKD::USO_DKD(const Parameters& p)
     : cosmo{p},
-      pot{Potential::Factory::create(p.pot, p)},
+      pot{PotentialMethod::make(p.pot, p)},
       N{p.N},
       L{p.L},
       K(N, N),

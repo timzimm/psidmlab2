@@ -11,6 +11,9 @@
 #include <iostream>
 #include <limits>
 #include <numeric>
+#include "common.h"
+#include "interfaces.h"
+#include "logging.h"
 
 ICGenerator::ICGenerator(const Parameters& param)
     : type(param.ic),
@@ -21,8 +24,7 @@ ICGenerator::ICGenerator(const Parameters& param)
       rel_threshold(param.ev_thr),
       source_name(param.ic_source_file),
       ic_file(source_name),
-      potential(Potential::Factory::create(
-          Potential::AlgorithmType::Poisson_FFT, param)) {
+      potential(PotentialMethod::make("Poisson::FFT", param)) {
     // Altough the input file format is generic for rho and powerspectrum
     // type initial conditions, we leave the exact way of parsing the data
     // to the generator routines to allow for specialized malloc's.
@@ -157,7 +159,12 @@ void ICGenerator::psi_from_rho(SimState& state) const {
         psi = N * (alpha * cos(M_PI / L * mode_trunc * x) +
                    beta * sin(M_PI / L * mode_trunc * x));
     }
+
+    // Compute potential
+    (*potential)(state);
 }
 
 // TODO implement power spectrum initial conditions.
 void ICGenerator::psi_from_power(SimState& state) const {}
+
+ICGenerator::~ICGenerator() = default;

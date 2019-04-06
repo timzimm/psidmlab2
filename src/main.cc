@@ -4,8 +4,9 @@
 #include "common.h"
 #include "cosmology.h"
 #include "ic.h"
+#include "interfaces.h"
 #include "io.h"
-#include "schroedinger.h"
+#include "logging.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -36,8 +37,7 @@ int main(int argc, char** argv) {
     // Setup HDF5 file
     OutputFile file(param);
 
-    auto stepper = Schroedinger::Factory::create(
-        Schroedinger::AlgorithmType::USO_DKD, param);
+    auto schroedinger = SchroedingerMethod::make(param.integrator, param);
 
 #ifndef NDEBUG
     /* auto psi = blaze::row(state.psis, 1); */

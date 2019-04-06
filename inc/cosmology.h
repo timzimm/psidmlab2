@@ -1,7 +1,10 @@
 #ifndef __COSMOLOGY__
 #define __COSMOLOGY__
 #include <unordered_map>
-#include "common.h"
+#include <vector>
+
+// Forward Declaration
+struct Parameters;
 
 enum class CosmoModel { Static, EDS, LCDM };
 

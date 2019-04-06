@@ -28,7 +28,7 @@ add_executable(psidm
     src/common.cc 
     src/cosmology.cc
     src/ic.cc
-    src/potential/poisson/fft.cc
+    src/poisson/fft.cc
     src/schroedinger/uso_dkd.cc
     src/schroedinger/uso_kdk.cc
 )
