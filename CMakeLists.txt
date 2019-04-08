@@ -9,10 +9,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 find_package(FFTW REQUIRED)
-find_package(BLAS2 REQUIRED)
+find_package(CBLAS)
 
-# message(STATUS ${BLAS_LINKER_FLAGS})
-# message(STATUS ${BLAS_LIBRARIES})
 
 # # Create target for FFTW
 # message(STATUS "${FFTW_LIBRARIES}")
@@ -36,6 +34,20 @@ add_executable(psidm
     src/schroedinger/uso_dkd.cc
     src/schroedinger/uso_kdk.cc
 )
+
+# If we find cblas on the target system, we configure blaze to use it
+if(CBLAS_FOUND)
+    # Each vendor names cblas differently. This queries the header file name
+    # TODO Check SMT
+    file(GLOB HEADERNAME RELATIVE ${CBLAS_INCLUDE_DIRS} "${CBLAS_INCLUDE_DIRS}/*cblas.h")
+
+    add_definitions(
+        -DBLAZE_BLAS_MODE
+        -DBLAZE_USE_BLAS_MATRIX_VECTOR_MULTIPLICATION
+        -DBLAZE_USE_BLAS_MATRIX_MATRIX_MULTIPLICATION 
+        -DBLAZE_BLAS_IS_PARALLEL
+        -DBLAZE_BLAS_INCLUDE_FILE="${HEADERNAME}")
+endif()
 
 target_compile_features(psidm PUBLIC cxx_std_14)
 
