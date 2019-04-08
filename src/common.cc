@@ -46,8 +46,8 @@ std::ostream& operator<<(std::ostream& stream, const Parameters& param) {
     stream << INFOTAG("Simulation Parameters") << std::endl;
     for (const auto& section : param.tree) {
         for (const auto& parameter : section.second) {
-            stream << std::left << std::setw(20) << parameter.first << "|"
-                   << std::right << std::setw(20) << parameter.second.data()
+            stream << std::left << std::setw(24) << parameter.first << "|"
+                   << std::right << std::setw(24) << parameter.second.data()
                    << std::endl;
         }
     }
