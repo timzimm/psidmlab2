@@ -1,12 +1,12 @@
 #ifndef __COMMON__
 #define __COMMON__
-#include <blaze/math/DiagonalMatrix.h>
-#include <blaze/math/DynamicMatrix.h>
-#include <blaze/math/DynamicVector.h>
 #include <boost/property_tree/ptree.hpp>
 #include <complex>
 #include <ostream>
 #include <string>
+#include "blaze/math/DiagonalMatrix.h"
+#include "blaze/math/DynamicMatrix.h"
+#include "blaze/math/DynamicVector.h"
 
 /*This header defines all required simulation parameters as well as what we
  * consider a "simulation state" that gets passed around the code

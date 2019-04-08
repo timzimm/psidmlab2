@@ -9,7 +9,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 find_package(FFTW REQUIRED)
-find_package(blaze REQUIRED)
 
 # # Create target for FFTW
 # message(STATUS "${FFTW_LIBRARIES}")
@@ -29,19 +28,20 @@ add_executable(psidm
     src/cosmology.cc
     src/ic.cc
     src/poisson/fft.cc
+    src/poisson/fd.cc
     src/schroedinger/uso_dkd.cc
     src/schroedinger/uso_kdk.cc
 )
 
-target_compile_features(psidm PUBLIC cxx_std_11)
+target_compile_features(psidm PUBLIC cxx_std_14)
 
 target_include_directories(psidm 
-    PUBLIC  ${HDF5_C_INCLUDE_DIRS}
+    PUBLIC  inc
+            inc/blaze
+            ${HDF5_C_INCLUDE_DIRS}
             ${Boost_INCLUDE_DIRS} 
             ${FFTW_INCLUDE_DIRS} 
-            inc
-            inc/schroedinger
 )
+target_link_libraries(psidm ${HDF5_C_LIBRARIES} ${FFTW_LIBRARIES})
 
-target_link_libraries(psidm ${HDF5_C_LIBRARIES} ${FFTW_LIBRARIES} blaze::blaze)
 

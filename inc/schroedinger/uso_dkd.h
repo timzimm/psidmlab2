@@ -1,13 +1,13 @@
 #ifndef __SCHROEDINGER_USO_DKD__
 #define __SCHROEDINGER_USO_DKD__
 
-#include <blaze/math/CompressedMatrix.h>
-#include <blaze/math/DiagonalMatrix.h>
-#include <blaze/math/DynamicMatrix.h>
-#include <blaze/math/DynamicVector.h>
 #include <fftw3.h>
 #include <complex>
 #include <memory>
+#include "blaze/math/CompressedMatrix.h"
+#include "blaze/math/DiagonalMatrix.h"
+#include "blaze/math/DynamicMatrix.h"
+#include "blaze/math/DynamicVector.h"
 #include "cosmology.h"
 #include "interfaces.h"
 

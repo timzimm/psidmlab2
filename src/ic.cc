@@ -1,16 +1,16 @@
 #include "ic.h"
-#include <blaze/math/Band.h>
-#include <blaze/math/CompressedMatrix.h>
-#include <blaze/math/DiagonalMatrix.h>
-#include <blaze/math/Elements.h>
-#include <blaze/math/Row.h>
-#include <blaze/math/Submatrix.h>
 #include <fftw3.h>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <limits>
 #include <numeric>
+#include "blaze/math/Band.h"
+#include "blaze/math/CompressedMatrix.h"
+#include "blaze/math/DiagonalMatrix.h"
+#include "blaze/math/Elements.h"
+#include "blaze/math/Row.h"
+#include "blaze/math/Submatrix.h"
 #include "common.h"
 #include "interfaces.h"
 #include "logging.h"
@@ -24,7 +24,7 @@ ICGenerator::ICGenerator(const Parameters& param)
       rel_threshold(param.ev_thr),
       source_name(param.ic_source_file),
       ic_file(source_name),
-      potential(PotentialMethod::make("Poisson::FFT", param)) {
+      potential(PotentialMethod::make("Poisson::FD", param)) {
     // Altough the input file format is generic for rho and powerspectrum
     // type initial conditions, we leave the exact way of parsing the data
     // to the generator routines to allow for specialized malloc's.
