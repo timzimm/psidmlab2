@@ -11,18 +11,6 @@ find_package(Boost REQUIRED)
 find_package(FFTW REQUIRED)
 find_package(CBLAS)
 
-
-# # Create target for FFTW
-# message(STATUS "${FFTW_LIBRARIES}")
-# message(STATUS "${FFTW_INCLUDE_DIRS}")
-# add_library(fftw3 SHARED IMPORTED)
-# set_target_properties(fftw3 
-#     PROPERTIES IMPORTED_LOCATION "${/usr/local/lib/libfftw3.dylib}"
-#     INTERFACE_INCLUDE_DIRECTORIES ${FFTW_INCLUDE_DIRS}
-#     INTERFACE_COMPILE_OPTIONS ${FFTW_C_FLAGS}
-#     INTERFACE_LINK_OPTIONS ${FFTW_LINKER_FLAGS}
-# )
-
 add_executable(psidm 
     src/main.cc 
     src/io.cc 
