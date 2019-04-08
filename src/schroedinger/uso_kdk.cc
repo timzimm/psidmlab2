@@ -23,7 +23,7 @@ USO_KDK::USO_KDK(const Parameters& p)
         double k = 2 * M_PI / L * i;
         wavenumbers[i] = k * k;
     }
-    CRV fft_dummy(N);
+    CCV fft_dummy(N);
     auto in = reinterpret_cast<fftw_complex*>(fft_dummy.data());
     auto out = reinterpret_cast<fftw_complex*>(psis_cached.data());
     forwards = fftw_plan_dft_1d(N, in, in, FFTW_FORWARD, FFTW_ESTIMATE);
@@ -32,21 +32,21 @@ USO_KDK::USO_KDK(const Parameters& p)
     backwards_op = fftw_plan_dft_1d(N, out, in, FFTW_BACKWARD, FFTW_ESTIMATE);
 }
 
-void USO_KDK::transform_matrix(const fftw_plan& plan, CRM& matrix_in,
-                               CRM& matrix_out) {
-    assert(matrix_in.rows() == matrix_out.rows());
+void USO_KDK::transform_matrix(const fftw_plan& plan, CCM& matrix_in,
+                               CCM& matrix_out) {
+    assert(matrix_in.columns() == matrix_out.columns());
 
-    for (int i = 0; i < matrix_in.rows(); ++i) {
+    for (int i = 0; i < matrix_in.columns(); ++i) {
         fftw_complex* row_in =
-            reinterpret_cast<fftw_complex*>(&(matrix_in(i, 0)));
+            reinterpret_cast<fftw_complex*>(&(matrix_in(0, i)));
         fftw_complex* row_out =
-            reinterpret_cast<fftw_complex*>(&(matrix_out(i, 0)));
+            reinterpret_cast<fftw_complex*>(&(matrix_out(0, i)));
         fftw_execute_dft(plan, row_in, row_out);
     }
 }
 
 // Kick Operator - returns a blaze expression
-auto USO_KDK::kick(const CRM& psis_in_k, const double dt, const double weight) {
+auto USO_KDK::kick(const CCM& psis_in_k, const double dt, const double weight) {
     auto diag_K = blaze::diagonal(K);
     diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * wavenumbers *
                         wavenumbers * dt);
@@ -54,17 +54,17 @@ auto USO_KDK::kick(const CRM& psis_in_k, const double dt, const double weight) {
     // psi_i is the i-the row in the psis matrix. Therfore the
     // multiplictaion order changes.
     // This is a dense-sparse product
-    return psis_in_k * K;
+    return K * psis_in_k;
 }
 
 // Drift Operator - returns a blaze expression
-auto USO_KDK::drift(const CRM& psis_in_x, const RCV& V, const double dt,
+auto USO_KDK::drift(const CCM& psis_in_x, const RCV& V, const double dt,
                     const double t, const double weight) {
     auto diag_D = blaze::diagonal(D);
     diag_D =
         blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
     // This is a dense-sparse product
-    return psis_in_x * D;
+    return D * psis_in_x;
 }
 
 USO_KDK::~USO_KDK() {
@@ -77,7 +77,7 @@ USO_KDK::~USO_KDK() {
 void USO_KDK::operator()(SimState& state) {
     double dt = state.dtau;
     double t = state.tau;
-    CRM& psis = state.psis;
+    CCM& psis = state.psis;
     RCV& V = state.V;
 
     // We can spare the initial FFT if we use the cached psi_in_k

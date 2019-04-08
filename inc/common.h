@@ -59,8 +59,8 @@ struct SimState {
 
     // state = sum_i lambda_i * |psi_i><psi_i|
     int M;
-    blaze::DynamicMatrix<std::complex<double>> psis;
-    blaze::DiagonalMatrix<blaze::DynamicMatrix<double>> lambda;
+    blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor> psis;
+    blaze::DynamicVector<double> lambda;
 
     SimState(const Parameters& param);
 };

@@ -72,7 +72,7 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     // magnitude. In fact, we also need information about the mode number n
     // to sample from the correct harmonics later on. Therefore, we compute
     // the permutation index array that yields a sorted coefficient list.
-    DynamicVector<int> mode(rho_fft.size() - 1);
+    DynamicVector<int, rowVector> mode(rho_fft.size() - 1);
     std::iota(mode.begin(), mode.end(), 1);
 
     // Construct the permuatation/mode-number vector
@@ -120,9 +120,9 @@ void ICGenerator::psi_from_rho(SimState& state) const {
 
     // At this point the matrix sizes for psi and V are clear. Set them.
     state.M = M_true;
-    state.psis.resize(M_true, N);
+    state.psis.resize(N, M_true);
     state.V.resize(N);
-    state.lambda.resize(M_true, M_true);
+    state.lambda.resize(M_true);
 
     // Discard all irrelvant Fourier coefficients and modes
     auto rho_fft_trunc = subvector(rho_fft_sorted, 0, M_half);
@@ -130,14 +130,13 @@ void ICGenerator::psi_from_rho(SimState& state) const {
 
     // The rescaled modulus of the Fourier coefficients are the eigenvalues
     // of the integral operator eigenvalue problem to solve.
-    auto lambdas = diagonal(state.lambda);
-    auto lambda_plus = subvector(lambdas, 0, M_half);
-    auto lambda_minus = subvector(lambdas, M_half, M_half);
+    auto lambda_plus = subvector(state.lambda, 0, M_half);
+    auto lambda_minus = subvector(state.lambda, M_half, M_half);
     lambda_plus = 2.0 / data_N * abs(rho_fft_trunc);
     lambda_minus = -2.0 / data_N * abs(rho_fft_trunc);
 
     // Equidistant x grid
-    DynamicVector<double, rowVector> x(N);
+    DynamicVector<double, columnVector> x(N);
     for (int i = 0; i < N; ++i) x[i] = dx * i;
 
     // TODO switch to Sparse Matrix ?
@@ -147,8 +146,8 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     DiagonalMatrix<DynamicMatrix<double>> beta(M_half, M_half);
 
     for (int i = 0; i < 2; ++i) {
-        auto lambda = subvector(lambdas, M_half * i, M_half);
-        auto psi = submatrix(state.psis, M_half * i, 0, M_half, N);
+        auto lambda = subvector(state.lambda, M_half * i, M_half);
+        auto psi = submatrix(state.psis, 0, M_half * i, N, M_half);
         diagonal(alpha) = 2.0 / data_N * real(rho_fft_trunc) + lambda;
         diagonal(beta) = -2.0 / data_N * imag(rho_fft_trunc);
 
@@ -156,8 +155,9 @@ void ICGenerator::psi_from_rho(SimState& state) const {
         auto N = decldiag(invsqrt(alpha * alpha + beta * beta));
 
         // Construct initial wave functions
-        psi = N * (alpha * cos(M_PI / L * mode_trunc * x) +
-                   beta * sin(M_PI / L * mode_trunc * x));
+        psi = (cos(M_PI / L * x * mode_trunc) * alpha +
+               sin(M_PI / L * x * mode_trunc) * beta) *
+              N;
     }
 
     // Compute potential

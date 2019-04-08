@@ -19,7 +19,7 @@ void FD::operator()(SimState& state) {
     UniformVector<double> ones(N, 1.0);
     auto psi2 = real(state.psis % state.psis);
     DynamicMatrix<double, columnMajor> source =
-        dx * dx * expand(trans(psi2) * diagonal(state.lambda), 1);
+        dx * dx * expand(psi2 * state.lambda, 1);
 
     gctrs(dl, d, du, du2, ipiv, source);
 

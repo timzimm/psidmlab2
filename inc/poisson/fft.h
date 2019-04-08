@@ -16,7 +16,6 @@ namespace Poisson {
 
 class FFT : public PotentialMethod::Registrar<FFT> {
     using RCV = blaze::DynamicVector<double>;
-    using RRV = blaze::DynamicVector<double, blaze::rowVector>;
     using CCV = blaze::DynamicVector<std::complex<double>>;
     using RDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<double>>;
     size_t N;

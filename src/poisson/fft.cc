@@ -5,7 +5,7 @@
 namespace Poisson {
 FFT::FFT(const Parameters& p)
     : N(p.N), L(p.L), fft(N / 2 + 1), inv_k_sq(N / 2 + 1) {
-    RRV source_dummy(N);
+    RCV source_dummy(N);
     RCV potential_dummy(N);
     forwards = fftw_plan_dft_r2c_1d(N, source_dummy.data(),
                                     reinterpret_cast<fftw_complex*>(fft.data()),
@@ -29,7 +29,7 @@ FFT::~FFT() {
 void FFT::operator()(SimState& state) {
     // Calculate source term
     auto psi2 = blaze::real(state.psis % state.psis);
-    RRV source = blaze::sum<blaze::columnwise>(state.lambda * psi2);
+    RCV source = psi2 * state.lambda;
 
     // fftw_execute_dft_r2c and its inverse are applicable in this situation
     // because blaze takes care of proper alignment

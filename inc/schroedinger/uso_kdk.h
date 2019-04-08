@@ -26,8 +26,8 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     using CCV = blaze::DynamicVector<cmplx>;
     // Real column vector
     using RCV = blaze::DynamicVector<double>;
-    // Complex dense matrix in row-major order
-    using CRM = blaze::DynamicMatrix<cmplx>;
+    // Complex dense matrix in column-major order
+    using CCM = blaze::DynamicMatrix<cmplx, blaze::columnMajor>;
     // Complex sparse diagonal matrix in row-major order
     using CDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<cmplx>>;
 
@@ -47,18 +47,18 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     fftw_plan backwards_op;  // out-place backward FFT
 
     // Buffer to store k representation of psi for KDK
-    CRM psis_cached;
+    CCM psis_cached;
 
     // Transforms each row of matrix_in according to the passed plan and stores
     // the result in matrix_out
-    void transform_matrix(const fftw_plan& plan, CRM& matrix_in,
-                          CRM& matrix_out);
+    void transform_matrix(const fftw_plan& plan, CCM& matrix_in,
+                          CCM& matrix_out);
 
     // Kick Operator - returns a blaze expression
-    auto kick(const CRM& psis_in_k, const double dt, const double weight);
+    auto kick(const CCM& psis_in_k, const double dt, const double weight);
 
     // Drift Operator - returns a blaze expression
-    auto drift(const CRM& psis_in_x, const RCV& V, const double dt,
+    auto drift(const CCM& psis_in_x, const RCV& V, const double dt,
                const double t, const double weight);
 
    public:
