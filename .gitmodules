@@ -1,3 +1,4 @@
 [submodule "inc/blaze"]
 	path = inc/blaze
 	url = https://bitbucket.org/blaze-lib/blaze.git
+        ignore = dirty
