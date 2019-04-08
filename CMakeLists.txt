@@ -6,13 +6,10 @@ project(psiDM2 VERSION 0.1
 # Add modules/ folder for Find* scripts
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
 
-# Work with MKL for the moment
-set(BLA_VENDOR Intel10_64lp)
-
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 find_package(FFTW REQUIRED)
-find_package(BLAS REQUIRED)
+find_package(BLAS2 REQUIRED)
 
 # message(STATUS ${BLAS_LINKER_FLAGS})
 # message(STATUS ${BLAS_LIBRARIES})
