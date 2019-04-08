@@ -6,9 +6,16 @@ project(psiDM2 VERSION 0.1
 # Add modules/ folder for Find* scripts
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
 
+# Work with MKL for the moment
+set(BLA_VENDOR Intel10_64lp)
+
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 find_package(FFTW REQUIRED)
+find_package(BLAS REQUIRED)
+
+# message(STATUS ${BLAS_LINKER_FLAGS})
+# message(STATUS ${BLAS_LIBRARIES})
 
 # # Create target for FFTW
 # message(STATUS "${FFTW_LIBRARIES}")
@@ -42,6 +49,7 @@ target_include_directories(psidm
             ${Boost_INCLUDE_DIRS} 
             ${FFTW_INCLUDE_DIRS} 
 )
-target_link_libraries(psidm ${HDF5_C_LIBRARIES} ${FFTW_LIBRARIES})
+target_link_libraries(psidm ${HDF5_C_LIBRARIES} ${FFTW_LIBRARIES}
+    ${BLAS_LIBRARIES})
 
 
