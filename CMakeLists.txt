@@ -21,6 +21,7 @@ add_executable(psidm
     src/poisson/fd.cc
     src/schroedinger/uso_dkd.cc
     src/schroedinger/uso_kdk.cc
+    src/schroedinger/pccn.cc
 )
 
 # If we find cblas on the target system, we configure blaze to use it
