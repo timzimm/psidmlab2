@@ -1,6 +1,7 @@
 #include "common.h"
 #include <boost/property_tree/ini_parser.hpp>
 #include <iomanip>
+#include <sstream>
 #include "cosmology.h"
 #include "logging.h"
 
@@ -29,8 +30,17 @@ Parameters::Parameters(const std::string& filename) {
     tau_start = 0;
     tau_end = tree.get<double>("Simulation.t_end");
     a_start = Cosmology::a_of_z(tree.get<double>("Simulation.z_start"));
+    std::stringstream ss(tree.get<std::string>("Simulation.save_at"));
 
-    // inferred information
+    std::string token;
+    double save_at_next;
+    while (std::getline(ss, token, ',')) {
+        std::stringstream stod(token);
+        stod >> save_at_next;
+        save_at.push_back(save_at_next);
+    }
+
+    // Inferred Information
     dx = L / N;
     omega_m0 = (cosmo == CosmoModel::EDS)
                    ? 1
@@ -39,6 +49,7 @@ Parameters::Parameters(const std::string& filename) {
                 ? a_start
                 : Cosmology::a_of_z(tree.get<double>("Simulation.z_end"));
 }
+
 SimState::SimState(const Parameters& param)
     : n(0), tau(param.tau_start), dtau(param.dtau), a(param.a_start) {}
 

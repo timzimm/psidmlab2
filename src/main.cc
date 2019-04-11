@@ -37,9 +37,14 @@ int main(int argc, char** argv) {
     // Setup HDF5 file
     OutputFile file(param);
 
-    auto schroedinger = SchroedingerMethod::make(param.integrator, param);
+    // Initiliaze numerical method. This selects both the Schroedinger and
+    // Poisson algorithm to be used for the integration
+    /* auto integrator = SchroedingerMethod::make(param.integrator, param); */
 
-#ifndef NDEBUG
+    /* while (state.tau < tau_end) { */
+    /*     (*integrator)(state); */
+    /* } */
+
     /* auto psi = blaze::row(state.psis, 1); */
     /* auto psi_source = blaze::real(psi); */
     /* file.write(blaze::trans(psi_source), "psi2"); */
@@ -55,7 +60,6 @@ int main(int argc, char** argv) {
     /* } */
     /* file.write(tau_grid, "tau"); */
     /* file.write(a_values, "a_of_tau"); */
-#endif
 
     return 0;
 }
