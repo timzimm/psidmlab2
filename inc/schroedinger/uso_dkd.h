@@ -59,7 +59,7 @@ class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
    public:
     USO_DKD(const Parameters& p);
     ~USO_DKD();
-    void operator()(SimState& state) override;
+    void step(SimState& state) override;
 };
 }  // namespace Schroedinger
 #endif

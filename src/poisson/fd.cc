@@ -12,7 +12,7 @@ FD::FD(const Parameters& p)
     gctrf(dl, d, du, du2, ipiv);
 }
 
-void FD::operator()(SimState& state) {
+void FD::solve(SimState& state) {
     using namespace blaze;
 
     // Calculate source term as matrix

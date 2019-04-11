@@ -64,7 +64,7 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
    public:
     USO_KDK(const Parameters& p);
     ~USO_KDK();
-    void operator()(SimState& state) override;
+    void step(SimState& state) override;
 };
 }  // namespace Schroedinger
 #endif

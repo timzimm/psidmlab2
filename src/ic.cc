@@ -161,7 +161,7 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     }
 
     // Compute potential
-    (*potential)(state);
+    potential->solve(state);
 }
 
 // TODO implement power spectrum initial conditions.

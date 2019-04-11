@@ -63,7 +63,7 @@ USO_DKD::~USO_DKD() {
     fftw_destroy_plan(backwards);
 }
 
-void USO_DKD::operator()(SimState& state) {
+void USO_DKD::step(SimState& state) {
     double dt = state.dtau;
     double t = state.tau;
     CCM& psis = state.psis;
@@ -73,7 +73,7 @@ void USO_DKD::operator()(SimState& state) {
     // It is crucial to always use the most up-to date version of psi.
     // Therefore, we cannot reuse the potential of the last step but
     // have to recalculate it.
-    (*pot)(state);
+    pot->solve(state);
     psis = drift(psis, V, t, dt, 1.0 / 2);
 
     transform_matrix(forwards, psis, psis);
@@ -82,7 +82,7 @@ void USO_DKD::operator()(SimState& state) {
 
     transform_matrix(backwards, psis, psis);
 
-    (*pot)(state);
+    pot->solve(state);
     psis = drift(psis, V, t, dt, 1.0 / 2);
 
     // psis and V are now @ tau + dtau

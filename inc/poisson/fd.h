@@ -23,7 +23,7 @@ class FD : public PotentialMethod::Registrar<FD> {
    public:
     FD(const Parameters& p);
     ~FD();
-    void operator()(SimState& state) override;
+    void solve(SimState& state) override;
 };
 
 }  // namespace Poisson

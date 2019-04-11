@@ -18,13 +18,13 @@ struct Parameters;
 // or a solver (poisson equation).
 class PotentialMethod : public Factory<PotentialMethod, Parameters> {
    public:
-    virtual void operator()(SimState& state) = 0;
+    virtual void solve(SimState& state) = 0;
     virtual ~PotentialMethod() = default;
 };
 
 class SchroedingerMethod : public Factory<SchroedingerMethod, Parameters> {
    public:
-    virtual void operator()(SimState& state) = 0;
+    virtual void step(SimState& state) = 0;
     virtual ~SchroedingerMethod() = default;
 };
 #endif

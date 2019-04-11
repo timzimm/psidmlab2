@@ -74,7 +74,7 @@ USO_KDK::~USO_KDK() {
     fftw_destroy_plan(backwards_op);
 }
 
-void USO_KDK::operator()(SimState& state) {
+void USO_KDK::step(SimState& state) {
     double dt = state.dtau;
     double t = state.tau;
     CCM& psis = state.psis;
@@ -92,7 +92,7 @@ void USO_KDK::operator()(SimState& state) {
     transform_matrix(backwards, psis, psis);
 
     // Recompute potential
-    (*pot)(state);
+    pot->solve(state);
     psis = drift(psis, V, t, dt, 1.0);
 
     transform_matrix(forwards, psis, psis);

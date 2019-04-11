@@ -32,7 +32,7 @@ class FFT : public PotentialMethod::Registrar<FFT> {
 
     FFT(const Parameters& p);
     ~FFT();
-    void operator()(SimState& state) override;
+    void solve(SimState& state) override;
 };
 
 }  // namespace Poisson

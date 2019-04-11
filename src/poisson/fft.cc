@@ -26,7 +26,7 @@ FFT::~FFT() {
     fftw_destroy_plan(backwards);
 }
 
-void FFT::operator()(SimState& state) {
+void FFT::solve(SimState& state) {
     // Calculate source term
     auto psi2 = blaze::real(state.psis % state.psis);
     RCV source = psi2 * state.lambda;

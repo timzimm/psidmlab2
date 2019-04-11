@@ -42,7 +42,7 @@ class PCCN : public SchroedingerMethod::Registrar<PCCN> {
    public:
     PCCN(const Parameters& p);
     ~PCCN();
-    void operator()(SimState& state) override;
+    void step(SimState& state) override;
 };
 
 }  // namespace Schroedinger

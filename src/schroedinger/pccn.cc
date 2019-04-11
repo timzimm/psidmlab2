@@ -20,7 +20,7 @@ PCCN::PCCN(const Parameters& p)
     K *= 1.0 / (2 * dx * dx);
 }
 
-void PCCN::operator()(SimState& state) {
+void PCCN::step(SimState& state) {
     using namespace blaze;
     // sparse real diagonal matrix
     using RDM = DiagonalMatrix<CompressedMatrix<double>>;
@@ -41,7 +41,7 @@ void PCCN::operator()(SimState& state) {
     state.psis = psis + dt * I * (K * psis - a * V * psis);
 
     // Corrector step
-    (*potential)(state);
+    potential->solve(state);
     RDM V_pred(N, N);
     diagonal(V_pred) = state.V;
 
@@ -49,7 +49,7 @@ void PCCN::operator()(SimState& state) {
     state.psis -= 0.5 * I * (a * V * psis + a_da * V_pred * state.psis);
 
     // At last we calculate the potential again such that state is @ t + dt
-    (*potential)(state);
+    potential->solve(state);
     state.tau = t + dt;
     state.a = a_da;
 }
