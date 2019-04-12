@@ -23,7 +23,7 @@ class Cosmology {
     double dtau_da(const double a) const;
 
    public:
-    Cosmology(const Parameters& param);
+    Cosmology(const Parameters& p);
     double tau_of_a(const double a) const;
     double a_of_tau(double tau) const;
     static double z_of_a(const double a);

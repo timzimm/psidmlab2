@@ -1,12 +1,12 @@
 #include <iostream>
 #include <memory>
-#include "blaze/math/Row.h"
-#include "common.h"
 #include "cosmology.h"
 #include "ic.h"
 #include "interfaces.h"
 #include "io.h"
 #include "logging.h"
+#include "parameters.h"
+#include "state.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -23,8 +23,8 @@ int main(int argc, char** argv) {
 
     // At this point tau_end is set for the static case as specified in the
     // ini file. This might be wrong, so let's check.
-    if (param.cosmo != CosmoModel::Static)
-        param.tau_end = cosmo.tau_of_a(param.a_end);
+    /* if (param.cosmo != CosmoModel::Static) */
+    /* param.tau_end = cosmo.tau_of_a(param.a_end); */
 
     // Parameters are now correctly initialized. Print them.
     std::cout << param;

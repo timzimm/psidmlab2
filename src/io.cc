@@ -1,13 +1,10 @@
 #include "io.h"
-#include "common.h"
+#include "parameters.h"
+#include "state.h"
 
-// TODO: Add simulation parameters to constructor
-// TODO: Add write overload for analysis function
-// TODO: MPI
-// TODO: read function
-OutputFile::OutputFile(const Parameters& params) {
-    file = H5Fcreate(params.out_file.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
-                     H5P_DEFAULT);
+OutputFile::OutputFile(const Parameters& p) {
+    file = H5Fcreate(p.get<std::string>("output_file").c_str(), H5F_ACC_TRUNC,
+                     H5P_DEFAULT, H5P_DEFAULT);
     auto state_group = H5Gcreate(file, "SimulationState", H5P_DEFAULT,
                                  H5P_DEFAULT, H5P_DEFAULT);
     auto obs_group =
@@ -32,7 +29,7 @@ OutputFile::OutputFile(const Parameters& params) {
 
 // Creates new group n (current step number), appends two datasets to the
 // n_group and inserts the simulation state.
-void OutputFile::write(const SimState& state, const Parameters& params) {
+void OutputFile::write(const SimState& state, const Parameters& p) {
     // Step 1: Create new group n to hold potentials and wavefunctions
     auto state_group = H5Gopen(file, "SimulationState", H5P_DEFAULT);
     auto n_group = H5Gcreate(state_group, std::to_string(state.n).c_str(),
@@ -48,12 +45,14 @@ void OutputFile::write(const SimState& state, const Parameters& params) {
 
     // Step 3: Create new datasets in n_group
     const int rank = 2;
-    hsize_t dim_psis[] = {params.M, params.N};
+    hsize_t N = p.get<hsize_t>("N");
+    hsize_t M = p.get<hsize_t>("M");
+    hsize_t dim_psis[] = {M, N};
     auto dataspace_psis = H5Screate_simple(rank, dim_psis, NULL);
     auto ds_psis = H5Dcreate(n_group, "psis", H5T_NATIVE_DOUBLE, dataspace_psis,
                              H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-    hsize_t dim_V = params.N;
+    hsize_t dim_V = N;
     auto dataspace_V = H5Screate_simple(1, &dim_V, NULL);
     auto ds_V = H5Dcreate(n_group, "V", H5T_NATIVE_DOUBLE, dataspace_V,
                           H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);

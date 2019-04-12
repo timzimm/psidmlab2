@@ -1,7 +1,7 @@
 #include "cosmology.h"
 #include <boost/math/tools/roots.hpp>
 #include <tuple>
-#include "common.h"
+#include "parameters.h"
 
 // Convenience definitions independent of the cosmological model
 double Cosmology::z_of_a(const double a) { return 1.0 / a - 1; }
@@ -28,14 +28,17 @@ double Cosmology::dtau_da(const double a) const {
     return 1 / (a * a * a * E(a)) * sqrt(1.5 * omega_m0);
 }
 
-Cosmology::Cosmology(const Parameters& param)
-    : a_start(param.a_start),
-      a_end(param.a_end),
-      A(param.A),
+Cosmology::Cosmology(const Parameters& p)
+    : a_start(a_of_z(p.get<double>("z_start"))),
+      a_end(a_of_z(p.get<double>("z_end"))),
+      A(p.get<int>("A")),
       delta_a((a_end - a_start) / (A - 1)),
       a_grid(A),
-      model(param.cosmo),
-      omega_m0(param.omega_m0) {
+      model(static_cast<CosmoModel>(p.get<int>("cosmology"))),
+      omega_m0(p.get<double>("omega_m0")) {
+    // Fix density parameter based on model selection
+    omega_m0 = (model == CosmoModel::EDS) ? 1 : omega_m0;
+
     // Super conformal time is defined via its differential
     // Thus, after integrating we still have to fix the integration constant.
     // We do this by defining tau = 0 for the simulation start time.

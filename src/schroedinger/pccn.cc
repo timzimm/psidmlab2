@@ -1,13 +1,15 @@
 #include "schroedinger/pccn.h"
 #include "blaze/math/DiagonalMatrix.h"
 #include "blaze/math/UniformVector.h"
-#include "common.h"
+#include "parameters.h"
+#include "state.h"
+
 namespace Schroedinger {
 
 PCCN::PCCN(const Parameters& p)
-    : dx{p.dx},
-      N{p.N},
-      potential(PotentialMethod::make(p.pot, p)),
+    : dx{p.get<double>("L") / p.get<int>("N")},
+      N{p.get<size_t>("N")},
+      potential{PotentialMethod::make(p.get<std::string>("potential"), p)},
       K(N, N),
       cosmo{p} {
     // Cyclic Kinetic matrix never changes - compute it @ construction

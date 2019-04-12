@@ -11,20 +11,21 @@
 #include "blaze/math/Elements.h"
 #include "blaze/math/Row.h"
 #include "blaze/math/Submatrix.h"
-#include "common.h"
 #include "interfaces.h"
 #include "logging.h"
+#include "parameters.h"
+#include "state.h"
 
-ICGenerator::ICGenerator(const Parameters& param)
-    : type(param.ic),
-      N(param.N),
-      dx(param.dx),
-      L(param.L),
-      M(param.M),
-      rel_threshold(param.ev_thr),
-      source_name(param.ic_source_file),
+ICGenerator::ICGenerator(const Parameters& p)
+    : type(static_cast<ICType>(p.get<int>("ic_source"))),
+      N(p.get<int>("N")),
+      dx{p.get<double>("L") / p.get<int>("N")},
+      L(p.get<double>("L")),
+      M(p.get<int>("M")),
+      rel_threshold(p.get<double>("ev_threshold")),
+      source_name(p.get<std::string>("source_file")),
       ic_file(source_name),
-      potential(PotentialMethod::make("Poisson::FD", param)) {
+      potential(PotentialMethod::make("Poisson::FD", p)) {
     // Altough the input file format is generic for rho and powerspectrum
     // type initial conditions, we leave the exact way of parsing the data
     // to the generator routines to allow for specialized malloc's.

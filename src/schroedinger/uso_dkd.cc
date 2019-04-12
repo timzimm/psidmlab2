@@ -1,15 +1,16 @@
 #include "schroedinger/uso_dkd.h"
 #include <cassert>
-#include "common.h"
 #include "cosmology.h"
+#include "parameters.h"
+#include "state.h"
 
 namespace Schroedinger {
 
 USO_DKD::USO_DKD(const Parameters& p)
     : cosmo{p},
-      pot{PotentialMethod::make(p.pot, p)},
-      N{p.N},
-      L{p.L},
+      pot{PotentialMethod::make(p.get<std::string>("potential"), p)},
+      N{p.get<size_t>("N")},
+      L{p.get<double>("L")},
       K(N, N),
       D(N, N),
       wavenumbers(N),

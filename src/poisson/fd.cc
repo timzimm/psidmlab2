@@ -1,11 +1,18 @@
 #include "poisson/fd.h"
 #include "blaze/math/UniformVector.h"
-#include "common.h"
 #include "lapacke_blaze_wrapper.h"
+#include "parameters.h"
+#include "state.h"
 
 namespace Poisson {
 FD::FD(const Parameters& p)
-    : dx{p.dx}, N{p.N}, dl(N, 1), d(N, -2), du(N, 1), du2(N, 0), ipiv(N) {
+    : dx{p.get<double>("L") / p.get<int>("N")},
+      N{p.get<size_t>("N")},
+      dl(N, 1),
+      d(N, -2),
+      du(N, 1),
+      du2(N, 0),
+      ipiv(N) {
     // The LU decomposition never changes for Poissons equation. Therefore
     // we compute it once and reuse it every time we need the potential for
     // a new source term.

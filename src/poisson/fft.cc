@@ -1,10 +1,14 @@
 #include "poisson/fft.h"
 #include <cassert>
-#include "common.h"
+#include "parameters.h"
+#include "state.h"
 
 namespace Poisson {
 FFT::FFT(const Parameters& p)
-    : N(p.N), L(p.L), fft(N / 2 + 1), inv_k_sq(N / 2 + 1) {
+    : N(p.get<size_t>("N")),
+      L(p.get<double>("L")),
+      fft(N / 2 + 1),
+      inv_k_sq(N / 2 + 1) {
     RCV source_dummy(N);
     RCV potential_dummy(N);
     forwards = fftw_plan_dft_r2c_1d(N, source_dummy.data(),
