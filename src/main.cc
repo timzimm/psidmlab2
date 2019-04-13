@@ -35,7 +35,13 @@ int main(int argc, char** argv) {
     ic.generate(state);
 
     // Setup HDF5 file
-    OutputFile file(param);
+    HDF5File file("test.h5", {"/test"});
+    /* file.write("/Debug/V", state.V); */
+    blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor> v(3, 4, 1);
+    blaze::column(v, 1) = 2;
+    blaze::column(v, 2) = 3;
+    blaze::column(v, 3) = 4;
+    file.write("/Debug/V", state.V);
 
     // Initiliaze numerical method. This selects both the Schroedinger and
     // Poisson algorithm to be used for the integration
@@ -49,7 +55,7 @@ int main(int argc, char** argv) {
     /* auto psi_source = blaze::real(psi); */
     /* file.write(blaze::trans(psi_source), "psi2"); */
 
-    file.write(state.V, "V");
+    /* file.write(state.V, "V"); */
     /* std::cout << INFOTAG("Saving a(tau) to file") << std::endl; */
     /* std::vector<double> tau_grid, a_values; */
     /* double tau = param.tau_start; */

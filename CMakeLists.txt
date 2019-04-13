@@ -14,7 +14,7 @@ find_package(CBLAS)
 add_executable(psidm 
     src/main.cc 
     src/state.cc 
-    src/io.cc 
+    # src/io.cc 
     src/cosmology.cc
     src/ic.cc
     src/poisson/fft.cc
