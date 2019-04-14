@@ -5,7 +5,7 @@
 #include "blaze/math/DynamicVector.h"
 
 // Forward Declaration
-class Parameters;
+#include "parameters_fwd.h"
 
 struct SimState {
     int n;        // time step number

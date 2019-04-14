@@ -11,8 +11,9 @@
 // future to something more expressive/functional.
 
 // Forward Declarations
+#define __FORWARD__
 struct SimState;
-struct Parameters;
+#include "parameters_fwd.h"
 
 // Note that a PotentialMethod can be based on a Stepper (wave equation)
 // or a solver (poisson equation).

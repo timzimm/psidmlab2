@@ -4,7 +4,7 @@
 #include <vector>
 
 // Forward Declaration
-struct Parameters;
+#include "parameters_fwd.h"
 
 enum class CosmoModel { Static, EDS, LCDM };
 

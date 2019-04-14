@@ -1,3 +1,5 @@
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include "cosmology.h"
@@ -10,12 +12,16 @@
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        std::cerr << ERRORTAG("Usage: ./sim /path/to/inifile.ini") << std::endl;
+        std::cerr << ERRORTAG("Usage: ./sim /path/to/config_file.json")
+                  << std::endl;
         exit(1);
     }
 
-    // Populate Parameter struct
-    Parameters param(argv[1]);
+    // Parse Parameters by nlohmann's masterpiece library
+    Parameters param;
+    std::ifstream(argv[1]) >> param;
+    std::cout << INFOTAG("Parsed JSON File. Dump...") << std::endl;
+    std::cout << std::setw(4) << param << std::endl;
 
     // Initialize the cosmological model, i.e. setup the relation
     // a(tau) and tau(a)
@@ -25,9 +31,6 @@ int main(int argc, char** argv) {
     // ini file. This might be wrong, so let's check.
     /* if (param.cosmo != CosmoModel::Static) */
     /* param.tau_end = cosmo.tau_of_a(param.a_end); */
-
-    // Parameters are now correctly initialized. Print them.
-    std::cout << param;
 
     SimState state(param);
 

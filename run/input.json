@@ -1,0 +1,39 @@
+{
+    "General":
+    {
+        "output_file": "../run/static.h5"
+    },
+    "Initial Conditions":
+    {
+        "ic_source": 0,
+        "source_file": "../run/ic.txt",
+        "ev_threshold": -1e-3,
+        "M": 100
+    },
+    "Simulation":
+    {
+        "cosmology": 0,
+        "potential": "Poisson::FFT",
+        "integrator": "Schroedinger::USO_DKD",
+        "mu":0.005,
+        "omega_m0":0.3,
+        "L":10,
+        "N":256,
+        "z_start":256,
+        "z_end":0,
+        "t_end":10,
+        "A":1000000,
+        "dtau":1e-3
+    },
+    "Analysis":
+    {
+        "save_at": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        "psi_to_rho": 0,
+        "compute": [
+            "Observable::Density",
+            "Observable::VelocityDistribution",
+            "Observable::PhasespaceDensity",
+            "Observable::Density"
+        ]
+    }
+}

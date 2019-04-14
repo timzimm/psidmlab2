@@ -1,5 +1,6 @@
 #include "cosmology.h"
 #include <boost/math/tools/roots.hpp>
+#include <iostream>
 #include <tuple>
 #include "parameters.h"
 
@@ -29,13 +30,13 @@ double Cosmology::dtau_da(const double a) const {
 }
 
 Cosmology::Cosmology(const Parameters& p)
-    : a_start(a_of_z(p.get<double>("z_start"))),
-      a_end(a_of_z(p.get<double>("z_end"))),
-      A(p.get<int>("A")),
+    : a_start(a_of_z(p["Simulation"]["z_start"].get<double>())),
+      a_end(a_of_z(p["Simulation"]["z_end"].get<double>())),
+      A(p["Simulation"]["A"].get<int>()),
       delta_a((a_end - a_start) / (A - 1)),
       a_grid(A),
-      model(static_cast<CosmoModel>(p.get<int>("cosmology"))),
-      omega_m0(p.get<double>("omega_m0")) {
+      model(static_cast<CosmoModel>(p["Simulation"]["cosmology"].get<int>())),
+      omega_m0(p["Simulation"]["omega_m0"].get<double>()) {
     // Fix density parameter based on model selection
     omega_m0 = (model == CosmoModel::EDS) ? 1 : omega_m0;
 

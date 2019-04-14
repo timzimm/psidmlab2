@@ -5,8 +5,8 @@
 
 namespace Poisson {
 FFT::FFT(const Parameters& p)
-    : N(p.get<size_t>("N")),
-      L(p.get<double>("L")),
+    : N(p["Simulation"]["N"].get<size_t>()),
+      L(p["Simulation"]["L"].get<double>()),
       fft(N / 2 + 1),
       inv_k_sq(N / 2 + 1) {
     RCV source_dummy(N);

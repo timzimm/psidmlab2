@@ -10,6 +10,7 @@ find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 find_package(FFTW REQUIRED)
 find_package(CBLAS)
+find_package(nlohmann_json 3.2.0 REQUIRED)
 
 add_executable(psidm 
     src/main.cc 
@@ -46,7 +47,11 @@ target_include_directories(psidm
             ${Boost_INCLUDE_DIRS} 
             ${FFTW_INCLUDE_DIRS} 
 )
-target_link_libraries(psidm ${HDF5_C_LIBRARIES} ${FFTW_LIBRARIES}
-    ${BLAS_LIBRARIES})
+
+target_link_libraries(psidm 
+    PRIVATE ${HDF5_C_LIBRARIES} 
+            ${FFTW_LIBRARIES}
+            ${BLAS_LIBRARIES}
+            nlohmann_json::nlohmann_json)
 
 

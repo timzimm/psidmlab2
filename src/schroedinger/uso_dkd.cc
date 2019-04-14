@@ -8,9 +8,10 @@ namespace Schroedinger {
 
 USO_DKD::USO_DKD(const Parameters& p)
     : cosmo{p},
-      pot{PotentialMethod::make(p.get<std::string>("potential"), p)},
-      N{p.get<size_t>("N")},
-      L{p.get<double>("L")},
+      pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
+                                p)},
+      N{p["Simulation"]["N"].get<size_t>()},
+      L{p["Simulation"]["L"].get<double>()},
       K(N, N),
       D(N, N),
       wavenumbers(N),

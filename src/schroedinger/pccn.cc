@@ -7,9 +7,10 @@
 namespace Schroedinger {
 
 PCCN::PCCN(const Parameters& p)
-    : dx{p.get<double>("L") / p.get<int>("N")},
-      N{p.get<size_t>("N")},
-      potential{PotentialMethod::make(p.get<std::string>("potential"), p)},
+    : dx{p["Simulation"]["L"].get<double>() / p["Simulation"]["N"].get<int>()},
+      N{p["Simulation"]["N"].get<size_t>()},
+      potential{PotentialMethod::make(
+          p["Simulation"]["potential"].get<std::string>(), p)},
       K(N, N),
       cosmo{p} {
     // Cyclic Kinetic matrix never changes - compute it @ construction

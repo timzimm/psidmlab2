@@ -6,8 +6,8 @@
 #include <string>
 
 // Forward Declarations
+#include "parameters_fwd.h"
 struct SimState;
-struct Parameters;
 class PotentialMethod;
 
 enum class ICType { Density, Powerspectrum };

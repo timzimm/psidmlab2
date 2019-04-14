@@ -6,8 +6,8 @@
 
 namespace Poisson {
 FD::FD(const Parameters& p)
-    : dx{p.get<double>("L") / p.get<int>("N")},
-      N{p.get<size_t>("N")},
+    : dx{p["Simulation"]["L"].get<double>() / p["Simulation"]["N"].get<int>()},
+      N{p["Simulation"]["N"].get<size_t>()},
       dl(N, 1),
       d(N, -2),
       du(N, 1),

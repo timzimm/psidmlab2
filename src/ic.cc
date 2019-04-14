@@ -17,13 +17,14 @@
 #include "state.h"
 
 ICGenerator::ICGenerator(const Parameters& p)
-    : type(static_cast<ICType>(p.get<int>("ic_source"))),
-      N(p.get<int>("N")),
-      dx{p.get<double>("L") / p.get<int>("N")},
-      L(p.get<double>("L")),
-      M(p.get<int>("M")),
-      rel_threshold(p.get<double>("ev_threshold")),
-      source_name(p.get<std::string>("source_file")),
+    : type(
+          static_cast<ICType>(p["Initial Conditions"]["ic_source"].get<int>())),
+      N(p["Simulation"]["N"].get<int>()),
+      dx{p["Simulation"]["L"].get<double>() / p["Simulation"]["N"].get<int>()},
+      L(p["Simulation"]["L"].get<double>()),
+      M(p["Initial Conditions"]["M"].get<int>()),
+      rel_threshold(p["Initial Conditions"]["ev_threshold"].get<double>()),
+      source_name(p["Initial Conditions"]["source_file"].get<std::string>()),
       ic_file(source_name),
       potential(PotentialMethod::make("Poisson::FD", p)) {
     // Altough the input file format is generic for rho and powerspectrum

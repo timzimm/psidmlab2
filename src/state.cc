@@ -5,5 +5,5 @@
 SimState::SimState(const Parameters& p)
     : n(0),
       tau(0),
-      dtau(p.get<double>("dtau")),
-      a(Cosmology::a_of_z(p.get<double>("z_start"))) {}
+      dtau(p["Simulation"]["dtau"].get<double>()),
+      a(Cosmology::a_of_z(p["Simulation"]["z_start"].get<double>())) {}
