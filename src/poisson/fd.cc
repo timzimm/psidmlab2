@@ -1,5 +1,4 @@
 #include "poisson/fd.h"
-#include "blaze/math/UniformVector.h"
 #include "lapacke_blaze_wrapper.h"
 #include "parameters.h"
 #include "state.h"
@@ -23,7 +22,6 @@ void FD::solve(SimState& state) {
     using namespace blaze;
 
     // Calculate source term as matrix
-    UniformVector<double> ones(N, 1.0);
     auto psi2 = real(state.psis % state.psis);
     DynamicMatrix<double, columnMajor> source =
         dx * dx * expand(psi2 * state.lambda, 1);
@@ -37,5 +35,4 @@ void FD::solve(SimState& state) {
     state.V = column(map(source, [&mean](double V) { return V - mean; }), 0);
 }
 
-FD::~FD() = default;
 }  // namespace Poisson

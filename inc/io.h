@@ -101,7 +101,7 @@ class HDF5File {
 
    public:
     HDF5File(const std::string& filename,
-             const std::vector<std::string>& init_groups)
+             const std::vector<std::string>& init_groups = {})
         : file(H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
                          H5P_DEFAULT)),
           complex_type(H5Tcreate(H5T_COMPOUND, 2 * sizeof(double))) {

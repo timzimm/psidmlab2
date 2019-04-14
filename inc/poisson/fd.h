@@ -22,7 +22,6 @@ class FD : public PotentialMethod::Registrar<FD> {
 
    public:
     FD(const Parameters& p);
-    ~FD();
     void solve(SimState& state) override;
 };
 

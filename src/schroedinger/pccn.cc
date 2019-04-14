@@ -57,6 +57,4 @@ void PCCN::step(SimState& state) {
     state.a = a_da;
 }
 
-PCCN::~PCCN() = default;
-
 }  // namespace Schroedinger
