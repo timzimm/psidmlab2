@@ -1,5 +1,6 @@
 #ifndef __INTERFACES__
 #define __INTERFACES__
+#include "blaze/math/DynamicMatrix.h"
 #include "factory.h"
 
 // This header defines all interfaces of
@@ -27,9 +28,11 @@ class SchroedingerMethod : public Factory<SchroedingerMethod, Parameters> {
     virtual ~SchroedingerMethod() = default;
 };
 
-class Observable : public Factory<Observable, Parameters> {
+class ObservableFunctor : public Factory<ObservableFunctor, Parameters> {
    public:
-    virtual void compute(SimState& state) = 0;
-    virtual ~Observable() = default;
+    // virtual function templates do not exists. So double is the way to go.
+    virtual blaze::DynamicMatrix<double, blaze::columnMajor> compute(
+        const SimState& state) = 0;
+    virtual ~ObservableFunctor() = default;
 };
 #endif

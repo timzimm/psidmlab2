@@ -30,10 +30,7 @@
         "save_at": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         "psi_to_rho": 0,
         "compute": [
-            "Observable::Density",
-            "Observable::VelocityDistribution",
-            "Observable::PhasespaceDensity",
-            "Observable::Density"
+            "Observable::DensityContrast"
         ]
     }
 }

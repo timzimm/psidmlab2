@@ -17,6 +17,7 @@ add_executable(psidm
     src/state.cc 
     src/cosmology.cc
     src/ic.cc
+    src/observables.cc
     src/poisson/fft.cc
     src/poisson/fd.cc
     src/schroedinger/uso_dkd.cc

@@ -2,6 +2,8 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <unordered_map>
+#include <vector>
 #include "cosmology.h"
 #include "ic.h"
 #include "interfaces.h"
@@ -24,7 +26,7 @@ int main(int argc, char** argv) {
     std::cout << std::setw(4) << param << std::endl;
 
     // Initialize the cosmological model, i.e. setup the relation
-    // a(tau) and tau(a)
+    // a(tau) and tau(a) for the main loop
     Cosmology cosmo(param);
 
     // At this point tau_end is set for the static case as specified in the
@@ -32,19 +34,33 @@ int main(int argc, char** argv) {
     /* if (param.cosmo != CosmoModel::Static) */
     /* param.tau_end = cosmo.tau_of_a(param.a_end); */
 
+    // Setup initial state
     SimState state(param);
-
     ICGenerator ic(param);
     ic.generate(state);
 
-    // Setup HDF5 file
-    HDF5File file("test.h5", {"/test"});
+    // Setup Analysis Functors
+    std::string filename;
+    param["General"]["output_file"].get_to(filename);
+
+    std::vector<std::string> keys;
+    param["Analysis"]["compute"].get_to(keys);
+
+    // Hash map that
+    std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>
+        observables;
+    for (auto& key : keys)
+        observables[key] = ObservableFunctor::make(key, param);
+
+    HDF5File file(filename);
+
     /* file.write("/Debug/V", state.V); */
-    blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor> v(3, 4, 1);
-    blaze::column(v, 1) = 2;
-    blaze::column(v, 2) = 3;
-    blaze::column(v, 3) = 4;
-    file.write("/Debug/V", state.V);
+    for (const auto& pair : observables) {
+        auto& name = pair.first;
+        auto& routine = pair.second;
+        auto res = routine->compute(state);
+        file.write("/" + name + "/0", res);
+    }
 
     // Initiliaze numerical method. This selects both the Schroedinger and
     // Poisson algorithm to be used for the integration
