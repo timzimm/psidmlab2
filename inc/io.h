@@ -5,12 +5,19 @@
 #include "blaze/math/DynamicVector.h"
 #include "hdf5.h"
 
+// Definition of the File Interface. The project uses HDF5 as file format. HDF5
+// is the quasi-standard in scientific computing. It handles multidimensional,
+// heterogeneous data in a self-explaining way, very similar to a file structure
+// in your OS. Moreover, it is fast and can handle async, parallel, compressed
+// I/O if required (currently not).
+
 class HDF5File {
    private:
     hid_t file;          // Handle to HDF5 file
     hid_t complex_type;  // compound datatype for complex data
 
-    // Strip off padding
+    // Computes correct memory dataspace due to potential padding of blaze
+    // matrices.
     template <typename T>
     void matrix_dataspace_dim(const blaze::DynamicMatrix<T, blaze::rowMajor>& M,
                               hsize_t* dims) {
@@ -25,6 +32,10 @@ class HDF5File {
         dims[1] = M.spacing();
     }
 
+    // HDF5 always assumes row major data. This is of course wrong for blaze's
+    // columnMajor matrices. Hence, a distinction has to be made indepedent of
+    // the type.
+    // Row-Major matrix is trivial. Just forward to the C-API.
     template <typename T>
     void H5Dwrite_wrapper(hid_t dataset_id, hid_t type, hid_t mem_space_id,
                           hid_t file_space_id, hid_t xfer_plist_id,
@@ -33,7 +44,7 @@ class HDF5File {
                  buf.data());
     }
 
-    // Column-Major matrix needs to be "transposed" onn write
+    // Column-Major matrix needs to be "transposed" on write
     template <typename T>
     void H5Dwrite_wrapper(
         hid_t dataset_id, hid_t type, hid_t mem_space_id, hid_t file_space_id,
@@ -61,6 +72,8 @@ class HDF5File {
         }
     }
 
+    // Parameter list does not propagate any type info. Hence, we inject this
+    // information via a template.
     template <typename T>
     hid_t H5Dcreate_wrapper(hid_t loc_id, const char* name, hid_t space_id,
                             hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id) {
@@ -68,6 +81,8 @@ class HDF5File {
                          dcpl_id, dapl_id);
     }
 
+    // mkdir -p for HDF5
+    // TODO Regex
     hid_t create_groups_along_path(const std::string& path) {
         size_t end = 0;
         herr_t status;
@@ -101,8 +116,19 @@ class HDF5File {
         }
     }
 
-    template <typename T>
-    void write(const std::string& ds_path, const blaze::DynamicVector<T> data) {
+    // Write generic vector to file. In this context generic means:
+    //
+    // T = std::complex<FT> , FT
+    // FT = double, float, int... (anything with sizeof(FT) < sizeof(double))
+    // TF = blaze::columnVector, blaze::rowVector
+    //
+    // TODO: We can drop the vector routine entirely by using
+    //                  evaluate(expand(data,0))
+    // This would reduce code bloating, but this it impact performance?
+
+    template <typename T, bool TF>
+    void write(const std::string& ds_path,
+               const blaze::DynamicVector<T, TF> data) {
         auto parent_group = create_groups_along_path(ds_path);
 
         // Create new dataspace and dataset for data vector
@@ -115,8 +141,6 @@ class HDF5File {
             H5Dcreate_wrapper<T>(parent_group, ds_path.c_str(), dataspace,
                                  H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-        // Write data into dataset
-        // Query dataset type
         auto type = H5Dget_type(dataset);
         H5Dwrite(dataset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, data.data());
 
@@ -125,6 +149,12 @@ class HDF5File {
         H5Dclose(dataset);
         H5Gclose(parent_group);
     }
+
+    // Write generic matrix to file. In this context generic means:
+    //
+    // T = std::complex<FT> , FT
+    // FT = double, float, int... (anything with sizeof(FT) < sizeof(double))
+    // SO = blaze::rowMajor, blaze::columnMajor
 
     template <typename T, bool SO>
     void write(const std::string& ds_path,
@@ -148,8 +178,6 @@ class HDF5File {
         H5Sselect_hyperslab(dataspace_matrix, H5S_SELECT_SET, offset, NULL,
                             dim_file, NULL);
 
-        // Write data into dataset
-        // Query dataset type
         auto type = H5Dget_type(dataset);
         H5Dwrite_wrapper(dataset, type, dataspace_matrix, dataspace_file,
                          H5P_DEFAULT, data);
@@ -161,6 +189,7 @@ class HDF5File {
         H5Gclose(parent_group);
     }
 
+    // RAII. Always.
     ~HDF5File() { H5Fclose(file); };
 };
 
