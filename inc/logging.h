@@ -1,6 +1,7 @@
 #ifndef __DEBUGGING__
 #define __DEBUGGING__
 #include <iomanip>
+#include <iostream>
 #include <ostream>
 
 template <typename Iter>

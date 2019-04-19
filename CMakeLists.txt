@@ -18,6 +18,7 @@ add_executable(psidm
     src/cosmology.cc
     src/ic.cc
     src/observables.cc
+    src/convolution_functions.cc
     src/poisson/fft.cc
     src/poisson/fd.cc
     src/schroedinger/uso_dkd.cc
