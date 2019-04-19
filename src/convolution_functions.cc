@@ -1,9 +1,8 @@
 #include "convolution_functions.h"
-#include <iostream>
 
 convolution_ws::convolution_ws(const bool computeLinear_, const int N_signal,
                                const int N_kernel)
-    : threshold(20),
+    : threshold(10),
       kernel_up_to_date(false),
       computeLinear(computeLinear_),
       fast_convolution(N_kernel >= threshold),
@@ -59,10 +58,11 @@ void discrete_convolution(convolution_ws& data,
         // appropriate padding P
         fast_convolution(data, kernel, signal);
     } else {
-        if (data.computeLinear)
+        if (data.computeLinear) {
             linear_convolution_sum(data, kernel, signal);
-        else
+        } else {
             circular_convolution_sum(data, kernel, signal);
+        }
     }
 }
 void fast_convolution(convolution_ws& data,
@@ -94,6 +94,16 @@ void fast_convolution(convolution_ws& data,
     // Discrete convolution theorem + normalization for IDFT
     data.signal_fft *= 1.0 / data.P * data.kernel_fft;
 
+    if (!data.computeLinear) {
+        // Apply shift theorem to recenter data.
+        int delta = -1 * (kernel.size() / 2);
+        // TODO Blaze this with for_each? Temp vector? maybe move to the caller
+        // and invoke std::rotate?
+        for (int k = 0; k < data.P / 2 + 1; ++k)
+            data.signal_fft[k] *= exp(k * 2 * M_PI * delta / data.P *
+                                      std::complex<double>(0, -1));
+    }
+
     fftw_execute_dft_r2c(
         data.backward, data.signal_padded.data(),
         reinterpret_cast<fftw_complex*>(data.signal_fft.data()));
@@ -123,10 +133,12 @@ void circular_convolution_sum(convolution_ws& data,
     const int N_kernel = kernel.size();
     const int N_signal = signal.size();
 
-    // Perform convolution of size N_signal
+    // Perform convolution of size N_signal - compensate ciruclar shift
+    // by reshifting with N_kernel/2
     for (int n = 0; n < data.P; ++n) {
+        data.signal_padded[n] = 0;
         for (int k = 0; k < N_kernel; ++k) {
-            int i = (n - k) % N_signal;
+            int i = (n + N_kernel / 2 - k) % N_signal;
             i = (i < 0) ? i + N_signal : i;
             data.signal_padded[n] += kernel[k] * signal[i];
         }
