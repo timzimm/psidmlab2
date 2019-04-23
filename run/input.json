@@ -32,7 +32,7 @@
         "sigma_x": 0.5,
         "linear_convolution": false,
         "compute": [
-            "Observable::DensityContrast"
+            "Observable::PhaseSpaceDistribution"
         ]
     }
 }
