@@ -76,13 +76,6 @@ PhaseSpaceDistribution::compute(const SimState& state) {
     auto odd_plan =
         fftw_plan_dft_1d(N, lag_ptr, lag_ptr, FFTW_FORWARD, FFTW_ESTIMATE);
 
-    // Load chirp data
-    std::ifstream input("/tmp/chirp/chirp.txt");
-    std::copy(std::istream_iterator<std::complex<double>>(input),
-              std::istream_iterator<std::complex<double>>(), chirp.begin());
-
-    auto& signal = chirp;
-
     // We only compute the first quadrant of W. All other quadrants follow by
     // symmetry properties of W
     auto W_00 = submatrix(W, 0, 0, N, N);
