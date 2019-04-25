@@ -10,6 +10,7 @@ namespace Observable {
 class DensityContrast : public ObservableFunctor::Registrar<DensityContrast> {
     double sigma_x;  // spatial smoothing scale
     bool husimi;
+    bool linear;
     int N;
     double dx;
     int N_kernel;
@@ -26,6 +27,7 @@ class PhaseSpaceDistribution
     : public ObservableFunctor::Registrar<PhaseSpaceDistribution> {
     double sigma_x;  // spatial smoothing scale
     bool husimi;
+    bool linear;
     int N;
     double dx;
     int N_kernel;
