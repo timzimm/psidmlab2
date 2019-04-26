@@ -14,7 +14,7 @@ class DensityContrast : public ObservableFunctor::Registrar<DensityContrast> {
     int N;
     double dx;
     int N_kernel;
-    convolution_ws ws;
+    convolution_ws<double> ws;
     blaze::DynamicVector<double> gaussian_kernel;
 
    public:
@@ -31,7 +31,6 @@ class PhaseSpaceDistribution
     int N;
     double dx;
     int N_kernel;
-    convolution_ws ws;
     blaze::DynamicVector<double> gaussian_kernel;
 
    public:

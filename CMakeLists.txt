@@ -40,7 +40,7 @@ if(CBLAS_FOUND)
         -DBLAZE_BLAS_INCLUDE_FILE="${HEADERNAME}")
 endif()
 
-target_compile_features(psidm PUBLIC cxx_std_14)
+target_compile_features(psidm PUBLIC cxx_std_17)
 
 target_include_directories(psidm 
     PUBLIC  inc

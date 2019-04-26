@@ -63,14 +63,13 @@ PhaseSpaceDistribution::PhaseSpaceDistribution(const Parameters& p)
       N(p["Simulation"]["N"].get<int>()),
       dx(p["Simulation"]["L"].get<double>() / N),
       N_kernel(2 * floor(5 * sigma_x / dx) + 1),
-      ws(husimi ? linear : 0, husimi ? N : 0, husimi ? N_kernel : 0),
       gaussian_kernel(N_kernel) {}
 
 blaze::DynamicMatrix<double, blaze::columnMajor>
 PhaseSpaceDistribution::compute(const SimState& state) {
     using namespace blaze;
 
-    // Plan init is negligible compared to workload
+    // Plan init is negligible compared to workload - do it here
     DynamicVector<std::complex<double>> lag(N);
     DynamicMatrix<double, columnMajor> W(2 * N, 2 * N);
     auto lag_ptr = reinterpret_cast<fftw_complex*>(lag.data());
