@@ -28,11 +28,10 @@
     "Analysis":
     {
         "save_at": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        "psi_to_rho": 0,
-        "sigma_x": 0.5,
+        "sigma_x": 0.1,
         "linear_convolution": false,
         "compute": [
-            "Observable::PhaseSpaceDistribution"
+            "Observable::DensityContrast"
         ]
     }
 }
