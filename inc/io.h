@@ -128,7 +128,7 @@ class HDF5File {
 
     template <typename T, bool TF>
     void write(const std::string& ds_path,
-               const blaze::DynamicVector<T, TF> data) {
+               const blaze::DynamicVector<T, TF>& data) {
         auto parent_group = create_groups_along_path(ds_path);
 
         // Create new dataspace and dataset for data vector
@@ -158,7 +158,7 @@ class HDF5File {
 
     template <typename T, bool SO>
     void write(const std::string& ds_path,
-               const blaze::DynamicMatrix<T, SO> data) {
+               const blaze::DynamicMatrix<T, SO>& data) {
         auto parent_group = create_groups_along_path(ds_path);
 
         // Create new dataspaces in both the file and the memory area
