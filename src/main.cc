@@ -46,7 +46,6 @@ int main(int argc, char** argv) {
     std::vector<std::string> keys;
     param["Analysis"]["compute"].get_to(keys);
 
-    // Hash map that
     std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>
         observables;
     for (auto& key : keys)
@@ -58,7 +57,7 @@ int main(int argc, char** argv) {
     for (const auto& pair : observables) {
         auto& name = pair.first;
         auto& routine = pair.second;
-        auto res = routine->compute(state);
+        auto& res = routine->compute(state);
         file.write("/" + name + "/0", res);
     }
 

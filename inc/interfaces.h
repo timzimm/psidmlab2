@@ -31,7 +31,7 @@ class SchroedingerMethod : public Factory<SchroedingerMethod, Parameters> {
 class ObservableFunctor : public Factory<ObservableFunctor, Parameters> {
    public:
     // virtual function templates do not exists. So double is the way to go.
-    virtual blaze::DynamicMatrix<double, blaze::columnMajor> compute(
+    virtual const blaze::DynamicMatrix<double, blaze::columnMajor>& compute(
         const SimState& state) = 0;
     virtual ~ObservableFunctor() = default;
 };
