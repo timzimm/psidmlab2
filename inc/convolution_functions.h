@@ -48,7 +48,7 @@ struct convolution_ws {
 template <typename T, bool TF>
 convolution_ws<T, TF>::convolution_ws(const bool computeLinear_,
                                       const int N_signal, const int N_kernel)
-    : threshold(100),
+    : threshold(50),
       kernel_up_to_date(false),
       computeLinear(computeLinear_),
       fast_convolution(N_kernel >= threshold),
@@ -69,20 +69,21 @@ convolution_ws<T, TF>::convolution_ws(const bool computeLinear_,
         // [N_offset, N_offset + N_signal]
         signal_padded.resize(P);
 
+        auto in = reinterpret_cast<fftw_complex*>(signal_fft.data());
+
         // Real signal
         if constexpr (std::is_floating_point_v<T>) {
             signal_fft.resize(P / 2 + 1);
+            auto out = signal_padded.data();
             // Real signal backwards
-            c2r = fftw_plan_dft_c2r_1d(
-                P, reinterpret_cast<fftw_complex*>(signal_fft.data()),
-                signal_padded.data(), FFTW_ESTIMATE);
+            c2r = fftw_plan_dft_c2r_1d(P, in, out, FFTW_ESTIMATE);
+
             // Complex signal
         } else {
             signal_fft.resize(P);
+            auto out = reinterpret_cast<fftw_complex*>(signal_padded.data());
             // Complex signal backwards
-            c2c = fftw_plan_dft_1d(
-                P, reinterpret_cast<fftw_complex*>(signal_fft.data()),
-                signal_padded.data(), FFTW_ESTIMATE);
+            c2c = fftw_plan_dft_1d(P, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
         }
 
         // real kernel to complex DFT
