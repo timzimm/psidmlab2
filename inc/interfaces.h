@@ -1,12 +1,16 @@
 #ifndef __INTERFACES__
 #define __INTERFACES__
+#include <boost/variant.hpp>
+#include <complex>
 #include "blaze/math/DynamicMatrix.h"
+#include "blaze/math/DynamicVector.h"
 #include "factory.h"
 
 // This header defines all interfaces of
 //
 // SchroedingerMethod (like Schroedinger::USO_DKD, Schroedinger::CN, ...)
 // PotentialMethod (like Poisson::FFT, Poisson::FD, ...)
+// ObservableFunctor (like Observable::DensityConstrast, Observable::Potential)
 //
 // The interface is currently as generic as possible and might change in the
 // future to something more expressive/functional.
@@ -30,9 +34,12 @@ class SchroedingerMethod : public Factory<SchroedingerMethod, Parameters> {
 
 class ObservableFunctor : public Factory<ObservableFunctor, Parameters> {
    public:
-    // virtual function templates do not exists. So double is the way to go.
-    virtual const blaze::DynamicMatrix<double, blaze::columnMajor>& compute(
-        const SimState& state) = 0;
+    using ReturnType = boost::variant<
+        const blaze::DynamicMatrix<double, blaze::columnMajor>&,
+        const blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>&,
+        const blaze::DynamicVector<double>&>;
+
+    virtual ReturnType compute(const SimState& state) = 0;
     virtual ~ObservableFunctor() = default;
 };
 #endif

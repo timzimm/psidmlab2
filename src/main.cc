@@ -53,12 +53,20 @@ int main(int argc, char** argv) {
 
     HDF5File file(filename);
 
-    /* file.write("/Debug/V", state.V); */
+    std::string path_to_ds;
+    auto write_variant = [&file, &path_to_ds](auto& output) {
+        file.write(path_to_ds, output);
+    };
+
     for (const auto& pair : observables) {
+        // Construct path to dataset
         auto& name = pair.first;
+        path_to_ds = "/" + name + "/0";
+
+        // Computes the observable variant;
         auto& routine = pair.second;
-        auto& res = routine->compute(state);
-        file.write("/" + name + "/0", res);
+        auto res = routine->compute(state);
+        boost::apply_visitor(write_variant, res);
     }
 
     // Initiliaze numerical method. This selects both the Schroedinger and

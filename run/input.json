@@ -31,7 +31,8 @@
         "sigma_x": 0.1,
         "linear_convolution": false,
         "compute": [
-            "Observable::DensityContrast"
+            "Observable::Potential",
+            "Observable::WaveFunction"
         ]
     }
 }

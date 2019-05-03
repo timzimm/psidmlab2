@@ -7,7 +7,6 @@
 #include "state.h"
 
 #include <algorithm>
-#include <complex>
 
 namespace Observable {
 
@@ -33,25 +32,22 @@ DensityContrast::DensityContrast(const Parameters& p)
     }
 }
 
-const blaze::DynamicMatrix<double, blaze::columnMajor>&
-DensityContrast::compute(const SimState& state) {
+ObservableFunctor::ReturnType DensityContrast::compute(const SimState& state) {
     using namespace blaze;
     if (t_prev < state.tau) {
         auto psi2 = real(state.psis % state.psis);
         UniformVector<double> one(N);
-        DynamicVector<double> delta_v = psi2 * state.lambda - one;
+        delta = psi2 * state.lambda - one;
 
         if (husimi) {
-            discrete_convolution(ws, gaussian_kernel, delta_v);
-            delta_v = blaze::subvector(ws.signal_padded, ws.N_offset, N);
+            discrete_convolution(ws, gaussian_kernel, delta);
+            delta = blaze::subvector(ws.signal_padded, ws.N_offset, N);
             if (!linear) {
                 // TODO Benchmark against element selection
-                std::rotate(std::begin(delta_v),
-                            std::begin(delta_v) + N_kernel / 2,
-                            std::end(delta_v));
+                std::rotate(std::begin(delta), std::begin(delta) + N_kernel / 2,
+                            std::end(delta));
             }
         }
-        delta = expand(delta_v, 1);
         t_prev = state.tau;
     }
 
@@ -212,13 +208,26 @@ void PhaseSpaceDistribution::husimi_distribution(const SimState& state) {
     }
 }
 
-const blaze::DynamicMatrix<double, blaze::columnMajor>&
-PhaseSpaceDistribution::compute(const SimState& state) {
+ObservableFunctor::ReturnType PhaseSpaceDistribution::compute(
+    const SimState& state) {
     if (t_prev < state.tau) {
         husimi ? husimi_distribution(state) : wigner_distribution(state);
         t_prev = state.tau;
     }
     return f;
+}
+
+Potential::Potential(const Parameters& p){};
+
+inline ObservableFunctor::ReturnType Potential::compute(const SimState& state) {
+    return state.V;
+}
+
+WaveFunction::WaveFunction(const Parameters& p){};
+
+inline ObservableFunctor::ReturnType WaveFunction::compute(
+    const SimState& state) {
+    return state.psis;
 }
 
 }  // namespace Observable

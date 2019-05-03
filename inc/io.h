@@ -121,10 +121,6 @@ class HDF5File {
     // T = std::complex<FT> , FT
     // FT = double, float, int... (anything with sizeof(FT) < sizeof(double))
     // TF = blaze::columnVector, blaze::rowVector
-    //
-    // TODO: We can drop the vector routine entirely by using
-    //                  evaluate(expand(data,0))
-    // This would reduce code bloating, but this it impact performance?
 
     template <typename T, bool TF>
     void write(const std::string& ds_path,

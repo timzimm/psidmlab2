@@ -17,12 +17,11 @@ class DensityContrast : public ObservableFunctor::Registrar<DensityContrast> {
     double t_prev;
     convolution_ws<double> ws;
     blaze::DynamicVector<double> gaussian_kernel;
-    blaze::DynamicMatrix<double, blaze::columnMajor> delta;
+    blaze::DynamicVector<double> delta;
 
    public:
     DensityContrast(const Parameters& p);
-    const blaze::DynamicMatrix<double, blaze::columnMajor>& compute(
-        const SimState& state) override;
+    ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
 
 class PhaseSpaceDistribution
@@ -45,8 +44,19 @@ class PhaseSpaceDistribution
 
    public:
     PhaseSpaceDistribution(const Parameters& p);
-    const blaze::DynamicMatrix<double, blaze::columnMajor>& compute(
-        const SimState& state) override;
+    ObservableFunctor::ReturnType compute(const SimState& state) override;
+};
+
+class Potential : public ObservableFunctor::Registrar<Potential> {
+   public:
+    Potential(const Parameters& p);
+    ObservableFunctor::ReturnType compute(const SimState& state) override;
+};
+
+class WaveFunction : public ObservableFunctor::Registrar<WaveFunction> {
+   public:
+    WaveFunction(const Parameters& p);
+    ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
 
 }  // namespace Observable
