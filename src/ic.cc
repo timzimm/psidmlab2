@@ -1,12 +1,5 @@
 #include "ic.h"
-#include <fftw3.h>
-#include <algorithm>
-#include <cmath>
-#include <iostream>
-#include <limits>
-#include <numeric>
 #include "blaze/math/Band.h"
-#include "blaze/math/CompressedMatrix.h"
 #include "blaze/math/DiagonalMatrix.h"
 #include "blaze/math/Elements.h"
 #include "blaze/math/Row.h"
@@ -16,53 +9,138 @@
 #include "parameters.h"
 #include "state.h"
 
-ICGenerator::ICGenerator(const Parameters& p)
-    : type(
-          static_cast<ICType>(p["Initial Conditions"]["ic_source"].get<int>())),
-      N(p["Simulation"]["N"].get<int>()),
-      dx{p["Simulation"]["L"].get<double>() / p["Simulation"]["N"].get<int>()},
-      L(p["Simulation"]["L"].get<double>()),
-      M(p["Initial Conditions"]["M"].get<int>()),
-      rel_threshold(p["Initial Conditions"]["ev_threshold"].get<double>()),
-      source_name(p["Initial Conditions"]["source_file"].get<std::string>()),
-      ic_file(source_name),
-      potential(PotentialMethod::make("Poisson::FD", p)) {
-    // Altough the input file format is generic for rho and powerspectrum
-    // type initial conditions, we leave the exact way of parsing the data
-    // to the generator routines to allow for specialized malloc's.
-    ic_file.ignore(std::numeric_limits<int>::max(), '\n');
+#include <fftw3.h>
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <numeric>
 
-    // Number of lines
+// Stores a two column file into vectors col1 & col2. Copy process stops if end
+// of vector is reached. Caller must ensure that stream is valid for at least
+// 2*N reads from it.
+// TODO: Regex support to generalize readout
+template <typename T, bool TF>
+void fill_from_file(std::istream& s, blaze::DynamicVector<T, TF>& col1,
+                    blaze::DynamicVector<T, TF>& col2) {
+    assert(col1.size() == col2.size());
+    const size_t N = col1.size();
+    for (size_t i = 0; i < N; ++i) {
+        T val1, val2;
+        s >> col1[i] >> col2[i];
+    }
+}
+
+ICGenerator::ICGenerator(const Parameters& p)
+    : type{static_cast<ICType>(p["Initial Conditions"]["ic_type"].get<int>())},
+      N{p["Simulation"]["N"].get<int>()},
+      data_N{0},
+      L{p["Simulation"]["L"].get<double>()},
+      dx{L / N},
+      M{p["Initial Conditions"]["M"].get<int>()},
+      rel_threshold{p["Initial Conditions"]["ev_threshold"].get<double>()},
+      ic_file{p["Initial Conditions"]["source_file"].get<std::string>()},
+      pot_file{p["Initial Conditions"]["potential_file"].get<std::string>()},
+      potential{nullptr} {
+    ic_file.ignore(std::numeric_limits<int>::max(), '\n');
     data_N = std::count(std::istreambuf_iterator<char>(ic_file),
                         std::istreambuf_iterator<char>(), '\n');
-    data_N = (data_N + 1);
+
+    int pot_N;
+    if (pot_file) {
+        pot_file.seekg(0);
+        pot_file.ignore(std::numeric_limits<int>::max(), '\n');
+
+        pot_N = std::count(std::istreambuf_iterator<char>(pot_file),
+                           std::istreambuf_iterator<char>(), '\n');
+
+        pot_file.seekg(0);
+        pot_file.ignore(std::numeric_limits<int>::max(), '\n');
+    } else {
+        potential = PotentialMethod::make(
+            p["Simulation"]["potential"].get<std::string>(), p);
+        pot_N = N;
+    }
+
+    switch (type) {
+        case ICType::External:
+            if (data_N % M != 0) {
+                std::cout << ERRORTAG("Number of lines is not a multiple of M.")
+                          << std::endl;
+                exit(1);
+            }
+            break;
+        case ICType::Density:
+            if (data_N != N) {
+                std::cout << ERRORTAG(
+                                 "Number of lines in source file differs from "
+                                 "parameter N.")
+                          << std::endl;
+                exit(1);
+            }
+            break;
+        default:
+            if (N != pot_N) {
+                std::cout
+                    << ERRORTAG(
+                           "Number of lines in potential file differs from N.")
+                    << std::endl;
+                exit(1);
+            }
+    };
+
     ic_file.seekg(0);
     ic_file.ignore(std::numeric_limits<int>::max(), '\n');
 }
 
-// Dispatches the correct generator routine depending on
-// Parameters::IC parameter at runtime
 void ICGenerator::generate(SimState& state) const {
-    if (type == ICType::Density)
-        psi_from_rho(state);
-    else
-        psi_from_power(state);
+    switch (type) {
+        case ICType::External:
+            psi_from_file(state);
+            break;
+        case ICType::Powerspectrum:
+            psi_from_power(state);
+            break;
+        case ICType::Density:
+            psi_from_rho(state);
+    }
+    if (pot_file) {
+        fill_from_file(pot_file, state.V, state.V);
+    } else {
+        potential->solve(state);
+    }
 }
+
+void ICGenerator::psi_from_file(SimState& state) const {
+    using namespace blaze;
+    state.M = M;
+    state.psis.resize(N, M);
+    state.V.resize(N);
+    state.lambda.resize(M);
+
+    DynamicVector<double> real(N);
+    DynamicVector<double> imag(N);
+
+    for (int m = 0; m < M; ++m) {
+        auto psi = column(state.psis, m);
+        fill_from_file(ic_file, real, imag);
+        psi = map(real, imag,
+                  [](double r, double i) { return std::complex(r, i); });
+    }
+}
+
+// TODO implement power spectrum initial conditions.
+void ICGenerator::psi_from_power(SimState& state) const {}
 
 void ICGenerator::psi_from_rho(SimState& state) const {
     using namespace blaze;
 
     // Read in density data from file
-    DynamicVector<double> rho(data_N);
-    DynamicVector<std::complex<double>> rho_fft(data_N / 2 + 1);
-    for (int i = 0; i < data_N; ++i) {
-        ic_file >> rho[i] >> rho[i];
-        if (!ic_file) break;
-    }
+    DynamicVector<double> rho(N);
+    fill_from_file(ic_file, rho, rho);
 
-    // TODO Move into constructor
     // Compute FFT to obtain coefficients for the expansion of rho in
     // harmonic base functions
+    DynamicVector<std::complex<double>> rho_fft(N / 2 + 1);
     auto plan = fftw_plan_dft_r2c_1d(
         data_N, rho.data(), reinterpret_cast<fftw_complex*>(rho_fft.data()),
         FFTW_ESTIMATE);
@@ -154,19 +232,13 @@ void ICGenerator::psi_from_rho(SimState& state) const {
         diagonal(beta) = -2.0 / data_N * imag(rho_fft_trunc);
 
         // Normalization
-        auto N = decldiag(invsqrt(alpha * alpha + beta * beta));
+        auto normal = decldiag(invsqrt(alpha * alpha + beta * beta));
 
         // Construct initial wave functions
         psi = (cos(M_PI / L * x * mode_trunc) * alpha +
                sin(M_PI / L * x * mode_trunc) * beta) *
-              N;
+              normal;
     }
-
-    // Compute potential
-    potential->solve(state);
 }
-
-// TODO implement power spectrum initial conditions.
-void ICGenerator::psi_from_power(SimState& state) const {}
 
 ICGenerator::~ICGenerator() = default;
