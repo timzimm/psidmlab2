@@ -13,35 +13,26 @@
 #include "state.h"
 
 int main(int argc, char** argv) {
+    // We need a json file. Otherwise, we give up...
     if (argc != 2) {
         std::cerr << ERRORTAG("Usage: ./sim /path/to/config_file.json")
                   << std::endl;
         exit(1);
     }
 
+    // Load parameters from file and dump them
     Parameters param;
     std::ifstream(argv[1]) >> param;
     std::cout << INFOTAG("Parsed JSON File. Dump...") << std::endl;
     std::cout << std::setw(4) << param << std::endl;
 
-    // Initialize the cosmological model, i.e. setup the relation
-    // a(tau) and tau(a) for the main loop
-    Cosmology cosmo(param);
-
-    // At this point tau_end is set for the static case as specified in the
-    // ini file. This might be wrong, so let's check.
-    /* if (param.cosmo != CosmoModel::Static) */
-    /* param.tau_end = cosmo.tau_of_a(param.a_end); */
-
-    // Setup initial state
-    SimState state(param);
-    ICGenerator ic(param);
-    ic.generate(state);
-
-    // Setup Analysis Functors
+    // Setup output file and write parameters to disk
     std::string filename;
     param["General"]["output_file"].get_to(filename);
+    HDF5File file(filename);
+    file.add_scalar_attribute("/", "parameters", param.dump());
 
+    // Setup Analysis Functors and I/O visitor for their return variant
     std::vector<std::string> keys;
     param["Analysis"]["compute"].get_to(keys);
 
@@ -50,55 +41,81 @@ int main(int argc, char** argv) {
     for (auto& key : keys)
         observables[key] = ObservableFunctor::make(key, param);
 
-    HDF5File file(filename);
-
     std::string path_to_ds;
     auto write_variant = [&file, &path_to_ds](auto& output) {
         file.write(path_to_ds, output);
     };
+    // Setup I/O checkpoints
+    std::vector<double> save_at;
+    param["Analysis"]["save_at"].get_to(save_at);
 
-    std::string parameter_dump = param.dump();
+    // Initialize the cosmological model, i.e. setup the relation
+    // a(tau) and tau(a) for the main loop
+    Cosmology cosmo(param);
 
-    file.add_scalar_attribute("/", "parameters", parameter_dump);
+    // Initialize numerical methods.
+    auto integrator_name = param["Simulation"]["integrator"].get<std::string>();
+    auto integrator = SchroedingerMethod::make(integrator_name, param, cosmo);
 
-    for (const auto& pair : observables) {
-        // Construct path to dataset
-        auto& name = pair.first;
-        path_to_ds = "/" + name + "/0";
+    // Setup initial state
+    SimState state(param);
+    ICGenerator ic(param);
+    ic.generate(state);
 
-        // Computes the observable variant;
-        auto& routine = pair.second;
-        auto res = routine->compute(state);
-        boost::apply_visitor(write_variant, res);
-
-        // Supplement informations to the observable
-        std::map<std::string, double> m{{"t", 14.5}};
-        file.add_scalar_attribute(path_to_ds, m);
+    // Set final simulation time and checkpoints based on cosmological model
+    double tau_end;
+    if (cosmo == CosmoModel::Static)
+        tau_end = param["Simulation"]["t_end"].get<double>();
+    else {
+        auto z_end = param["Simulation"]["z_end"].get<double>();
+        tau_end = cosmo.tau_of_a(Cosmology::a_of_z(z_end));
+        // save_at holds redshifts
+        std::transform(std::begin(save_at), std::end(save_at),
+                       std::begin(save_at), [&cosmo](double z) {
+                           return cosmo.tau_of_a(Cosmology::a_of_z(z));
+                       });
     }
+    const double dtau = param["Simulation"]["dtau"].get<double>();
 
-    // Initiliaze numerical method. This selects both the Schroedinger and
-    // Poisson algorithm to be used for the integration
-    /* auto integrator = SchroedingerMethod::make(param.integrator, param); */
+    // Everything is set up. Enter the main loop
+    auto tau_save = std::begin(save_at);
+    bool do_IO = false;
 
-    /* while (state.tau < tau_end) { */
-    /*     (*integrator)(state); */
-    /* } */
+    while (state.tau < tau_end) {
+        double tau_dt = state.tau + state.dtau;
+        // End of simulation?
+        if (tau_dt > tau_end) state.dtau = tau_end - state.tau;
+        // Overstepping I/O checkpoint?
+        if (tau_save != std::end(save_at) && tau_dt > *tau_save) {
+            state.dtau = *tau_save - state.tau;
+            do_IO = true;
+        }
 
-    /* auto psi = blaze::row(state.psis, 1); */
-    /* auto psi_source = blaze::real(psi); */
-    /* file.write(blaze::trans(psi_source), "psi2"); */
+        integrator->step(state);
 
-    /* file.write(state.V, "V"); */
-    /* std::cout << INFOTAG("Saving a(tau) to file") << std::endl; */
-    /* std::vector<double> tau_grid, a_values; */
-    /* double tau = param.tau_start; */
-    /* while (tau < param.tau_end) { */
-    /*     tau_grid.push_back(tau); */
-    /*     a_values.push_back(cosmo.a_of_tau(tau)); */
-    /*     tau += param.dtau; */
-    /* } */
-    /* file.write(tau_grid, "tau"); */
-    /* file.write(a_values, "a_of_tau"); */
+        if (do_IO) {
+            std::cout << INFOTAG("Save state @ tau = ") << *tau_save
+                      << std::endl;
+            for (const auto& pair : observables) {
+                // Construct path to dataset
+                auto& name = pair.first;
+                path_to_ds = "/" + name + "/" + std::to_string(state.n);
+
+                // Computes the observable variant;
+                auto& routine = pair.second;
+                auto res = routine->compute(state);
+                boost::apply_visitor(write_variant, res);
+
+                // Supplement informations to the observable
+                file.add_scalar_attribute(path_to_ds, "tau", state.tau);
+                file.add_scalar_attribute(path_to_ds, "a", state.a);
+                file.add_scalar_attribute(path_to_ds, "n", state.n);
+            }
+            state.dtau = dtau;
+            std::next(tau_save);
+            do_IO = false;
+        }
+    }
 
     return 0;
 }
