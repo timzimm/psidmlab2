@@ -85,15 +85,6 @@ class HDF5File {
         }
     }
 
-    // Parameter list does not propagate any type info. Hence, we inject this
-    // information via a template.
-    template <typename T>
-    hid_t H5Dcreate_wrapper(hid_t loc_id, const char* name, hid_t space_id,
-                            hid_t lcpl_id, hid_t dcpl_id, hid_t dapl_id) {
-        return H5Dcreate(loc_id, name, H5T_NATIVE_DOUBLE, space_id, lcpl_id,
-                         dcpl_id, dapl_id);
-    }
-
     // mkdir -p for HDF5
     // TODO Regex
     hid_t create_groups_along_path(const std::string& path) {
@@ -150,12 +141,17 @@ class HDF5File {
 
         // Discards padding automatically
         auto dataspace = H5Screate_simple(rank, &dim, NULL);
-        auto dataset =
-            H5Dcreate_wrapper<T>(parent_group, ds_path.c_str(), dataspace,
-                                 H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-        auto type = H5Dget_type(dataset);
-        H5Dwrite(dataset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, data.data());
+        hid_t datatype;
+        if constexpr (std::is_floating_point_v<T>)
+            datatype = H5T_NATIVE_DOUBLE;
+        else if constexpr (is_complex<T>())
+            datatype = complex_type;
+        auto dataset =
+            H5Dcreate(parent_group, ds_path.c_str(), datatype, dataspace,
+                      H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+        H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data.data());
 
         // Close all handles
         H5Sclose(dataspace);
@@ -178,9 +174,15 @@ class HDF5File {
         const int rank = 2;
         hsize_t dim_file[] = {data.rows(), data.columns()};
         auto dataspace_file = H5Screate_simple(rank, dim_file, NULL);
+
+        hid_t datatype;
+        if constexpr (std::is_floating_point_v<T>)
+            datatype = H5T_NATIVE_DOUBLE;
+        else if constexpr (is_complex<T>())
+            datatype = complex_type;
         auto dataset =
-            H5Dcreate_wrapper<T>(parent_group, ds_path.c_str(), dataspace_file,
-                                 H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+            H5Dcreate(parent_group, ds_path.c_str(), datatype, dataspace_file,
+                      H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
         hsize_t dim[2];
         // Mem and file dataspace are not necessarily the same due to padding
@@ -191,8 +193,7 @@ class HDF5File {
         H5Sselect_hyperslab(dataspace_matrix, H5S_SELECT_SET, offset, NULL,
                             dim_file, NULL);
 
-        auto type = H5Dget_type(dataset);
-        H5Dwrite_wrapper(dataset, type, dataspace_matrix, dataspace_file,
+        H5Dwrite_wrapper(dataset, datatype, dataspace_matrix, dataspace_file,
                          H5P_DEFAULT, data);
 
         // Close all handles
@@ -249,13 +250,5 @@ class HDF5File {
     // RAII. Always.
     ~HDF5File() { H5Fclose(file); };
 };
-
-template <>
-hid_t HDF5File::H5Dcreate_wrapper<std::complex<double>>(
-    hid_t loc_id, const char* name, hid_t space_id, hid_t lcpl_id,
-    hid_t dcpl_id, hid_t dapl_id) {
-    return H5Dcreate(loc_id, name, complex_type, space_id, lcpl_id, dcpl_id,
-                     dapl_id);
-}
 
 #endif
