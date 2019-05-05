@@ -5,8 +5,8 @@
 #include "parameters.h"
 
 // Convenience definitions independent of the cosmological model
-double Cosmology::z_of_a(const double a) { return 1.0 / a - 1; }
-double Cosmology::a_of_z(const double z) { return 1.0 / (z + 1); }
+inline double Cosmology::z_of_a(const double a) { return 1.0 / a - 1; }
+inline double Cosmology::a_of_z(const double z) { return 1.0 / (z + 1); }
 
 // This defines the cosmological model
 double Cosmology::E(const double a) const {
