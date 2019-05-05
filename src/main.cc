@@ -19,7 +19,6 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    // Parse Parameters by nlohmann's masterpiece library
     Parameters param;
     std::ifstream(argv[1]) >> param;
     std::cout << INFOTAG("Parsed JSON File. Dump...") << std::endl;
@@ -58,6 +57,10 @@ int main(int argc, char** argv) {
         file.write(path_to_ds, output);
     };
 
+    std::string parameter_dump = param.dump();
+
+    file.add_scalar_attribute("/", "parameters", parameter_dump);
+
     for (const auto& pair : observables) {
         // Construct path to dataset
         auto& name = pair.first;
@@ -67,6 +70,10 @@ int main(int argc, char** argv) {
         auto& routine = pair.second;
         auto res = routine->compute(state);
         boost::apply_visitor(write_variant, res);
+
+        // Supplement informations to the observable
+        std::map<std::string, double> m{{"t", 14.5}};
+        file.add_scalar_attribute(path_to_ds, m);
     }
 
     // Initiliaze numerical method. This selects both the Schroedinger and

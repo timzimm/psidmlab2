@@ -1,9 +1,21 @@
 #ifndef __IO__
 #define __IO__
+#include <map>
 #include <string>
 #include <vector>
 #include "blaze/math/DynamicVector.h"
 #include "hdf5.h"
+
+// Type Traits
+template <typename T>
+struct is_complex : public std::false_type {};
+template <typename T>
+struct is_complex<std::complex<T>> : public std::true_type {};
+
+template <typename T>
+struct is_string : public std::false_type {};
+template <>
+struct is_string<std::string> : public std::true_type {};
 
 // Definition of the File Interface. The project uses HDF5 as file format. HDF5
 // is the quasi-standard in scientific computing. It handles multidimensional,
@@ -15,6 +27,7 @@ class HDF5File {
    private:
     hid_t file;          // Handle to HDF5 file
     hid_t complex_type;  // compound datatype for complex data
+    hid_t str_type;      // compound datatype for string data
 
     // Computes correct memory dataspace due to potential padding of blaze
     // matrices.
@@ -86,7 +99,7 @@ class HDF5File {
     hid_t create_groups_along_path(const std::string& path) {
         size_t end = 0;
         herr_t status;
-        std::string subpath;
+        std::string subpath = "/";
         while ((end = path.find("/", end + 1)) != std::string::npos) {
             subpath = path.substr(0, end);
             auto exists = H5Lexists(file, subpath.c_str(), H5P_DEFAULT);
@@ -104,10 +117,14 @@ class HDF5File {
              const std::vector<std::string>& init_groups = {})
         : file(H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
                          H5P_DEFAULT)),
-          complex_type(H5Tcreate(H5T_COMPOUND, 2 * sizeof(double))) {
+          complex_type(H5Tcreate(H5T_COMPOUND, 2 * sizeof(double))),
+          str_type(H5Tcopy(H5T_C_S1)) {
         // HDF5 doesn't know about complex numbers. Let's define them
         H5Tinsert(complex_type, "r", 0, H5T_NATIVE_DOUBLE);
         H5Tinsert(complex_type, "i", sizeof(double), H5T_NATIVE_DOUBLE);
+
+        // Same goes for variable strings
+        H5Tset_size(str_type, H5T_VARIABLE);
 
         for (const auto& group_name : init_groups) {
             auto group = H5Gcreate(file, group_name.c_str(), H5P_DEFAULT,
@@ -185,6 +202,50 @@ class HDF5File {
         H5Gclose(parent_group);
     }
 
+    template <typename T>
+    void add_scalar_attribute(const std::string& path, const std::string& name,
+                              const T& value, hid_t group = -1) {
+        bool ext_managed_group = true;
+        if (group == -1) {
+            group = create_groups_along_path(path);
+            ext_managed_group = false;
+        }
+
+        hsize_t dim = 1;
+        auto attr_space = H5Screate_simple(1, &dim, NULL);
+
+        hid_t attr_type;
+
+        if constexpr (std::is_floating_point_v<T>)
+            attr_type = H5T_NATIVE_DOUBLE;
+        else if constexpr (is_complex<T>())
+            attr_type = complex_type;
+        else if constexpr (is_string<T>())
+            attr_type = str_type;
+
+        auto attr = H5Acreate(group, name.c_str(), attr_type, attr_space,
+                              H5P_DEFAULT, H5P_DEFAULT);
+        H5Awrite(attr, attr_type, &value);
+        H5Aclose(attr);
+
+        if (!ext_managed_group) H5Gclose(group);
+    }
+
+    template <typename T>
+    void add_scalar_attribute(const std::string& path,
+                              const std::map<std::string, T>& attr_map) {
+        auto group = create_groups_along_path(path);
+        hsize_t dim = 1;
+        auto attr_space = H5Screate_simple(1, &dim, NULL);
+
+        for (const auto& pair : attr_map) {
+            const std::string& key = pair.first;
+            const T& val = pair.second;
+            add_scalar_attribute(path, key, val, group);
+        }
+
+        H5Gclose(group);
+    }
     // RAII. Always.
     ~HDF5File() { H5Fclose(file); };
 };
