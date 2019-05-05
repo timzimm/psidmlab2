@@ -15,10 +15,7 @@ double Cosmology::E(const double a) const {
         case CosmoModel::Static:
             E = sqrt(omega_m0);
             break;
-        case CosmoModel::EDS:
-            E = sqrt(omega_m0 / (a * a * a));
-            break;
-        case CosmoModel::LCDM:
+        case CosmoModel::Dynamic:
             E = sqrt(omega_m0 / (a * a * a) + (1 - omega_m0));
             break;
     }
@@ -37,9 +34,6 @@ Cosmology::Cosmology(const Parameters& p)
       a_grid(A),
       model(static_cast<CosmoModel>(p["Simulation"]["cosmology"].get<int>())),
       omega_m0(p["Simulation"]["omega_m0"].get<double>()) {
-    // Fix density parameter based on model selection
-    omega_m0 = (model == CosmoModel::EDS) ? 1 : omega_m0;
-
     // Super conformal time is defined via its differential
     // Thus, after integrating we still have to fix the integration constant.
     // We do this by defining tau = 0 for the simulation start time.

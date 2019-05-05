@@ -18,6 +18,7 @@
 // Forward Declarations
 #define __FORWARD__
 struct SimState;
+class Cosmology;
 #include "parameters_fwd.h"
 
 class PotentialMethod : public Factory<PotentialMethod, Parameters> {
@@ -26,7 +27,8 @@ class PotentialMethod : public Factory<PotentialMethod, Parameters> {
     virtual ~PotentialMethod() = default;
 };
 
-class SchroedingerMethod : public Factory<SchroedingerMethod, Parameters> {
+class SchroedingerMethod
+    : public Factory<SchroedingerMethod, Parameters, Cosmology> {
    public:
     virtual void step(SimState& state) = 0;
     virtual ~SchroedingerMethod() = default;

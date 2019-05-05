@@ -33,14 +33,14 @@ class PCCN : public SchroedingerMethod::Registrar<PCCN> {
     // sparse symmetric matrix
     using RSM = blaze::SymmetricMatrix<blaze::CompressedMatrix<double>>;
 
+    const Cosmology& cosmo;
     double dx;
     size_t N;
     std::unique_ptr<PotentialMethod> potential;
     RSM K;
-    Cosmology cosmo;
 
    public:
-    PCCN(const Parameters& p);
+    PCCN(const Parameters& p, const Cosmology& cosmo_);
     void step(SimState& state) override;
 };
 

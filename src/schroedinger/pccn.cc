@@ -6,13 +6,13 @@
 
 namespace Schroedinger {
 
-PCCN::PCCN(const Parameters& p)
-    : dx{p["Simulation"]["L"].get<double>() / p["Simulation"]["N"].get<int>()},
+PCCN::PCCN(const Parameters& p, const Cosmology& cosmo_)
+    : cosmo{cosmo_},
+      dx{p["Simulation"]["L"].get<double>() / p["Simulation"]["N"].get<int>()},
       N{p["Simulation"]["N"].get<size_t>()},
       potential{PotentialMethod::make(
           p["Simulation"]["potential"].get<std::string>(), p)},
-      K(N, N),
-      cosmo{p} {
+      K(N, N) {
     // Cyclic Kinetic matrix never changes - compute it @ construction
     blaze::band(K, -1) = blaze::UniformVector<double>(N - 1, 1);
     blaze::band(K, 0) = blaze::UniformVector<double>(N, -2);

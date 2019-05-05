@@ -32,7 +32,7 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     using CDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<cmplx>>;
 
     // Data members
-    Cosmology cosmo;                       // cosmological model for a(t)
+    const Cosmology& cosmo;                // Cosmological model for a(t)
     std::unique_ptr<PotentialMethod> pot;  // potential method
     size_t N;                              // No. of spatial points
     double L;                              // size of domain
@@ -62,7 +62,7 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
                const double t, const double weight);
 
    public:
-    USO_KDK(const Parameters& p);
+    USO_KDK(const Parameters& p, const Cosmology& cosmo_);
     ~USO_KDK();
     void step(SimState& state) override;
 };

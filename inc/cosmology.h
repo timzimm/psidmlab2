@@ -6,7 +6,7 @@
 // Forward Declaration
 #include "parameters_fwd.h"
 
-enum class CosmoModel { Static, EDS, LCDM };
+enum class CosmoModel { Static, Dynamic };
 
 class Cosmology {
    private:

@@ -6,8 +6,8 @@
 
 namespace Schroedinger {
 
-USO_DKD::USO_DKD(const Parameters& p)
-    : cosmo{p},
+USO_DKD::USO_DKD(const Parameters& p, const Cosmology& cosmo_)
+    : cosmo{cosmo_},
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
                                 p)},
       N{p["Simulation"]["N"].get<size_t>()},
