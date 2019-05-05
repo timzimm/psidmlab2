@@ -1,12 +1,12 @@
 {
     "General":
     {
-        "output_file": "../run/static.h5"
+        "output_file": "../run/oscillator.h5"
     },
     "Initial Conditions":
     {
         "ic_type": 2,
-        "source_file": "../run/ic.txt",
+        "source_file": "../run/rho.txt",
         "potential_file": "../run/harmonic.txt",
         "ev_threshold": -1e-3,
         "M": 100
@@ -33,7 +33,6 @@
         "linear_convolution": false,
         "compute": [
             "Observable::Potential",
-            "Observable::WaveFunction",
             "Observable::DensityContrast"
         ]
     }
