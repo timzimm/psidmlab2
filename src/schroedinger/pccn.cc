@@ -54,6 +54,7 @@ void PCCN::step(SimState& state) {
     // At last we calculate the potential again such that state is @ t + dt
     potential->solve(state);
     state.tau = t + dt;
+    state.n += 1;
     state.a = a_da;
 }
 

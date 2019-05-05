@@ -107,6 +107,7 @@ void USO_KDK::step(SimState& state) {
     // psis and V are now @ tau + dtau
     // Update time information
     state.tau += dt;
+    state.n += 1;
     state.a = cosmo.a_of_tau(t + dt);
 }
 
