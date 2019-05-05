@@ -26,6 +26,7 @@ class Cosmology {
     Cosmology(const Parameters& p);
     double tau_of_a(const double a) const;
     double a_of_tau(double tau) const;
+    bool operator==(const CosmoModel& model) const;
     static double z_of_a(const double a);
     static double a_of_z(const double z);
 };

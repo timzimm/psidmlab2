@@ -101,3 +101,4 @@ double Cosmology::a_of_tau(double tau) const {
         bracket_and_solve_root(tau_offset, a_guess, factor, is_rising, tol, it);
     return root.second;
 }
+bool Cosmology::operator==(const CosmoModel& m) const { return model == m; }
