@@ -6,11 +6,12 @@
 
 namespace Schroedinger {
 
-USO_KDK::USO_KDK(const Parameters& p, const Cosmology& cosmo_)
+USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
+                 const Cosmology& cosmo_)
     : cosmo{cosmo_},
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
                                 p)},
-      N{p["Simulation"]["N"].get<size_t>()},
+      N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
       firstStep(true),
       K(N, N),
@@ -25,43 +26,50 @@ USO_KDK::USO_KDK(const Parameters& p, const Cosmology& cosmo_)
         double k = 2 * M_PI / L * i;
         wavenumbers[i] = k * k;
     }
-    CCV fft_dummy(N);
-    auto in = reinterpret_cast<fftw_complex*>(fft_dummy.data());
+    // This makes me sad. On so many levels :(
+    const auto const_in =
+        reinterpret_cast<const fftw_complex*>(state.psis.data());
+    auto in = const_cast<fftw_complex*>(const_in);
     auto out = reinterpret_cast<fftw_complex*>(psis_cached.data());
-    forwards = fftw_plan_dft_1d(N, in, in, FFTW_FORWARD, FFTW_ESTIMATE);
-    backwards = fftw_plan_dft_1d(N, in, in, FFTW_BACKWARD, FFTW_ESTIMATE);
-    forwards_op = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-    backwards_op = fftw_plan_dft_1d(N, out, in, FFTW_BACKWARD, FFTW_ESTIMATE);
-}
 
-void USO_KDK::transform_matrix(const fftw_plan& plan, CCM& matrix_in,
-                               CCM& matrix_out) {
-    assert(matrix_in.columns() == matrix_out.columns());
+    int dist_state = state.psis.spacing();
+    int dist_cache = psis_cached.spacing();
 
-    for (int i = 0; i < matrix_in.columns(); ++i) {
-        fftw_complex* row_in =
-            reinterpret_cast<fftw_complex*>(&(matrix_in(0, i)));
-        fftw_complex* row_out =
-            reinterpret_cast<fftw_complex*>(&(matrix_out(0, i)));
-        fftw_execute_dft(plan, row_in, row_out);
-    }
+    // in-place
+    forwards =
+        fftw_plan_many_dft(1, &N, state.M, in, nullptr, 1, dist_state, in,
+                           nullptr, 1, dist_state, FFTW_FORWARD, FFTW_ESTIMATE);
+    backwards = fftw_plan_many_dft(1, &N, state.M, in, nullptr, 1, dist_state,
+                                   in, nullptr, 1, dist_state, FFTW_BACKWARD,
+                                   FFTW_ESTIMATE);
+
+    // out-of-place
+    forwards_op = fftw_plan_many_dft(
+        1, &N, state.M, in, nullptr, 1, state.psis.spacing(), out, nullptr, 1,
+        psis_cached.spacing(), FFTW_FORWARD, FFTW_ESTIMATE);
+    backwards_op = fftw_plan_many_dft(
+        1, &N, state.M, out, nullptr, 1, psis_cached.spacing(), in, nullptr, 1,
+        state.psis.spacing(), FFTW_BACKWARD, FFTW_ESTIMATE);
+
+    // Init cached wavefunction in k
+    fftw_execute(forwards_op);
 }
 
 // Kick Operator - returns a blaze expression
-auto USO_KDK::kick(const CCM& psis_in_k, const double dt, const double weight) {
+decltype(auto) USO_KDK::kick(const CCM& psis_in_k, const double dt,
+                             const double weight) {
     auto diag_K = blaze::diagonal(K);
     diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * wavenumbers *
                         wavenumbers * dt);
 
-    // psi_i is the i-the row in the psis matrix. Therfore the
-    // multiplictaion order changes.
     // This is a dense-sparse product
     return K * psis_in_k;
 }
 
 // Drift Operator - returns a blaze expression
-auto USO_KDK::drift(const CCM& psis_in_x, const RCV& V, const double dt,
-                    const double t, const double weight) {
+decltype(auto) USO_KDK::drift(const CCM& psis_in_x, const RCV& V,
+                              const double dt, const double t,
+                              const double weight) {
     auto diag_D = blaze::diagonal(D);
     diag_D =
         blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
@@ -77,32 +85,28 @@ USO_KDK::~USO_KDK() {
 }
 
 void USO_KDK::step(SimState& state) {
-    double dt = state.dtau;
-    double t = state.tau;
+    const double dt = state.dtau;
+    const double t = state.tau;
     CCM& psis = state.psis;
     RCV& V = state.V;
 
     // We can spare the initial FFT if we use the cached psi_in_k
     // representation of the last step
-    if (firstStep) {
-        transform_matrix(forwards_op, psis, psis_cached);
-        firstStep = false;
-    }
 
     psis = kick(psis_cached, dt, 1.0 / 2);
 
-    transform_matrix(backwards, psis, psis);
+    fftw_execute(backwards);
 
     // Recompute potential
     pot->solve(state);
     psis = drift(psis, V, t, dt, 1.0);
 
-    transform_matrix(forwards, psis, psis);
+    fftw_execute(forwards);
 
     // Update cached psis
     psis_cached = kick(psis, dt, 1.0 / 2);
 
-    transform_matrix(backwards_op, psis_cached, state.psis);
+    fftw_execute(backwards_op);
 
     // psis and V are now @ tau + dtau
     // Update time information

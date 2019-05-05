@@ -34,7 +34,7 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     // Data members
     const Cosmology& cosmo;                // Cosmological model for a(t)
     std::unique_ptr<PotentialMethod> pot;  // potential method
-    size_t N;                              // No. of spatial points
+    int N;                                 // No. of spatial points
     double L;                              // size of domain
     bool firstStep;                        // is firstStep?
     CDM K;  // Kick operator as sparse diagonal matrix
@@ -49,20 +49,17 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     // Buffer to store k representation of psi for KDK
     CCM psis_cached;
 
-    // Transforms each row of matrix_in according to the passed plan and stores
-    // the result in matrix_out
-    void transform_matrix(const fftw_plan& plan, CCM& matrix_in,
-                          CCM& matrix_out);
-
     // Kick Operator - returns a blaze expression
-    auto kick(const CCM& psis_in_k, const double dt, const double weight);
+    decltype(auto) kick(const CCM& psis_in_k, const double dt,
+                        const double weight);
 
     // Drift Operator - returns a blaze expression
-    auto drift(const CCM& psis_in_x, const RCV& V, const double dt,
-               const double t, const double weight);
+    decltype(auto) drift(const CCM& psis_in_x, const RCV& V, const double dt,
+                         const double t, const double weight);
 
    public:
-    USO_KDK(const Parameters& p, const Cosmology& cosmo_);
+    USO_KDK(const Parameters& p, const SimState& state,
+            const Cosmology& cosmo_);
     ~USO_KDK();
     void step(SimState& state) override;
 };

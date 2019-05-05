@@ -40,7 +40,7 @@ class PCCN : public SchroedingerMethod::Registrar<PCCN> {
     RSM K;
 
    public:
-    PCCN(const Parameters& p, const Cosmology& cosmo_);
+    PCCN(const Parameters& p, const SimState& state, const Cosmology& cosmo_);
     void step(SimState& state) override;
 };
 

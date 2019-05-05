@@ -35,7 +35,7 @@ class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
     // Data members
     const Cosmology& cosmo;                // Cosmological model for a(t)
     std::unique_ptr<PotentialMethod> pot;  // Potential method
-    size_t N;                              // No. of spatial grid points
+    int N;                                 // No. of spatial grid points
     double L;                              // Domain size
     CDM K;  // Kick operator as sparse diagonal matrix
     CDM D;  // Drift operator as sparse diagonal matrix
@@ -44,20 +44,17 @@ class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
     fftw_plan forwards;   // in-place forward FFT
     fftw_plan backwards;  // in-place backward FFT
 
-    // Transforms each row of matrix_in according to the passed plan and stores
-    // the result in matrix_out
-    void transform_matrix(const fftw_plan& plan, CCM& matrix_in,
-                          CCM& matrix_out);
-
     // Kick Operator - returns a blaze expression
-    auto kick(const CCM& psis_in_k, const double dt, const double weight);
+    decltype(auto) kick(const CCM& psis_in_k, const double dt,
+                        const double weight);
 
     // Drift Operator - returns a blaze expression
-    auto drift(const CCM& psis_in_x, const RCV& V, const double dt,
-               const double t, const double weight);
+    decltype(auto) drift(const CCM& psis_in_x, const RCV& V, const double dt,
+                         const double t, const double weight);
 
    public:
-    USO_DKD(const Parameters& p, const Cosmology& cosmo_);
+    USO_DKD(const Parameters& p, const SimState& state,
+            const Cosmology& cosmo_);
     ~USO_DKD();
     void step(SimState& state) override;
 };

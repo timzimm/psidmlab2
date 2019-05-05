@@ -6,7 +6,7 @@
 
 namespace Schroedinger {
 
-PCCN::PCCN(const Parameters& p, const Cosmology& cosmo_)
+PCCN::PCCN(const Parameters& p, const SimState& state, const Cosmology& cosmo_)
     : cosmo{cosmo_},
       dx{p["Simulation"]["L"].get<double>() / p["Simulation"]["N"].get<int>()},
       N{p["Simulation"]["N"].get<size_t>()},

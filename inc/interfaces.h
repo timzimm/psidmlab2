@@ -28,7 +28,7 @@ class PotentialMethod : public Factory<PotentialMethod, Parameters> {
 };
 
 class SchroedingerMethod
-    : public Factory<SchroedingerMethod, Parameters, Cosmology> {
+    : public Factory<SchroedingerMethod, Parameters, SimState, Cosmology> {
    public:
     virtual void step(SimState& state) = 0;
     virtual ~SchroedingerMethod() = default;

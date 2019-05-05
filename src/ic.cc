@@ -92,7 +92,7 @@ ICGenerator::ICGenerator(const Parameters& p)
     ic_file.ignore(std::numeric_limits<int>::max(), '\n');
 }
 
-void ICGenerator::generate(SimState& state) const {
+void ICGenerator::generate(SimState& state, Parameters& param) const {
     switch (type) {
         case ICType::External:
             psi_from_file(state);
@@ -103,6 +103,9 @@ void ICGenerator::generate(SimState& state) const {
         case ICType::Density:
             psi_from_rho(state);
     }
+
+    param["Initial Conditions"]["M"] = state.M;
+
     if (pot_file) {
         fill_from_file(pot_file, state.V, state.V);
     } else {

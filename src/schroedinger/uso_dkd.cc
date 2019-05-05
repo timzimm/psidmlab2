@@ -6,11 +6,12 @@
 
 namespace Schroedinger {
 
-USO_DKD::USO_DKD(const Parameters& p, const Cosmology& cosmo_)
+USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
+                 const Cosmology& cosmo_)
     : cosmo{cosmo_},
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
                                 p)},
-      N{p["Simulation"]["N"].get<size_t>()},
+      N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
       K(N, N),
       D(N, N),
@@ -21,28 +22,24 @@ USO_DKD::USO_DKD(const Parameters& p, const Cosmology& cosmo_)
         double k = 2 * M_PI / L * i;
         wavenumbers[i] = k * k;
     }
-    // TODO: Maybe one value is enough??
-    CCV fft_dummy(N);
-    auto in = reinterpret_cast<fftw_complex*>(fft_dummy.data());
-    forwards = fftw_plan_dft_1d(N, in, in, FFTW_FORWARD, FFTW_ESTIMATE);
-    backwards = fftw_plan_dft_1d(N, in, in, FFTW_BACKWARD, FFTW_ESTIMATE);
-}
+    // This makes me sad. On so many levels :(
+    const auto const_in =
+        reinterpret_cast<const fftw_complex*>(state.psis.data());
+    auto in = const_cast<fftw_complex*>(const_in);
 
-void USO_DKD::transform_matrix(const fftw_plan& plan, CCM& matrix_in,
-                               CCM& matrix_out) {
-    assert(matrix_in.columns() == matrix_out.columns());
+    int dist_state = state.psis.spacing();
 
-    for (int i = 0; i < matrix_in.columns(); ++i) {
-        fftw_complex* row_in =
-            reinterpret_cast<fftw_complex*>(&(matrix_in(0, i)));
-        fftw_complex* row_out =
-            reinterpret_cast<fftw_complex*>(&(matrix_out(0, i)));
-        fftw_execute_dft(plan, row_in, row_out);
-    }
+    forwards =
+        fftw_plan_many_dft(1, &N, state.M, in, nullptr, 1, dist_state, in,
+                           nullptr, 1, dist_state, FFTW_FORWARD, FFTW_ESTIMATE);
+    backwards = fftw_plan_many_dft(1, &N, state.M, in, nullptr, 1, dist_state,
+                                   in, nullptr, 1, dist_state, FFTW_BACKWARD,
+                                   FFTW_ESTIMATE);
 }
 
 // Kick Operator - returns a blaze expression
-auto USO_DKD::kick(const CCM& psis_in_k, const double dt, const double weight) {
+decltype(auto) USO_DKD::kick(const CCM& psis_in_k, const double dt,
+                             const double weight) {
     auto diag_K = blaze::diagonal(K);
     diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * wavenumbers *
                         wavenumbers * dt);
@@ -51,8 +48,9 @@ auto USO_DKD::kick(const CCM& psis_in_k, const double dt, const double weight) {
 }
 
 // Drift Operator - returns a blaze expression
-auto USO_DKD::drift(const CCM& psis_in_x, const RCV& V, const double dt,
-                    const double t, const double weight) {
+decltype(auto) USO_DKD::drift(const CCM& psis_in_x, const RCV& V,
+                              const double dt, const double t,
+                              const double weight) {
     auto diag_D = blaze::diagonal(D);
     diag_D =
         blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
@@ -78,11 +76,11 @@ void USO_DKD::step(SimState& state) {
     pot->solve(state);
     psis = drift(psis, V, t, dt, 1.0 / 2);
 
-    transform_matrix(forwards, psis, psis);
+    fftw_execute(forwards);
 
     psis = kick(psis, dt, 1.0);
 
-    transform_matrix(backwards, psis, psis);
+    fftw_execute(backwards);
 
     pot->solve(state);
     psis = drift(psis, V, t, dt, 1.0 / 2);

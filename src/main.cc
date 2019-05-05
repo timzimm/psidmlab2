@@ -26,7 +26,21 @@ int main(int argc, char** argv) {
     std::cout << INFOTAG("Parsed JSON File. Dump...") << std::endl;
     std::cout << std::setw(4) << param << std::endl;
 
-    // Setup output file and write parameters to disk
+    // Initialize the cosmological model, i.e. setup the relation
+    // a(tau) and tau(a) for the main loop
+    Cosmology cosmo(param);
+
+    // Setup initial state
+    SimState state(param);
+    ICGenerator ic(param);
+    ic.generate(state, param);
+
+    // Initialize numerical methods.
+    auto integrator_name = param["Simulation"]["integrator"].get<std::string>();
+    auto integrator =
+        SchroedingerMethod::make(integrator_name, param, state, cosmo);
+
+    // Setup output file
     std::string filename;
     param["General"]["output_file"].get_to(filename);
     HDF5File file(filename);
@@ -45,22 +59,10 @@ int main(int argc, char** argv) {
     auto write_variant = [&file, &path_to_ds](auto& output) {
         file.write(path_to_ds, output);
     };
+
     // Setup I/O checkpoints
     std::vector<double> save_at;
     param["Analysis"]["save_at"].get_to(save_at);
-
-    // Initialize the cosmological model, i.e. setup the relation
-    // a(tau) and tau(a) for the main loop
-    Cosmology cosmo(param);
-
-    // Initialize numerical methods.
-    auto integrator_name = param["Simulation"]["integrator"].get<std::string>();
-    auto integrator = SchroedingerMethod::make(integrator_name, param, cosmo);
-
-    // Setup initial state
-    SimState state(param);
-    ICGenerator ic(param);
-    ic.generate(state);
 
     // Set final simulation time and checkpoints based on cosmological model
     double tau_end;
