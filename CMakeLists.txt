@@ -21,6 +21,7 @@ add_executable(psidm
     src/convolution_functions.cc
     src/poisson/fft.cc
     src/poisson/fd.cc
+    src/poisson/identity.cc
     src/schroedinger/uso_dkd.cc
     src/schroedinger/uso_kdk.cc
     src/schroedinger/pccn.cc
