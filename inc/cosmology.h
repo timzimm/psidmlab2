@@ -10,13 +10,13 @@ enum class CosmoModel { Static, Dynamic };
 
 class Cosmology {
    private:
-    double a_start;
-    double a_end;
-    double A;
-    double delta_a;
+    const double a_start;
+    const double a_end;
+    const int A;
+    const double delta_a;
     std::vector<double> a_grid;
-    CosmoModel model;
-    double omega_m0;
+    const CosmoModel model;
+    const double omega_m0;
     std::unordered_map<double, double> tau_a_map;
 
     double E(const double a) const;
