@@ -1,5 +1,6 @@
 #ifndef __IO__
 #define __IO__
+#include <cstring>
 #include <map>
 #include <string>
 #include <vector>
@@ -115,7 +116,7 @@ class HDF5File {
         H5Tinsert(complex_type, "i", sizeof(double), H5T_NATIVE_DOUBLE);
 
         // Same goes for variable strings
-        H5Tset_size(str_type, H5T_VARIABLE);
+        /* H5Tset_size(str_type, H5T_VARIABLE); */
 
         for (const auto& group_name : init_groups) {
             auto group = H5Gcreate(file, group_name.c_str(), H5P_DEFAULT,
@@ -206,6 +207,9 @@ class HDF5File {
     template <typename T>
     void add_scalar_attribute(const std::string& path, const std::string& name,
                               const T& value, hid_t group = -1) {
+        // We need linear order of members within class types
+        static_assert(std::is_standard_layout<T>::value);
+
         bool ext_managed_group = true;
         if (group == -1) {
             group = create_groups_along_path(path);
@@ -213,20 +217,25 @@ class HDF5File {
         }
 
         hsize_t dim = 1;
-        auto attr_space = H5Screate_simple(1, &dim, NULL);
+        hid_t attr_space = H5Screate_simple(1, &dim, nullptr);
 
         hid_t attr_type;
 
+        auto c_ptr = reinterpret_cast<const void*>(&value);
         if constexpr (std::is_floating_point_v<T>)
             attr_type = H5T_NATIVE_DOUBLE;
         else if constexpr (is_complex<T>())
             attr_type = complex_type;
-        else if constexpr (is_string<T>())
+        else if constexpr (is_string<T>()) {
             attr_type = str_type;
+            H5Tset_size(str_type, value.size());
+            c_ptr = reinterpret_cast<const void*>(value.c_str());
+        }
 
-        auto attr = H5Acreate(group, name.c_str(), attr_type, attr_space,
-                              H5P_DEFAULT, H5P_DEFAULT);
-        H5Awrite(attr, attr_type, &value);
+        hid_t attr = H5Acreate(group, name.c_str(), attr_type, attr_space,
+                               H5P_DEFAULT, H5P_DEFAULT);
+        H5Awrite(attr, attr_type, c_ptr);
+
         H5Aclose(attr);
 
         if (!ext_managed_group) H5Gclose(group);
@@ -237,7 +246,7 @@ class HDF5File {
                               const std::map<std::string, T>& attr_map) {
         auto group = create_groups_along_path(path);
         hsize_t dim = 1;
-        auto attr_space = H5Screate_simple(1, &dim, NULL);
+        auto attr_space = H5Screate_simple(1, &dim, nullptr);
 
         for (const auto& pair : attr_map) {
             const std::string& key = pair.first;
@@ -247,7 +256,7 @@ class HDF5File {
 
         H5Gclose(group);
     }
-    // RAII. Always.
+
     ~HDF5File() { H5Fclose(file); };
 };
 
