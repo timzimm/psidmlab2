@@ -33,15 +33,19 @@ if(CBLAS_FOUND)
     # TODO Check SMT
     file(GLOB HEADERNAME RELATIVE ${CBLAS_INCLUDE_DIRS} "${CBLAS_INCLUDE_DIRS}/*cblas.h")
 
-    add_definitions(
-        -DBLAZE_BLAS_MODE
-        -DBLAZE_USE_BLAS_MATRIX_VECTOR_MULTIPLICATION
-        -DBLAZE_USE_BLAS_MATRIX_MATRIX_MULTIPLICATION 
-        -DBLAZE_BLAS_IS_PARALLEL
-        -DBLAZE_BLAS_INCLUDE_FILE="${HEADERNAME}")
 endif()
 
+# We use if constexpr
 target_compile_features(psidm PUBLIC cxx_std_17)
+
+# SMT on Release build
+target_compile_definitions(psidm
+    PRIVATE $<$<CONFIG:Release>:
+    -DBLAZE_BLAS_MODE
+    -DBLAZE_USE_BLAS_MATRIX_VECTOR_MULTIPLICATION
+    -DBLAZE_USE_BLAS_MATRIX_MATRIX_MULTIPLICATION 
+    -DBLAZE_BLAS_IS_PARALLEL
+    -DBLAZE_BLAS_INCLUDE_FILE="${HEADERNAME}">)
 
 target_include_directories(psidm 
     PUBLIC  inc
