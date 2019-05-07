@@ -5,22 +5,22 @@
     },
     "Initial Conditions":
     {
-        "ic_type": 2,
-        "source_file": "../run/rho.txt",
-        "potential_file": "../run/harmonic.txt",
+        "ic_type": 0,
+        "source_file": "../run/psi_harmonic.txt",
+        "potential_file": "../run/pot_harmonic.txt",
         "ev_threshold": -1e-3,
-        "M": 100
+        "M": 1
     },
     "Simulation":
     {
         "cosmology": 0,
-        "potential": "Poisson::FFT",
-        "integrator": "Schroedinger::USO_DKD",
+        "potential": "Poisson::Identity",
+        "integrator": "Schroedinger::USO_KDK",
         "mu":0.005,
         "omega_m0":0.3,
         "L":10,
-        "N":256,
-        "z_start":256,
+        "N":512,
+        "z_start":0,
         "z_end":0,
         "t_end":10,
         "A":1000000,
