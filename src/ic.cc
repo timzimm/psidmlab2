@@ -64,7 +64,9 @@ ICGenerator::ICGenerator(const Parameters& p)
     switch (type) {
         case ICType::External:
             if (data_N % M != 0) {
-                std::cout << ERRORTAG("Number of lines is not a multiple of M.")
+                std::cout << ERRORTAG(
+                                 "Number of lines in source file is not a "
+                                 "multiple of M.")
                           << std::endl;
                 exit(1);
             }
@@ -124,6 +126,7 @@ void ICGenerator::psi_from_file(SimState& state) const {
     DynamicVector<double> imag(N);
 
     for (int m = 0; m < M; ++m) {
+        state.lambda[m] = 1.0;
         auto psi = column(state.psis, m);
         fill_from_file(ic_file, real, imag);
         psi = map(real, imag,

@@ -49,8 +49,8 @@ class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
                         const double weight);
 
     // Drift Operator - returns a blaze expression
-    decltype(auto) drift(const CCM& psis_in_x, const RCV& V, const double dt,
-                         const double t, const double weight);
+    decltype(auto) drift(const CCM& psis_in_x, const RCV& V, const double t,
+                         const double dt, const double weight);
 
    public:
     USO_DKD(const Parameters& p, const SimState& state,

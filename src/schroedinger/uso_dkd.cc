@@ -49,7 +49,7 @@ decltype(auto) USO_DKD::kick(const CCM& psis_in_k, const double dt,
 
 // Drift Operator - returns a blaze expression
 decltype(auto) USO_DKD::drift(const CCM& psis_in_x, const RCV& V,
-                              const double dt, const double t,
+                              const double t, const double dt,
                               const double weight) {
     auto diag_D = blaze::diagonal(D);
     diag_D =

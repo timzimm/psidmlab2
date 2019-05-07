@@ -13,7 +13,6 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
                                 p)},
       N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
-      firstStep(true),
       K(N, N),
       D(N, N),
       wavenumbers(N),
@@ -55,10 +54,11 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
     fftw_execute(forwards_op);
 }
 
-// Kick Operator - returns a blaze expression
+// Kick Operator
 decltype(auto) USO_KDK::kick(const CCM& psis_in_k, const double dt,
                              const double weight) {
     auto diag_K = blaze::diagonal(K);
+
     diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * wavenumbers *
                         wavenumbers * dt);
 
@@ -66,11 +66,13 @@ decltype(auto) USO_KDK::kick(const CCM& psis_in_k, const double dt,
     return K * psis_in_k;
 }
 
-// Drift Operator - returns a blaze expression
+// Drift Operator
 decltype(auto) USO_KDK::drift(const CCM& psis_in_x, const RCV& V,
-                              const double dt, const double t,
+                              const double t, const double dt,
                               const double weight) {
     auto diag_D = blaze::diagonal(D);
+    std::cout << "t = " << t << std::endl;
+    std::cout << cosmo.a_of_tau(t) << std::endl;
     diag_D =
         blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
     // This is a dense-sparse product
@@ -95,6 +97,7 @@ void USO_KDK::step(SimState& state) {
 
     psis = kick(psis_cached, dt, 1.0 / 2);
 
+    std::cout << "Enter drift" << std::endl;
     fftw_execute(backwards);
 
     // Recompute potential

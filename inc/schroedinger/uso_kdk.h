@@ -36,7 +36,6 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     std::unique_ptr<PotentialMethod> pot;  // potential method
     int N;                                 // No. of spatial points
     double L;                              // size of domain
-    bool firstStep;                        // is firstStep?
     CDM K;  // Kick operator as sparse diagonal matrix
     CDM D;  // Drift operator as sparse diagonal matrix
     RCV wavenumbers;
@@ -54,8 +53,8 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
                         const double weight);
 
     // Drift Operator - returns a blaze expression
-    decltype(auto) drift(const CCM& psis_in_x, const RCV& V, const double dt,
-                         const double t, const double weight);
+    decltype(auto) drift(const CCM& psis_in_x, const RCV& V, const double t,
+                         const double dt, const double weight);
 
    public:
     USO_KDK(const Parameters& p, const SimState& state,

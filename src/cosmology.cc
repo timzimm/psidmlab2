@@ -2,6 +2,7 @@
 #include <boost/math/tools/roots.hpp>
 #include <iostream>
 #include <tuple>
+#include "logging.h"
 #include "parameters.h"
 
 // Convenience definitions independent of the cosmological model
@@ -27,13 +28,14 @@ double Cosmology::dtau_da(const double a) const {
 }
 
 Cosmology::Cosmology(const Parameters& p)
-    : a_start(a_of_z(p["Simulation"]["z_start"].get<double>())),
-      a_end(a_of_z(p["Simulation"]["z_end"].get<double>())),
-      A(p["Simulation"]["A"].get<int>()),
-      delta_a((a_end - a_start) / (A - 1)),
-      a_grid(A),
-      model(static_cast<CosmoModel>(p["Simulation"]["cosmology"].get<int>())),
-      omega_m0(p["Simulation"]["omega_m0"].get<double>()) {
+    : a_start{a_of_z(p["Simulation"]["z_start"].get<double>())},
+      a_end{a_of_z(p["Simulation"]["z_end"].get<double>())},
+      A{p["Simulation"]["A"].get<int>()},
+      delta_a{(a_end - a_start) / (A - 1)},
+      a_grid{},
+      model{static_cast<CosmoModel>(p["Simulation"]["cosmology"].get<int>())},
+      omega_m0{p["Simulation"]["omega_m0"].get<double>()},
+      tau_a_map{} {
     // Super conformal time is defined via its differential
     // Thus, after integrating we still have to fix the integration constant.
     // We do this by defining tau = 0 for the simulation start time.
@@ -41,6 +43,8 @@ Cosmology::Cosmology(const Parameters& p)
     // as a proper time.
 
     if (model != CosmoModel::Static) {
+        a_grid.resize(A);
+        std::cout << INFOTAG("Initialize time lookup table") << std::endl;
         double tau = 0;
         double a = a_start;
         for (int j = 0; j < A; j++) {
@@ -101,4 +105,5 @@ double Cosmology::a_of_tau(double tau) const {
         bracket_and_solve_root(tau_offset, a_guess, factor, is_rising, tol, it);
     return root.second;
 }
+
 bool Cosmology::operator==(const CosmoModel& m) const { return model == m; }

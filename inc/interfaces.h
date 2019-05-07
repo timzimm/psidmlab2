@@ -21,20 +21,20 @@ struct SimState;
 class Cosmology;
 #include "parameters_fwd.h"
 
-class PotentialMethod : public Factory<PotentialMethod, Parameters> {
+class PotentialMethod : public Factory<PotentialMethod, const Parameters&> {
    public:
     virtual void solve(SimState& state) = 0;
     virtual ~PotentialMethod() = default;
 };
 
-class SchroedingerMethod
-    : public Factory<SchroedingerMethod, Parameters, SimState, Cosmology> {
+class SchroedingerMethod : public Factory<SchroedingerMethod, const Parameters&,
+                                          const SimState&, const Cosmology&> {
    public:
     virtual void step(SimState& state) = 0;
     virtual ~SchroedingerMethod() = default;
 };
 
-class ObservableFunctor : public Factory<ObservableFunctor, Parameters> {
+class ObservableFunctor : public Factory<ObservableFunctor, const Parameters&> {
    public:
     using ReturnType = boost::variant<
         const blaze::DynamicMatrix<double, blaze::columnMajor>&,

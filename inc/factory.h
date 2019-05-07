@@ -66,7 +66,7 @@ class Factory {
     }
 };
 
-// Registering all derived classes. No boilerplate anymore :)
+// Registering all derived classes.
 template <class Base, class... Args>
 template <class Derived_from_Base>
 bool Factory<Base, Args...>::Registrar<Derived_from_Base>::registered =
