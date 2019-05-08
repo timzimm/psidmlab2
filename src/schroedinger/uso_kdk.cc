@@ -20,7 +20,7 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
       backwards(nullptr),
       forwards_op(nullptr),
       backwards_op(nullptr),
-      psis_cached(N, N) {
+      psis_cached(N, state.M) {
     for (int i = 0; i < N; ++i) {
         double k = 2 * M_PI / L * i;
         wavenumbers[i] = k * k;
@@ -71,8 +71,6 @@ decltype(auto) USO_KDK::drift(const CCM& psis_in_x, const RCV& V,
                               const double t, const double dt,
                               const double weight) {
     auto diag_D = blaze::diagonal(D);
-    std::cout << "t = " << t << std::endl;
-    std::cout << cosmo.a_of_tau(t) << std::endl;
     diag_D =
         blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
     // This is a dense-sparse product
@@ -94,25 +92,22 @@ void USO_KDK::step(SimState& state) {
 
     // We can spare the initial FFT if we use the cached psi_in_k
     // representation of the last step
-
     psis = kick(psis_cached, dt, 1.0 / 2);
 
-    std::cout << "Enter drift" << std::endl;
     fftw_execute(backwards);
 
     // Recompute potential
     pot->solve(state);
-    psis = drift(psis, V, t, dt, 1.0);
+    psis = blaze::evaluate(drift(psis, V, t, dt, 1.0));
 
     fftw_execute(forwards);
 
     // Update cached psis
-    psis_cached = kick(psis, dt, 1.0 / 2);
+    psis_cached = blaze::evaluate(kick(psis, dt, 1.0 / 2));
 
     fftw_execute(backwards_op);
 
     // psis and V are now @ tau + dtau
-    // Update time information
     state.tau += dt;
     state.n += 1;
     state.a = cosmo.a_of_tau(t + dt);
