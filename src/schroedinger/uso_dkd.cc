@@ -74,16 +74,16 @@ void USO_DKD::step(SimState& state) {
     // Therefore, we cannot reuse the potential of the last step but
     // have to recalculate it.
     pot->solve(state);
-    psis = drift(psis, V, t, dt, 1.0 / 2);
+    psis = blaze::evaluate(drift(psis, V, t, dt, 1.0 / 2));
 
     fftw_execute(forwards);
 
-    psis = kick(psis, dt, 1.0);
+    psis = blaze::evaluate(kick(psis, dt, 1.0));
 
     fftw_execute(backwards);
 
     pot->solve(state);
-    psis = drift(psis, V, t, dt, 1.0 / 2);
+    psis = blaze::evaluate(drift(psis, V, t, dt, 1.0 / 2));
 
     // psis and V are now @ tau + dtau
     // Update time information
