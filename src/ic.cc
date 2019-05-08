@@ -4,7 +4,6 @@
 #include "blaze/math/Elements.h"
 #include "blaze/math/Row.h"
 #include "blaze/math/Submatrix.h"
-#include "interfaces.h"
 #include "logging.h"
 #include "parameters.h"
 #include "state.h"
@@ -173,7 +172,7 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     int M_true;
     // (i) rel_threshold <= 0 -> min(M, 2 * #fourier_modes)
     if (rel_threshold <= 0) {
-        std::cout << INFOTAG("Determine No. of wavefunctions by fiven M")
+        std::cout << INFOTAG("Determine No. of wavefunctions by given M")
                   << std::endl;
         M_true = std::min(M, 2 * static_cast<int>(rho_fft_sorted.size()));
         M_true += (M_true % 2 == 0) ? 0 : 1;
@@ -230,6 +229,8 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     DiagonalMatrix<DynamicMatrix<double>> alpha(M_half, M_half);
     // Sinus coefficients
     DiagonalMatrix<DynamicMatrix<double>> beta(M_half, M_half);
+    // Normalization
+    DiagonalMatrix<DynamicMatrix<double>> normal(M_half, M_half);
 
     for (int i = 0; i < 2; ++i) {
         auto lambda = subvector(state.lambda, M_half * i, M_half);
@@ -238,7 +239,8 @@ void ICGenerator::psi_from_rho(SimState& state) const {
         diagonal(beta) = -2.0 / data_N * imag(rho_fft_trunc);
 
         // Normalization
-        auto normal = decldiag(invsqrt(alpha * alpha + beta * beta));
+        auto normsq = decldiag(alpha * alpha + beta * beta);
+        diagonal(normal) = invsqrt(diagonal(normsq));
 
         // Construct initial wave functions
         psi = (cos(M_PI / L * x * mode_trunc) * alpha +
