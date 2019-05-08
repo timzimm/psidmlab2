@@ -35,10 +35,11 @@ struct convolution_ws {
     blaze::DynamicVector<std::complex<double>, TF>
         kernel_fft;  // holds kernel DFT
     blaze::DynamicVector<std::complex<double>, TF>
-        signal_fft;  // holds signal DFT
-    fftw_plan r2c;   // r2c plan
-    fftw_plan c2r;   // c2r plan
-    fftw_plan c2c;   // c2r plan
+        signal_fft;      // holds signal DFT
+    fftw_plan r2c;       // r2c plan
+    fftw_plan c2r;       // c2r plan
+    fftw_plan c2c_for;   // c2c fowards plan
+    fftw_plan c2c_back;  // c2c backwards plan
 
     convolution_ws(const bool computeLinear_, const int N_signal,
                    const int N_kernel);
@@ -60,7 +61,8 @@ convolution_ws<T, TF>::convolution_ws(const bool computeLinear_,
       signal_fft(0),
       r2c(nullptr),
       c2r(nullptr),
-      c2c(nullptr) {
+      c2c_for(nullptr),
+      c2c_back(nullptr) {
     // DFT based
     if (fast_convolution) {
         P = computeLinear ? find_closest_factor(N_signal + N_kernel / 2)
@@ -82,8 +84,10 @@ convolution_ws<T, TF>::convolution_ws(const bool computeLinear_,
         } else {
             signal_fft.resize(P);
             auto out = reinterpret_cast<fftw_complex*>(signal_padded.data());
-            // Complex signal backwards
-            c2c = fftw_plan_dft_1d(P, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+            // Complex signal forwards/backwards
+            c2c_for = fftw_plan_dft_1d(P, out, in, FFTW_FORWARD, FFTW_ESTIMATE);
+            c2c_back =
+                fftw_plan_dft_1d(P, in, out, FFTW_BACKWARD, FFTW_ESTIMATE);
         }
 
         // real kernel to complex DFT
@@ -107,7 +111,8 @@ template <typename T, bool TF>
 convolution_ws<T, TF>::~convolution_ws() {
     fftw_destroy_plan(c2r);
     fftw_destroy_plan(r2c);
-    fftw_destroy_plan(c2c);
+    fftw_destroy_plan(c2c_for);
+    fftw_destroy_plan(c2c_back);
 }
 
 // Applies discrete (linear/circular) convolution by calling one of the routines
@@ -186,7 +191,7 @@ void fast_convolution(convolution_ws<T, TF>& data,
     // If the caller changed this switch because kernel changed between calls
     // we need to compute its DFT again after proper zero padding
     if (!data.kernel_up_to_date) {
-        // kernel zero padding
+        // kernel zero padding - bring new kernel into workspace
         blaze::subvector(data.kernel_padded, 0, kernel.size()) = kernel;
         blaze::subvector(data.kernel_padded, kernel.size(),
                          data.P - kernel.size()) = 0;
@@ -194,27 +199,34 @@ void fast_convolution(convolution_ws<T, TF>& data,
         data.kernel_up_to_date = true;
     }
 
-    // signal zero padding
+    // signal zero padding - bring signal into workspace
     blaze::subvector(data.signal_padded, 0, signal.size()) = signal;
     blaze::subvector(data.signal_padded, signal.size(),
                      data.P - signal.size()) = 0;
 
     // DFT type depends on type T
+    auto sig_fft = reinterpret_cast<fftw_complex*>(data.signal_fft.data());
+
     if constexpr (std::is_floating_point_v<T>) {
-        fftw_execute_dft_r2c(
-            data.r2c, data.signal_padded.data(),
-            reinterpret_cast<fftw_complex*>(data.signal_fft.data()));
+        auto sig = data.signal_padded.data();
+        fftw_execute_dft_r2c(data.r2c, sig, sig_fft);
     } else {
-        fftw_execute(data.c2c);
+        auto sig = reinterpret_cast<fftw_complex*>(data.signal_padded.data());
+        fftw_execute_dft(data.c2c_for, sig, sig_fft);
     }
 
     // Discrete convolution theorem + normalization for IDFT
     data.signal_fft *= 1.0 / data.P * data.kernel_fft;
 
     if constexpr (std::is_floating_point_v<T>) {
-        fftw_execute(data.c2r);
+        auto sig = data.signal_padded.data();
+        fftw_execute_dft_c2r(data.c2r, sig_fft, sig);
+
+        // TODO Why is this causing a segfault????
+        /* fftw_execute(data.c2r); */
     } else {
-        fftw_execute(data.c2c);
+        auto sig = reinterpret_cast<fftw_complex*>(data.signal_padded.data());
+        fftw_execute_dft(data.c2c_back, sig_fft, sig);
     }
 }
 
