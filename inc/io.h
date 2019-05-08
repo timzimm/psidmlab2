@@ -219,7 +219,7 @@ class HDF5File {
         hsize_t dim = 1;
         hid_t attr_space = H5Screate_simple(1, &dim, nullptr);
 
-        hid_t attr_type;
+        hid_t attr_type = H5T_NATIVE_INT;
 
         auto c_ptr = reinterpret_cast<const void*>(&value);
         if constexpr (std::is_floating_point_v<T>)
