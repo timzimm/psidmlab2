@@ -38,14 +38,32 @@ endif()
 # We use if constexpr
 target_compile_features(psidm PUBLIC cxx_std_17)
 
-# SMT on Release build
+# BLAS backend on release
 target_compile_definitions(psidm
     PRIVATE $<$<CONFIG:Release>:
-    -DBLAZE_BLAS_MODE
-    -DBLAZE_USE_BLAS_MATRIX_VECTOR_MULTIPLICATION
-    -DBLAZE_USE_BLAS_MATRIX_MATRIX_MULTIPLICATION 
-    -DBLAZE_BLAS_IS_PARALLEL
-    -DBLAZE_BLAS_INCLUDE_FILE="${HEADERNAME}">)
+            -DBLAZE_BLAS_MODE
+            -DBLAZE_USE_BLAS_MATRIX_VECTOR_MULTIPLICATION
+            -DBLAZE_USE_BLAS_MATRIX_MATRIX_MULTIPLICATION 
+            -DBLAZE_BLAS_IS_PARALLEL
+            -DBLAZE_BLAS_INCLUDE_FILE="${HEADERNAME}">)
+
+# Vectorization on Release
+target_compile_options(psidm
+    PRIVATE $<$<CONFIG:Release>:
+            -march=native>
+)
+
+# Sanatizers
+
+target_compile_options(psidm
+    PRIVATE $<$<CONFIG:Debug>:
+            -fno-omit-frame-pointer>
+)
+
+# target_link_options(psidm
+#     PRIVATE $<$<CONFIG:Debug>:
+#             -fsanitize=undefined>
+# )
 
 target_include_directories(psidm 
     PUBLIC  inc
