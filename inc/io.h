@@ -125,16 +125,24 @@ class HDF5File {
         }
     }
 
-    // Write generic vector to file. In this context generic means:
+    // Write generic vector to file at path ds_path. In this context generic
+    // means:
     //
     // T = std::complex<FT> , FT
     // FT = double, float, int... (anything with sizeof(FT) < sizeof(double))
     // TF = blaze::columnVector, blaze::rowVector
+    //
+    // If groups along ds_path are missing, we generate them in the process
 
     template <typename T, bool TF>
     void write(const std::string& ds_path,
                const blaze::DynamicVector<T, TF>& data) {
-        auto parent_group = create_groups_along_path(ds_path);
+        // Split path into parent group and dataset name
+        auto split_pos = ds_path.find_last_of("/");
+        auto parent_name = ds_path.substr(0, split_pos + 1);
+        auto set_name = ds_path.substr(split_pos + 1);
+
+        auto parent_group = create_groups_along_path(parent_name);
 
         // Create new dataspace and dataset for data vector
         const int rank = 1;
@@ -169,6 +177,11 @@ class HDF5File {
     template <typename T, bool SO>
     void write(const std::string& ds_path,
                const blaze::DynamicMatrix<T, SO>& data) {
+        // Split path into parent group and dataset name
+        auto split_pos = ds_path.find_last_of("/");
+        auto parent_name = ds_path.substr(0, split_pos + 1);
+        auto set_name = ds_path.substr(split_pos + 1);
+
         auto parent_group = create_groups_along_path(ds_path);
 
         // Create new dataspaces in both the file and the memory area
@@ -204,16 +217,25 @@ class HDF5File {
         H5Gclose(parent_group);
     }
 
+    // Adds scalar attribute of type T to object (group, dataset) at path. If
+    // the object does not exist yet, we generate a group and attach the
+    // attribute to it.
     template <typename T>
     void add_scalar_attribute(const std::string& path, const std::string& name,
-                              const T& value, hid_t group = -1) {
+                              const T& value, hid_t loc = -1) {
         // We need linear order of members within class types
         static_assert(std::is_standard_layout<T>::value);
 
-        bool ext_managed_group = true;
-        if (group == -1) {
-            group = create_groups_along_path(path);
-            ext_managed_group = false;
+        bool ext_managed = true;
+        if (loc == -1) {
+            auto exists = H5Lexists(file, path.c_str(), H5P_DEFAULT);
+            // Open object whatever it is
+            if (exists) loc = H5Oopen(file, path.c_str(), H5P_DEFAULT);
+            // Assume caller wants a group
+            else {
+                loc = create_groups_along_path(path + "/");
+                ext_managed = false;
+            }
         }
 
         hsize_t dim = 1;
@@ -232,29 +254,35 @@ class HDF5File {
             c_ptr = reinterpret_cast<const void*>(value.c_str());
         }
 
-        hid_t attr = H5Acreate(group, name.c_str(), attr_type, attr_space,
+        hid_t attr = H5Acreate(loc, name.c_str(), attr_type, attr_space,
                                H5P_DEFAULT, H5P_DEFAULT);
         H5Awrite(attr, attr_type, c_ptr);
 
         H5Aclose(attr);
 
-        if (!ext_managed_group) H5Gclose(group);
+        if (!ext_managed) H5Gclose(loc);
     }
 
     template <typename T>
     void add_scalar_attribute(const std::string& path,
                               const std::map<std::string, T>& attr_map) {
-        auto group = create_groups_along_path(path);
+        hid_t loc;
+        auto exists = H5Lexists(file, path.c_str(), H5P_DEFAULT);
+        // Open object whatever it is
+        if (exists) loc = H5Oopen(file, path.c_str(), H5P_DEFAULT);
+        // Assume caller wants a group
+        else
+            loc = create_groups_along_path(path + "/");
         hsize_t dim = 1;
         auto attr_space = H5Screate_simple(1, &dim, nullptr);
 
         for (const auto& pair : attr_map) {
             const std::string& key = pair.first;
             const T& val = pair.second;
-            add_scalar_attribute(path, key, val, group);
+            add_scalar_attribute(path, key, val, loc);
         }
 
-        H5Gclose(group);
+        H5Gclose(loc);
     }
 
     ~HDF5File() { H5Fclose(file); };

@@ -85,21 +85,15 @@ int main(int argc, char** argv) {
 
     while (state.tau < tau_end) {
         double tau_dt = state.tau + state.dtau;
-        std::cout << "tau_dt " << tau_dt << std::endl;
-        std::cout << "tau_save " << *tau_save << std::endl;
         // End of simulation?
         if (tau_dt > tau_end) {
-            std::cout << "End" << std::endl;
             state.dtau = tau_end - state.tau;
         }
         // Overstepping I/O checkpoint?
         if (tau_save != std::end(save_at) && tau_dt > *tau_save) {
-            std::cout << "I/O" << std::endl;
             state.dtau = *tau_save - state.tau;
             do_IO = true;
         }
-        std::cout << "state.tau " << state.tau << std::endl;
-        std::cout << "state.dtau " << state.dtau << std::endl;
 
         integrator->step(state);
 
@@ -122,7 +116,7 @@ int main(int argc, char** argv) {
                 file.add_scalar_attribute(path_to_ds, "n", state.n);
             }
             state.dtau = dtau;
-            std::next(tau_save);
+            tau_save++;
             do_IO = false;
         }
     }
