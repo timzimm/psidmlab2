@@ -4,6 +4,7 @@
 #include "blaze/math/Elements.h"
 #include "blaze/math/Row.h"
 #include "blaze/math/Submatrix.h"
+#include "interfaces.h"
 #include "logging.h"
 #include "parameters.h"
 #include "state.h"
