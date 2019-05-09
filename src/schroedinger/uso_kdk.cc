@@ -15,17 +15,21 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
       L{p["Simulation"]["L"].get<double>()},
       K(N, N),
       D(N, N),
-      wavenumbers(N),
+      k_squared(N),
       forwards(nullptr),
       backwards(nullptr),
       forwards_op(nullptr),
       backwards_op(nullptr),
       psis_cached(N, state.M) {
-    for (int i = 0; i < N; ++i) {
-        double k = 2 * M_PI / L * i;
-        wavenumbers[i] = k * k;
+    for (int k = 0; k < N / 2; ++k) {
+        k_squared[k] = 2 * M_PI / L * k;
+        k_squared[k] *= k_squared[k];
     }
-    // This makes me sad. On so many levels :(
+    for (int k = N / 2; k < N; ++k) {
+        k_squared[k] = 2 * M_PI / L * (k - N);
+        k_squared[k] *= k_squared[k];
+    }
+
     const auto const_in =
         reinterpret_cast<const fftw_complex*>(state.psis.data());
     auto in = const_cast<fftw_complex*>(const_in);
@@ -52,6 +56,9 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
 
     // Init cached wavefunction in k
     fftw_execute(forwards_op);
+
+    // Normalize
+    psis_cached /= N;
 }
 
 // Kick Operator
@@ -59,8 +66,7 @@ decltype(auto) USO_KDK::kick(const CCM& psis_in_k, const double dt,
                              const double weight) {
     auto diag_K = blaze::diagonal(K);
 
-    diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * wavenumbers *
-                        wavenumbers * dt);
+    diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * k_squared * dt);
 
     // This is a dense-sparse product
     return K * psis_in_k;
@@ -71,8 +77,11 @@ decltype(auto) USO_KDK::drift(const CCM& psis_in_x, const RCV& V,
                               const double t, const double dt,
                               const double weight) {
     auto diag_D = blaze::diagonal(D);
+
+    // TODO Fix a(tau)
     diag_D =
         blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
+
     // This is a dense-sparse product
     return D * psis_in_x;
 }
@@ -90,9 +99,9 @@ void USO_KDK::step(SimState& state) {
     CCM& psis = state.psis;
     RCV& V = state.V;
 
-    // We can spare the initial FFT if we use the cached psi_in_k
+    // We can spare the initial FFT if we use the cached and normalized psi_in_k
     // representation of the last step
-    psis = kick(psis_cached, dt, 1.0 / 2);
+    psis = blaze::evaluate(kick(psis_cached, dt, 1.0 / 2));
 
     fftw_execute(backwards);
 
@@ -102,8 +111,8 @@ void USO_KDK::step(SimState& state) {
 
     fftw_execute(forwards);
 
-    // Update cached psis
-    psis_cached = blaze::evaluate(kick(psis, dt, 1.0 / 2));
+    // Update cached psis and normalize
+    psis_cached = blaze::evaluate(1.0 / N * kick(psis, dt, 1.0 / 2));
 
     fftw_execute(backwards_op);
 

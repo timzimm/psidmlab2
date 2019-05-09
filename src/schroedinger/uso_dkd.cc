@@ -15,12 +15,16 @@ USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
       L{p["Simulation"]["L"].get<double>()},
       K(N, N),
       D(N, N),
-      wavenumbers(N),
+      k_squared(N),
       forwards(nullptr),
       backwards(nullptr) {
-    for (int i = 0; i < N; ++i) {
-        double k = 2 * M_PI / L * i;
-        wavenumbers[i] = k * k;
+    for (int k = 0; k < N / 2; ++k) {
+        k_squared[k] = 2 * M_PI / L * k;
+        k_squared[k] *= k_squared[k];
+    }
+    for (int k = N / 2; k < N; ++k) {
+        k_squared[k] = 2 * M_PI / L * (k - N);
+        k_squared[k] *= k_squared[k];
     }
     // This makes me sad. On so many levels :(
     const auto const_in =
@@ -41,8 +45,7 @@ USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
 decltype(auto) USO_DKD::kick(const CCM& psis_in_k, const double dt,
                              const double weight) {
     auto diag_K = blaze::diagonal(K);
-    diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * wavenumbers *
-                        wavenumbers * dt);
+    diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * k_squared * dt);
 
     return K * psis_in_k;
 }
@@ -78,7 +81,7 @@ void USO_DKD::step(SimState& state) {
 
     fftw_execute(forwards);
 
-    psis = blaze::evaluate(kick(psis, dt, 1.0));
+    psis = blaze::evaluate(1.0 / N * kick(psis, dt, 1.0));
 
     fftw_execute(backwards);
 

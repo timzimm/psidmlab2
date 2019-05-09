@@ -39,7 +39,7 @@ class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
     double L;                              // Domain size
     CDM K;  // Kick operator as sparse diagonal matrix
     CDM D;  // Drift operator as sparse diagonal matrix
-    RCV wavenumbers;
+    RCV k_squared;
 
     fftw_plan forwards;   // in-place forward FFT
     fftw_plan backwards;  // in-place backward FFT
