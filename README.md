@@ -8,13 +8,13 @@ to approximate the numerically intractable Vlasov-Poisson system for the evoluti
 ## Theory behind psiDM
 psiDM aims to model the dynamics of (cold) dark by employing a time evolution
 described by the Schroedinger-Poisson (SP) PDE system:
-\begin{equation}
+```math
     i \partial_t \psi(x,t) = \left[-\frac{\hbar^2}{2m} \nabla^2 +
     V(x,t)\right]\psi(x,t)
-\end{equation}
+```
 From a cosmological point of view, two distinct applications of wavelike dark
 matter can be identified.
-1. Ultralight Axion Dark Matter
+### Ultralight Axion Dark Matter
 Axions are considered a viable dark matter particle candidate. In this
 framework, axions (spin 0 bosons) form a cosmic Bose-Einstein condensate that
 obeys SP, i.e. evolves quantum mechanically under its self gravity. For
@@ -25,8 +25,7 @@ difficulites of the standard $\Lambda$CDM model, such as the core cusp problem
 or the predicition of diverging densities in cosmic halos. On scales vastly
 larger than the axion de-Broglie wavelength $\psi$DM recovers the standard CDM
 description.
-
-2. Approximation to the Vlasov-Poisson system (VP)
+### Approximation to the Vlasov-Poisson system (VP)
 Standard CDM obeys a collisionless Boltzmann equation (also known as Vlasov
 equation in plasma physics) coupled to Poisson's
 equation. Assuming a collisionless setting, this can be shown to be true even
