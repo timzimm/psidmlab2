@@ -6,6 +6,7 @@ project(psiDM2 VERSION 0.1
 # Add modules/ folder for Find* scripts
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
 
+# TODO ADD LAPACKE. Right now we implicitly assume that BLAS comes with LAPACK
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 find_package(FFTW REQUIRED)
@@ -50,20 +51,21 @@ target_compile_definitions(psidm
 # Vectorization on Release
 target_compile_options(psidm
     PRIVATE $<$<CONFIG:Release>:
+            -Ofast
             -march=native>
 )
 
-# Sanatizers
-
+# Sanatizers on Debug
 target_compile_options(psidm
     PRIVATE $<$<CONFIG:Debug>:
-            -fno-omit-frame-pointer>
+            -fno-omit-frame-pointer
+            -fsanitize=undefined>
 )
 
-# target_link_options(psidm
-#     PRIVATE $<$<CONFIG:Debug>:
-#             -fsanitize=undefined>
-# )
+target_link_options(psidm
+    PRIVATE $<$<CONFIG:Debug>:
+            -fsanitize=undefined>
+)
 
 target_include_directories(psidm 
     PUBLIC  inc
