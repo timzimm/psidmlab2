@@ -1,7 +1,7 @@
 {
     "General":
     {
-        "output_file": "../run/oscillator.h5"
+        "output_file": "../run/oscillator_kdk.h5"
     },
     "Initial Conditions":
     {
@@ -14,26 +14,27 @@
     "Simulation":
     {
         "cosmology": 0,
-        "potential": "Poisson::Identity",
         "integrator": "Schroedinger::USO_KDK",
+        "potential": "Poisson::FFT",
         "mu":0.005,
         "omega_m0":0.3,
         "L":10,
         "N":512,
         "z_start":0,
         "z_end":0,
-        "t_end":10,
+        "t_end":1,
         "A":1000000,
         "dtau":1e-3
     },
     "Analysis":
     {
-        "save_at": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        "sigma_x": 0.1,
+        "save_at": [0,0.1,0.2,0.5,0.6,0.7,0.8,0.9,1],
+        "sigma_x": 0.05,
         "linear_convolution": false,
         "compute": [
             "Observable::Potential",
-            "Observable::DensityContrast"
+            "Observable::DensityContrast",
+            "Observable::WaveFunction"
         ]
     }
 }
