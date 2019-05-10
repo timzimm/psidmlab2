@@ -35,8 +35,8 @@ DensityContrast::DensityContrast(const Parameters& p)
 ObservableFunctor::ReturnType DensityContrast::compute(const SimState& state) {
     using namespace blaze;
     if (t_prev < state.tau) {
-        auto psi2 = real(state.psis % state.psis);
-        UniformVector<double> one(N);
+        UniformVector<double> one(N, 1);
+        auto psi2 = real(conj(state.psis) % state.psis);
         delta = psi2 * state.lambda - one;
 
         if (husimi) {

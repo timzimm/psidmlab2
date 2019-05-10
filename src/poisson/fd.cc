@@ -22,9 +22,10 @@ void FD::solve(SimState& state) {
     using namespace blaze;
 
     // Calculate source term as matrix
-    auto psi2 = real(state.psis % state.psis);
+    UniformVector<double> one(N, 1);
+    auto psi2 = real(conj(state.psis) % state.psis);
     DynamicMatrix<double, columnMajor> source =
-        dx * dx * expand(psi2 * state.lambda, 1);
+        expand(dx * dx * psi2 * state.lambda - one, 1);
 
     gctrs(dl, d, du, du2, ipiv, source);
 

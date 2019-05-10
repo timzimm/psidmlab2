@@ -201,6 +201,9 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     // No .of wavefuntions with the same eigenvalue sign
     int M_half = M_true / 2;
 
+    // Constant wvaefunction for background
+    M_true += 1;
+
     std::cout << INFOTAG("Construct " << M_true << " wavefunctions")
               << std::endl;
 
@@ -248,6 +251,10 @@ void ICGenerator::psi_from_rho(SimState& state) const {
                sin(M_PI / L * x * mode_trunc) * beta) *
               normal;
     }
+
+    // Constant Wavefunction
+    column(state.psis, M_true - 1) = 1;
+    state.lambda[M_true - 1] = 1;
 }
 
 ICGenerator::~ICGenerator() = default;
