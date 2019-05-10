@@ -13,7 +13,7 @@ described by the Schroedinger-Poisson (SP) PDE system:
     mV(x,t)\right]\psi(x,t)
 ```
 ```math
-    \nabla^2 V = \frac{4\pi G\rho_{m0}}{a}\left(\frac{|\psi|^2}{\langle|\psi|^2\rangle_V }\right)
+    \nabla^2 V = \frac{4\pi G\rho_{m0}}{a}\left(\frac{|\psi|^2}{\langle|\psi|^2\rangle_V } - 1\right)
 ```
 From a cosmological point of view, two distinct applications of wavelike dark
 matter can be identified.
