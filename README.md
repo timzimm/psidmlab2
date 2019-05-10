@@ -11,6 +11,7 @@ described by the Schroedinger-Poisson (SP) PDE system:
 ```math
     i \partial_t \psi(x,t) = \left[-\frac{\hbar^2}{2m} \nabla^2 +
     V(x,t)\right]\psi(x,t)
+    \nabla^2 V = \frac{4\pi*G*\rho_{m0}}{a}\left(\frac{|\psi|^2}{\langle|psi|^2\rangle>_V - 1}\right)
 ```
 From a cosmological point of view, two distinct applications of wavelike dark
 matter can be identified.
