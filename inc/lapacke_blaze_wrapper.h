@@ -32,33 +32,37 @@ int LAPACKE_zgttrf(int n, std::complex<double>* dl, std::complex<double>* d,
 }
 
 // Overloaded wrappers
-void gttrs(int matrix_layout, char trans, int n, int nrhs,
-           const std::complex<double>* dl, const std::complex<double>* d,
-           const std::complex<double>* du, const std::complex<double>* du2,
-           const int* ipiv, std::complex<double>* b, int ldb) {
+// TODO if constexpr + is_complex type trait
+static void gttrs(int matrix_layout, char trans, int n, int nrhs,
+                  const std::complex<double>* dl, const std::complex<double>* d,
+                  const std::complex<double>* du,
+                  const std::complex<double>* du2, const int* ipiv,
+                  std::complex<double>* b, int ldb) {
     LAPACKE_zgttrs(matrix_layout, trans, n, nrhs, dl, d, du, du2, ipiv, b, ldb);
 }
 
-void gttrs(int matrix_layout, char trans, int n, int nrhs, const double* dl,
-           const double* d, const double* du, const double* du2,
-           const int* ipiv, double* b, int ldb) {
+static void gttrs(int matrix_layout, char trans, int n, int nrhs,
+                  const double* dl, const double* d, const double* du,
+                  const double* du2, const int* ipiv, double* b, int ldb) {
     LAPACKE_dgttrs(matrix_layout, trans, n, nrhs, dl, d, du, du2, ipiv, b, ldb);
 }
 
-void gttrf(int n, std::complex<double>* dl, std::complex<double>* d,
-           std::complex<double>* du, std::complex<double>* du2, int* ipiv) {
+static void gttrf(int n, std::complex<double>* dl, std::complex<double>* d,
+                  std::complex<double>* du, std::complex<double>* du2,
+                  int* ipiv) {
     LAPACKE_zgttrf(n, dl, d, du, du2, ipiv);
 }
 
-void gttrf(int n, double* dl, double* d, double* du, double* du2, int* ipiv) {
+static void gttrf(int n, double* dl, double* d, double* du, double* du2,
+                  int* ipiv) {
     LAPACKE_dgttrf(n, dl, d, du, du2, ipiv);
 }
 
 // Factorizes a general tridiagonal CYCLIC matrix via LU
 template <typename T>
-void gctrf(blaze::DynamicVector<T>& dl, blaze::DynamicVector<T>& d,
-           blaze::DynamicVector<T>& du, blaze::DynamicVector<T>& du2,
-           blaze::DynamicVector<int>& ipiv) {
+static void gctrf(blaze::DynamicVector<T>& dl, blaze::DynamicVector<T>& d,
+                  blaze::DynamicVector<T>& du, blaze::DynamicVector<T>& du2,
+                  blaze::DynamicVector<int>& ipiv) {
     int N = d.size();
     gttrf(N - 1, dl.data() + 1, d.data(), du.data(), du2.data(), ipiv.data());
 }
@@ -66,11 +70,12 @@ void gctrf(blaze::DynamicVector<T>& dl, blaze::DynamicVector<T>& d,
 // Solves a general tridiagonal CYCLIC matrix via the decomposition calculated
 // by gctrf
 template <typename T>
-void gctrs(const blaze::DynamicVector<T>& dl, const blaze::DynamicVector<T>& d,
-           const blaze::DynamicVector<T>& du,
-           const blaze::DynamicVector<T>& du2,
-           const blaze::DynamicVector<int>& ipiv,
-           blaze::DynamicMatrix<T, blaze::columnMajor>& rhs) {
+static void gctrs(const blaze::DynamicVector<T>& dl,
+                  const blaze::DynamicVector<T>& d,
+                  const blaze::DynamicVector<T>& du,
+                  const blaze::DynamicVector<T>& du2,
+                  const blaze::DynamicVector<int>& ipiv,
+                  blaze::DynamicMatrix<T, blaze::columnMajor>& rhs) {
     using namespace blaze;
 
     // Size of the cyclic problem
