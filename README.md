@@ -47,7 +47,7 @@ resemble closely what we expect in the classical case.
 
 ## What dependenicies does the simulation have
 Currently psiDM2 depends on:
-* **[BLAZE (HEAD)](https://bitbucket.org/blaze-lib/blaze/wiki/Home)**: A (smart) expression template based, high performance linear algebra library written in C++14
+* **[BLAZE (HEAD)](https://bitbucket.org/blaze-lib/blaze/src/master/)**: A (smart) expression template based, high performance linear algebra library written in C++14
 * **[Boost 1.69](http://www.boost.org)**: for root finding, boost::variant etc.
 * **[FFTW 3.3.8](http://www.fftw.org)**: for, well, DFTs.
 * **[nlohmann's json parser](https://github.com/nlohmann/json)**: for simulation parameter management
@@ -59,7 +59,7 @@ Currently psiDM2 depends on:
     (**[ATLAS](http://math-atlas.sourceforge.net),
     [openBLAS](https://www.openblas.net), ...**) but
     **MKL** is the way to go, if you are working with Intel chips.
-* **[C++17 compiler]**: like **[clang++](https://llvm.org),
+* **C++17 compiler**: like **[clang++](https://llvm.org),
     [ic++](https://software.intel.com/en-us/c-compilers),
     [g++](https://gcc.gnu.org)**
 
