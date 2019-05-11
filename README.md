@@ -47,7 +47,7 @@ resemble closely what we expect in the classical case.
 
 ## What dependenicies does the simulation have
 Currently psiDM2 depends on:
-* **BLAZE (HEAD)**: A (smart) expression template based, high performance linear algebra library written in C++14
+* **[BLAZE (HEAD)](https://bitbucket.org/blaze-lib/blaze/wiki/Home)**: A (smart) expression template based, high performance linear algebra library written in C++14
 * **Boost 1.69**: for root finding, boost::variant etc.
 * **FFTW 3.3.8**: for, well, DFTs.
 * **nlohmann's json parser**: for simulation parameter management
