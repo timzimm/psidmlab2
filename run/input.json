@@ -1,12 +1,12 @@
 {
     "General":
     {
-        "output_file": "../run/oscillator_kdk.h5"
+        "output_file": "../run/oscillator.h5"
     },
     "Initial Conditions":
     {
         "ic_type": 0,
-        "source_file": "../run/psi_harmonic.txt",
+        "source_file": "../run/psi_harmonic_shift.txt",
         "potential_file": "../run/pot_harmonic.txt",
         "ev_threshold": -1e-3,
         "M": 1
@@ -14,22 +14,22 @@
     "Simulation":
     {
         "cosmology": 0,
-        "integrator": "Schroedinger::USO_KDK",
-        "potential": "Poisson::FFT",
+        "integrator": "Schroedinger::PCCayley",
+        "potential": "Poisson::Identity",
         "mu":0.005,
         "omega_m0":0.3,
-        "L":10,
-        "N":512,
+        "L":20,
+        "N":1024,
         "z_start":0,
         "z_end":0,
-        "t_end":1,
+        "t_end":2,
         "A":1000000,
-        "dtau":1e-3
+        "dtau":2e-4
     },
     "Analysis":
     {
-        "save_at": [0,0.1,0.2,0.5,0.6,0.7,0.8,0.9,1],
-        "sigma_x": 0.05,
+        "save_at": [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,2],
+        "sigma_x": 0,
         "linear_convolution": false,
         "compute": [
             "Observable::Potential",
