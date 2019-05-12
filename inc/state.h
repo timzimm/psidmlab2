@@ -1,8 +1,7 @@
 #ifndef __STATE__
 #define __STATE__
 #include <complex>
-#include "blaze/math/DynamicMatrix.h"
-#include "blaze/math/DynamicVector.h"
+#include "blaze_utils.h"
 
 // Forward Declaration
 #include "parameters_fwd.h"
@@ -21,5 +20,9 @@ struct SimState {
 
     SimState(const Parameters& p);
 };
+static decltype(auto) delta_from(const SimState& state) {
+    auto psi2 = real(conj(state.psis) % state.psis);
+    return psi2 * state.lambda - 1.0;
+}
 
 #endif

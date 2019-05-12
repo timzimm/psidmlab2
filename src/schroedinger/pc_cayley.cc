@@ -1,6 +1,6 @@
 #include "schroedinger/pc_cayley.h"
 #include "blaze/math/UniformVector.h"
-#include "lapacke_blaze_wrapper.h"
+#include "blaze_utils.h"
 #include "parameters.h"
 #include "state.h"
 

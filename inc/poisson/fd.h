@@ -14,6 +14,7 @@ namespace Poisson {
 
 class FD : public PotentialMethod::Registrar<FD> {
     using RCV = blaze::DynamicVector<double>;
+    using RCM = blaze::DynamicMatrix<double, blaze::columnMajor>;
     double dx;
     size_t N;
     // LU-decompostion of poisson matrix which never changes

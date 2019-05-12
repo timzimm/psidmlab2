@@ -33,9 +33,7 @@ FFT::~FFT() {
 void FFT::solve(SimState& state) {
     using namespace blaze;
     // Calculate source term
-    UniformVector<double> one(N, 1);
-    auto psi2 = real(conj(state.psis) % state.psis);
-    RCV source = psi2 * state.lambda - one;
+    RCV source = delta_from(state);
 
     // fftw_execute_dft_r2c and its inverse are applicable in this situation
     // because blaze takes care of proper alignment
