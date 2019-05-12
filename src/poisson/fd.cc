@@ -1,5 +1,5 @@
 #include "poisson/fd.h"
-#include "lapacke_blaze_wrapper.h"
+#include "blaze_utils.h"
 #include "parameters.h"
 #include "state.h"
 
@@ -22,10 +22,7 @@ void FD::solve(SimState& state) {
     using namespace blaze;
 
     // Calculate source term as matrix
-    UniformVector<double> one(N, 1);
-    auto psi2 = real(conj(state.psis) % state.psis);
-    DynamicMatrix<double, columnMajor> source =
-        expand(dx * dx * psi2 * state.lambda - one, 1);
+    RCM source = expand(dx * dx * delta_from(state), 1);
 
     gctrs(dl, d, du, du2, ipiv, source);
 

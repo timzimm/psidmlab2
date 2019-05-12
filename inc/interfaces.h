@@ -8,7 +8,7 @@
 
 // This header defines all interfaces of
 //
-// SchroedingerMethod (like Schroedinger::USO_DKD, Schroedinger::CN, ...)
+// SchroedingerMethod (like Schroedinger::USO_DKD, Schroedinger::PCCaley, ...)
 // PotentialMethod (like Poisson::FFT, Poisson::FD, ...)
 // ObservableFunctor (like Observable::DensityConstrast, Observable::Potential)
 //

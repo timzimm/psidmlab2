@@ -2,7 +2,6 @@
 #include "blaze/math/Columns.h"
 #include "blaze/math/Elements.h"
 #include "blaze/math/Submatrix.h"
-#include "blaze/math/UniformVector.h"
 #include "parameters.h"
 #include "state.h"
 
@@ -20,7 +19,7 @@ DensityContrast::DensityContrast(const Parameters& p)
       t_prev(-1),
       ws(husimi ? linear : 0, husimi ? N : 0, husimi ? N_kernel : 0),
       gaussian_kernel(husimi ? N_kernel : 0),
-      delta(N, 1) {
+      delta(N) {
     if (husimi) {
         // Kernel construction in x-space
         for (int i = 0; i < N_kernel; ++i) {
@@ -35,9 +34,7 @@ DensityContrast::DensityContrast(const Parameters& p)
 ObservableFunctor::ReturnType DensityContrast::compute(const SimState& state) {
     using namespace blaze;
     if (t_prev < state.tau) {
-        UniformVector<double> one(N, 1);
-        auto psi2 = real(conj(state.psis) % state.psis);
-        delta = psi2 * state.lambda - one;
+        delta = delta_from(state);
 
         if (husimi) {
             discrete_convolution(ws, gaussian_kernel, delta);
