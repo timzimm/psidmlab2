@@ -28,6 +28,7 @@ class PCCayley : public SchroedingerMethod::Registrar<PCCayley> {
 
     const Cosmology& cosmo;
     size_t N;
+    size_t M;
     double dx;
     std::unique_ptr<PotentialMethod> potential;
     RSM K;  // Cyclic Kinetic matrix (i.e. the - 0.5*second derivative)
