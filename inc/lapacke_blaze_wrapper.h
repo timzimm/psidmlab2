@@ -31,51 +31,49 @@ int LAPACKE_zgttrf(int n, std::complex<double>* dl, std::complex<double>* d,
                    int* ipiv);
 }
 
-// Overloaded wrappers
-// TODO if constexpr + is_complex type trait
-static void gttrs(int matrix_layout, char trans, int n, int nrhs,
-                  const std::complex<double>* dl, const std::complex<double>* d,
-                  const std::complex<double>* du,
-                  const std::complex<double>* du2, const int* ipiv,
-                  std::complex<double>* b, int ldb) {
-    LAPACKE_zgttrs(matrix_layout, trans, n, nrhs, dl, d, du, du2, ipiv, b, ldb);
+// C++14 versions of LAPACK functions. Branch decision at compile time.
+template <typename T, typename = blaze::EnableIf_t<blaze::IsNumeric_v<T>>>
+static void gttrs(int matrix_layout, char trans, int n, int nrhs, const T* dl,
+                  const T* d, const T* du, const T* du2, const int* ipiv, T* b,
+                  int ldb) {
+    using namespace blaze;
+    if constexpr (IsComplexDouble_v<T>)
+        LAPACKE_zgttrs(matrix_layout, trans, n, nrhs, dl, d, du, du2, ipiv, b,
+                       ldb);
+    if constexpr (IsDouble_v<T>)
+        LAPACKE_dgttrs(matrix_layout, trans, n, nrhs, dl, d, du, du2, ipiv, b,
+                       ldb);
 }
 
-static void gttrs(int matrix_layout, char trans, int n, int nrhs,
-                  const double* dl, const double* d, const double* du,
-                  const double* du2, const int* ipiv, double* b, int ldb) {
-    LAPACKE_dgttrs(matrix_layout, trans, n, nrhs, dl, d, du, du2, ipiv, b, ldb);
-}
-
-static void gttrf(int n, std::complex<double>* dl, std::complex<double>* d,
-                  std::complex<double>* du, std::complex<double>* du2,
-                  int* ipiv) {
-    LAPACKE_zgttrf(n, dl, d, du, du2, ipiv);
-}
-
-static void gttrf(int n, double* dl, double* d, double* du, double* du2,
-                  int* ipiv) {
-    LAPACKE_dgttrf(n, dl, d, du, du2, ipiv);
+template <typename T, typename = blaze::EnableIf_t<blaze::IsNumeric_v<T>>>
+static void gttrf(int n, T* dl, T* d, T* du, T* du2, int* ipiv) {
+    using namespace blaze;
+    if constexpr (IsComplexDouble_v<T>) LAPACKE_zgttrf(n, dl, d, du, du2, ipiv);
+    if constexpr (IsDouble_v<T>) LAPACKE_dgttrf(n, dl, d, du, du2, ipiv);
 }
 
 // Factorizes a general tridiagonal CYCLIC matrix via LU
-template <typename T>
-static void gctrf(blaze::DynamicVector<T>& dl, blaze::DynamicVector<T>& d,
-                  blaze::DynamicVector<T>& du, blaze::DynamicVector<T>& du2,
-                  blaze::DynamicVector<int>& ipiv) {
+template <typename T, bool TF,
+          typename = blaze::EnableIf_t<blaze::IsNumeric_v<T>>>
+static void gctrf(blaze::DynamicVector<T, TF>& dl,
+                  blaze::DynamicVector<T, TF>& d,
+                  blaze::DynamicVector<T, TF>& du,
+                  blaze::DynamicVector<T, TF>& du2,
+                  blaze::DynamicVector<int, TF>& ipiv) {
     int N = d.size();
     gttrf(N - 1, dl.data() + 1, d.data(), du.data(), du2.data(), ipiv.data());
 }
 
 // Solves a general tridiagonal CYCLIC matrix via the decomposition calculated
 // by gctrf
-template <typename T>
-static void gctrs(const blaze::DynamicVector<T>& dl,
-                  const blaze::DynamicVector<T>& d,
-                  const blaze::DynamicVector<T>& du,
-                  const blaze::DynamicVector<T>& du2,
-                  const blaze::DynamicVector<int>& ipiv,
-                  blaze::DynamicMatrix<T, blaze::columnMajor>& rhs) {
+template <typename T, bool TF, bool SO,
+          typename = blaze::EnableIf_t<blaze::IsNumeric_v<T>>>
+static void gctrs(const blaze::DynamicVector<T, TF>& dl,
+                  const blaze::DynamicVector<T, TF>& d,
+                  const blaze::DynamicVector<T, TF>& du,
+                  const blaze::DynamicVector<T, TF>& du2,
+                  const blaze::DynamicVector<int, TF>& ipiv,
+                  blaze::DynamicMatrix<T, SO>& rhs) {
     using namespace blaze;
 
     // Size of the cyclic problem
@@ -96,9 +94,14 @@ static void gctrs(const blaze::DynamicVector<T>& dl,
     // Solve tridiagonal systems.
     // LDB parameter is given by spacing() because blaze adds padding to allow
     // for vectorization
-    gttrs(LAPACK_COL_MAJOR, 'N', N - 1, nrhs + 1, dl.data() + 1, d.data(),
-          du.data(), du2.data(), ipiv.data(), rhs_ext.data(),
-          rhs_ext.spacing());
+    if constexpr (SO == columnMajor)
+        gttrs(LAPACK_COL_MAJOR, 'N', N - 1, nrhs + 1, dl.data() + 1, d.data(),
+              du.data(), du2.data(), ipiv.data(), rhs_ext.data(),
+              rhs_ext.spacing());
+    else
+        gttrs(LAPACK_ROW_MAJOR, 'N', N - 1, nrhs + 1, dl.data() + 1, d.data(),
+              du.data(), du2.data(), ipiv.data(), rhs_ext.data(),
+              rhs_ext.spacing());
 
     // Assemble solution to original problem by linear combination
     auto x_11 = row(x_1, 0);
@@ -143,19 +146,19 @@ struct AddScalar {
     ST scalar_;
 };
 template <typename VT, bool TF, typename Scalar,
-          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar> > >
+          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar>>>
 decltype(auto) operator+(const blaze::DenseVector<VT, TF>& vec, Scalar scalar) {
     return forEach(~vec, AddScalar<Scalar>(scalar));
 }
 
 template <typename Scalar, typename VT, bool TF,
-          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar> > >
+          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar>>>
 decltype(auto) operator+(Scalar scalar, const blaze::DenseVector<VT, TF>& vec) {
     return forEach(~vec, AddScalar<Scalar>(scalar));
 }
 
 template <typename VT, bool TF, typename Scalar,
-          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar> > >
+          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar>>>
 VT& operator+=(blaze::DenseVector<VT, TF>& vec, Scalar scalar) {
     (~vec) = (~vec) + scalar;
     return ~vec;
@@ -185,13 +188,13 @@ struct SubScalar {
     ST scalar_;
 };
 template <typename VT, bool TF, typename Scalar,
-          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar> > >
+          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar>>>
 decltype(auto) operator-(const blaze::DenseVector<VT, TF>& vec, Scalar scalar) {
     return forEach(~vec, SubScalar<Scalar>(scalar));
 }
 
 template <typename VT, bool TF, typename Scalar,
-          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar> > >
+          typename = blaze::EnableIf_t<blaze::IsNumeric_v<Scalar>>>
 VT& operator-=(blaze::DenseVector<VT, TF>& vec, Scalar scalar) {
     (~vec) = (~vec) - scalar;
     return ~vec;
