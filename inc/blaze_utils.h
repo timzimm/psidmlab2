@@ -31,7 +31,7 @@ int LAPACKE_zgttrf(int n, std::complex<double>* dl, std::complex<double>* d,
                    int* ipiv);
 }
 
-// C++14 versions of LAPACK functions. Branch decision at compile time.
+// C++17 versions of LAPACK functions. Branch decision at compile time.
 template <typename T, typename = blaze::EnableIf_t<blaze::IsNumeric_v<T>>>
 static void gttrs(int matrix_layout, char trans, int n, int nrhs, const T* dl,
                   const T* d, const T* du, const T* du2, const int* ipiv, T* b,
@@ -121,6 +121,7 @@ static void gctrs(const blaze::DynamicVector<T, TF>& dl,
 // Expression templates to enable addition/subtraction of scalars and blaze
 // vectors of any type and storage order
 
+namespace blaze {
 template <typename ST>
 struct AddScalar {
    public:
@@ -199,4 +200,5 @@ VT& operator-=(blaze::DenseVector<VT, TF>& vec, Scalar scalar) {
     (~vec) = (~vec) - scalar;
     return ~vec;
 }
+}  // namespace blaze
 #endif
