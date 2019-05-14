@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
 
     // Setup Analysis Functors and I/O visitor for their return variant
     std::vector<std::string> keys;
-    param["Analysis"]["compute"].get_to(keys);
+    param["Observables"]["compute"].get_to(keys);
 
     std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>
         observables;
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 
     // Setup I/O checkpoints
     std::vector<double> save_at;
-    param["Analysis"]["save_at"].get_to(save_at);
+    param["Observables"]["save_at"].get_to(save_at);
 
     // Set final simulation time and checkpoints based on cosmological model
     double tau_end;

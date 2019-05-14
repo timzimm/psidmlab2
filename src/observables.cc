@@ -10,9 +10,9 @@
 namespace Observable {
 
 DensityContrast::DensityContrast(const Parameters& p)
-    : sigma_x(p["Analysis"]["sigma_x"].get<double>()),
+    : sigma_x(p["Observables"]["sigma_x"].get<double>()),
       husimi(sigma_x > 0),
-      linear(p["Analysis"]["linear_convolution"].get<bool>()),
+      linear(p["Observables"]["linear_convolution"].get<bool>()),
       N(p["Simulation"]["N"].get<int>()),
       dx(p["Simulation"]["L"].get<double>() / N),
       N_kernel(2 * floor(5 * sigma_x / dx) + 1),
@@ -52,9 +52,9 @@ ObservableFunctor::ReturnType DensityContrast::compute(const SimState& state) {
 }
 
 PhaseSpaceDistribution::PhaseSpaceDistribution(const Parameters& p)
-    : sigma_x(std::sqrt(2) * p["Analysis"]["sigma_x"].get<double>()),
+    : sigma_x(std::sqrt(2) * p["Observables"]["sigma_x"].get<double>()),
       husimi(sigma_x > 0),
-      linear(p["Analysis"]["linear_convolution"].get<bool>()),
+      linear(p["Observables"]["linear_convolution"].get<bool>()),
       N(p["Simulation"]["N"].get<int>()),
       L(p["Simulation"]["L"].get<double>()),
       dx(L / N),
