@@ -70,7 +70,6 @@ ICGenerator::ICGenerator(const Parameters& p)
                           << std::endl;
                 exit(1);
             }
-            break;
         case ICType::Density:
             if (data_N != N) {
                 std::cout << ERRORTAG(
@@ -79,7 +78,6 @@ ICGenerator::ICGenerator(const Parameters& p)
                           << std::endl;
                 exit(1);
             }
-            break;
         default:
             if (N != pot_N) {
                 std::cout
