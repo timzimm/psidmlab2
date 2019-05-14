@@ -41,7 +41,7 @@ class ICGenerator {
 
    public:
     ICGenerator(const Parameters& param);
-    void generate(SimState& state, Parameters& param) const;
+    void generate(SimState& state) const;
 
     // Required to deal with incomplete PotentialMethod type
     ~ICGenerator();
