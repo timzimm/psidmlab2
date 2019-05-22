@@ -1,9 +1,14 @@
-# psiDM2
+# psiDMLab
 
-## What is psiDM2
+## What is psiDMLab
 
-psiDM2 is rewritten version of psiDMi, a simulation that utilises quantum mechanical techniques 
-to approximate the numerically intractable Vlasov-Poisson system for the evolution of dark matter.
+psiDMLab is meant as a numerical playground for the Schroedinger-Poisson equations, 
+a model that utilises quantum mechanical techniques to approximate the numerically 
+intractable Vlasov-Poisson system for the evolution of dark matter. 
+Currently, our focus lies on modularity not utmost performance. The idea is to draft 
+a numerically stable and accurate scheme that can later on be optimized to run 
+on large scale systems and hopefully is capable of simulating 3+1 dimensional 
+cosmological setups comparable to what is known for N-Body simulations.
 
 ## Theory behind psiDM
 psiDM aims to model the dynamics of (cold) dark by employing a time evolution
@@ -55,5 +60,5 @@ TODO
 ## Data Post Processing
 TODO
 
-##psiDM in the literature
+## psiDM in the literature
 TODO
