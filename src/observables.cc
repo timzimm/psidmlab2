@@ -97,9 +97,9 @@ void PhaseSpaceDistribution::wigner_distribution(const SimState& state) {
             auto index = elements(
                 iaf_i, [&](int tau) { return (N + tau - min) % N; }, total);
             index = lag_plus * conj(lag_minus);
-            for (int j = 0; 2 * j < N; ++j) {
-                iaf_i[2 * j + 1] *= -1;
-            }
+            /* for (int j = 0; 2 * j < N; ++j) { */
+            /*     iaf_i[2 * j + 1] *= -1; */
+            /* } */
         }
         fftw_execute(c2c);
 
