@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.10)
 project(psiDM2 VERSION 0.1
     DESCRIPTION "DM simulation with QM techniques"
     LANGUAGES C CXX)
@@ -10,8 +10,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(Boost REQUIRED)
 find_package(FFTW REQUIRED)
+
 find_package(CBLAS)
-find_package(nlohmann_json 3.2.0 REQUIRED)
+
+# Embed json library directly (provided as submodule)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+set(JSON_MultipleHeaders ON CACHE INTERNAL "")
+
+add_subdirectory(inc/json)
 
 add_executable(psidm 
     src/main.cc 
@@ -31,10 +37,16 @@ add_executable(psidm
 
 # If we find cblas on the target system, we configure blaze to use it
 if(CBLAS_FOUND)
+    if ("${CBLAS_INCLUDE_DIRS}" STREQUAL "")
+        message(FATAL_ERROR "CBLAS was found but its include dir not. Pass it in via
+        -DCBLAS_INCLUDE_DIRS")
+    endif()
     # Each vendor names cblas differently. This queries the header file name
     # TODO Check SMT
-    file(GLOB HEADERNAME RELATIVE ${CBLAS_INCLUDE_DIRS} "${CBLAS_INCLUDE_DIRS}/*cblas.h")
+    file(GLOB HEADERNAME RELATIVE "${CBLAS_INCLUDE_DIRS}"
+        ${CBLAS_INCLUDE_DIRS}/*cblas.h)
 
+    message(STATUS ${HEADERNAME})
 endif()
 
 # We use if constexpr
@@ -81,6 +93,8 @@ target_include_directories(psidm
             ${HDF5_C_INCLUDE_DIRS}
             ${Boost_INCLUDE_DIRS} 
             ${FFTW_INCLUDE_DIRS} 
+            $<$<CONFIG:Release>:
+            ${CBLAS_INCLUDE_DIRS}>
 )
 
 target_link_libraries(psidm 
