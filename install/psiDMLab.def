@@ -1,0 +1,76 @@
+Bootstrap: library
+From: ubuntu:18.04
+
+%help
+    This is the development and execution container for psiDMLab.
+
+%post
+    apt install -y wget gnupg software-properties-common build-essential git
+
+    add-apt-repository universe
+    add-apt-repository multiverse
+    add-apt-repository restricted
+
+    # Add llvm, gcc-9 and MKL package repos
+    add-apt-repository ppa:ubuntu-toolchain-r/test -y
+
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+    echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-8 main" \
+         >> /etc/apt/sources.list.d/llvm.list
+    echo "deb-src http://apt.llvm.org/bionic/ llvm-toolchain-bionic-8 main" \
+         >> /etc/apt/sources.list.d/llvm.list
+
+    wget -O - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB \
+        | apt-key add -
+    echo "deb https://apt.repos.intel.com/mkl all main" \
+         >> /etc/apt/sources.list.d/intel-mkl.list
+
+    apt update
+
+    # Compilers 
+    apt-get install -y libllvm8 llvm-8 llvm-8-dev llvm-8-runtime clang-8 \
+                       clang-tools-8 libclang-common-8-dev libclang-8-dev \
+                       libclang1-8 libomp-8-dev lldb-8
+    apt install -y gcc-9 g++-9 gfortran-9
+
+    #Dependency libs
+    apt install -y libhdf5-100 libhdf5-dev
+    apt install -y libboost1.65-all-dev
+    apt install -y libfftw3-3 libfftw3-bin libfftw3-dev
+    apt install -y intel-mkl-64bit-2019.4-070
+
+    #Python stuff for data analysis
+    apt install -y python3 python3-pip
+    pip3 install numpy h5py matplotlib
+
+    #Build cmake 3.14.2 from source (packaged version is old)
+    wget https://cmake.org/files/v3.14/cmake-3.14.2.tar.gz
+    tar -xzf cmake-3.14.2.tar.gz
+    cd cmake-3.14.2
+    ./bootstrap
+    make
+    make install
+    cd ..
+    rm -rf cmake-3.14.2
+
+    #Environment
+    CC=clang-8
+    CXX=clang++-8
+    export MKLVARS_ARCHITECTURE=intel64
+    . /opt/intel/mkl/bin/mklvars.sh
+
+    #Build openblas 0.3.37 from source (packaged version is old)
+    # git clone https://github.com/xianyi/OpenBLAS.git
+    # cd OpenBLAS/
+    # make CC=gcc-8 FC=gfortran-8 -USE_OPENMP=1
+    # make install
+    # cd ..
+    # rm -rf OpenBLAS
+    # cmake -DCMAKE_BUILD_TYPE=Release -DCBLAS_INCLUDE_DIRS=/opt/OpenBLAS/include -DBLAS_DIR=/opt/OpenBLAS
+
+%environment
+    export LC_ALL=C
+    export CC=clang-8
+    export CXX=clang++-8
+    export MKLVARS_ARCHITECTURE=intel64
+    . /opt/intel/mkl/bin/mklvars.sh
