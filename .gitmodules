@@ -1,7 +1,3 @@
-[submodule "inc/blaze"]
-	path = inc/blaze
-	url = https://bitbucket.org/blaze-lib/blaze.git
-        ignore = dirty
 [submodule "inc/json"]
 	path = inc/json
 	url = https://github.com/nlohmann/json.git
