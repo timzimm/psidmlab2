@@ -1,8 +1,20 @@
 Bootstrap: library
 From: ubuntu:18.04
 
+%labels
+    Author Tim Zimmmermann
+    Version v0.0.1
+
 %help
-    This is the development and execution container for psiDMLab.
+    This is the x86_64 development and execution container for psiDMLab.
+    It includes:
+        cmake 3.14.4
+        hdf5 1.10
+        fftw 3.3.7
+        Intel MKL 2019
+        gcc-9, g++-9, gfortran-9
+        clang-8, clang++-8, lldb
+        python3
 
 %post
     apt install -y wget gnupg software-properties-common build-essential git
@@ -43,30 +55,21 @@ From: ubuntu:18.04
     apt install -y python3 python3-pip
     pip3 install numpy h5py matplotlib
 
-    #Build cmake 3.14.2 from source (packaged version is old)
-    wget https://cmake.org/files/v3.14/cmake-3.14.2.tar.gz
-    tar -xzf cmake-3.14.2.tar.gz
-    cd cmake-3.14.2
-    ./bootstrap
-    make -j$(($(nproc) -1))
-    make install
-    cd ..
-    rm -rf cmake-3.14.2
-
-    #Environment
-    CC=clang-8
-    CXX=clang++-8
-    export MKLVARS_ARCHITECTURE=intel64
-    . /opt/intel/mkl/bin/mklvars.sh
+    #cmake 3.14.4 from Kitware website
+    mkdir /opt/cmake
+    cd /opt/cmake
+    wget https://github.com/Kitware/CMake/releases/download/v3.14.4/cmake-3.14.4-Linux-x86_64.sh
+    chmod +x cmake-3.14.4-Linux-x86_64.sh
+    ./cmake-3.14.4-Linux-x86_64.sh --skip-license
+    ln -s /opt/cmake/bin/* /usr/local/bin
 
     #Build openblas 0.3.37 from source (packaged version is old)
     # git clone https://github.com/xianyi/OpenBLAS.git
     # cd OpenBLAS/
-    # make CC=gcc-8 FC=gfortran-8 -USE_OPENMP=1
+    # make CC=gcc-9 FC=gfortran-9 -USE_OPENMP=1
     # make install
     # cd ..
     # rm -rf OpenBLAS
-    # cmake -DCMAKE_BUILD_TYPE=Release -DCBLAS_INCLUDE_DIRS=/opt/OpenBLAS/include -DBLAS_DIR=/opt/OpenBLAS
 
 %environment
     export LC_ALL=C
