@@ -130,7 +130,7 @@ $ mkdir build; cd build
 Now invoke cmake inside the container to create a makefile and start building
 ```bash
 $ singularity exec dev cmake -DCMAKE_BUILD_TYPE=Release -DBLA_VENDOR=Intel10_64lp ..
-$ make
+$ singularity exec dev make
 ```
 
 ## How to Run
