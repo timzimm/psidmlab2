@@ -50,16 +50,22 @@ distribution moments (such as matter densities or veloctiy dispersions) that
 resemble closely what we expect in the classical case.
 ### 
 
-## What dependenicies does the simulation have
-Currently psiDM2 depends on:
-* **[BLAZE (HEAD)](https://bitbucket.org/blaze-lib/blaze/src/master/)**: A (smart) expression template based, high performance linear algebra library written in C++14
-* **[Boost 1.69](http://www.boost.org)**: for root finding, boost::variant etc.
-* **[FFTW 3.3.8](http://www.fftw.org)**: for, well, DFTs.
-* **[nlohmann's json parser](https://github.com/nlohmann/json)**: for simulation parameter management
-* **[HDF5 1.10.5](https://www.hdfgroup.org/solutions/hdf5/)**: A high-performance data management and storage suite for I/O
-* **[LAPACK(E)](https://software.intel.com/en-us/mkl)**: any implementation of LAPACK(E) will do, but if you work on
+## What Dependenicies does the Simulation have
+Currently psiDMLab depends on:
+* **[BLAZE (HEAD)](https://bitbucket.org/blaze-lib/blaze/src/master/)**: 
+    A (smart) expression template based, high performance linear algebra library written in C++14. 
+    Provided as submodule.
+* **[Boost 1.65](http://www.boost.org)**: For root finding, boost::variant etc.
+* **[FFTW 3.3.7](http://www.fftw.org)**: For, well, DFTs.
+* **[nlohmann's json parser](https://github.com/nlohmann/json)**: 
+    For simulation parameter management. Provided as submodule.
+* **[HDF5 1.10.0](https://www.hdfgroup.org/solutions/hdf5/)**: 
+    A high-performance data management and storage suite for I/O
+* **[LAPACK(E)](https://software.intel.com/en-us/mkl)**: 
+    Any implementation of LAPACK(E) will do, but if you work on
     Intel chips **MKL** is _highly_ recommended.
-* **[BLAS](https://software.intel.com/en-us/mkl)**: for optimized matrix-vector operations that blaze defers to in its
+* **[BLAS](https://software.intel.com/en-us/mkl)**: 
+    For optimized matrix-vector operations that blaze defers to in its
     backend. Again, any implementation is fine
     (**[ATLAS](http://math-atlas.sourceforge.net),
     [openBLAS](https://www.openblas.net), ...**) but
@@ -67,14 +73,69 @@ Currently psiDM2 depends on:
 * **C++17 compiler**: like **[clang++](https://llvm.org),
     [ic++](https://software.intel.com/en-us/c-compilers),
     [g++](https://gcc.gnu.org)**
+* **cmake 3.10**: build file generator
 
-## How to compile
+## How to Install
+Installing all of the above is a mess. You don't want this. Trust me.
+For the sake of consistency, and to make it easier for you to get started, we
+provide a [singularity](https://www.sylabs.io/singularity/) container defintion file
+as well as a prebuild container for x86_64 hosted on Sylab's Cloud Library. 
+The container includes all the dependencies mentioned above and can directly be used 
+for all development and execution purposes. MKL is preinstalled
+which makes it quite heavy in terms of disk space.
+**Their is no need to install any dependencies on your own and performance will not 
+be harmed by running psiDMLab from inside the container**
+
+To get psiDMLab start by cloning this repo and its submodules:
+```bash
+# ssh ...
+$ git clone --recurse-submodules git@gitlab.com:ttz/psidm2.git
+# ...or https
+$ git clone --recurse-submodules git@gitlab.com:ttz/psidm2.git
+```
+Next, install singularity by following 
+[these](https://www.sylabs.io/guides/3.2/user-guide/installation.html#) instructions.
+### Linux
+Pull down the development container from Sylabs Cloud:
+```bash
+$ singularity pull <your container name> library://ttz/psi_dm_lab/dev
+```
+
+### MacOS
+Singularity is still in its alpha stage on macOS. Currently some sort of
+file permission issues stop me from compiling files using the software packaged
+in the container. I opened an [issue](https://github.com/sylabs/singularity/issues/3636) 
+for that purpose.
+
+### Windows
+Don't know. Install Linux :)
+
+That's it! From now on compiling and running the code will happen by invoking
+commands on the container.
+## How to Compile
+We assume the container resides in the projects root and is called dev, i.e.
+```bash
+$ ls
+CMakeLists.txt          dev                    run                  tags
+README.md               inc                    script
+install                 src                    modules                     
+```
+To compile the code create a build folder:
+```bash
+$ mkdir build; cd build
+```
+Now invoke cmake inside the container to create a makefile, change to build and
+invoke make:
+```bash
+$ singularity exec dev cmake -DCMAKE_BUILD_TYPE=Release -DBLA_VENDOR=Intel10_64lp . -B build
+$ mkdir build
+$ make
+```
+
+## How to Run
 TODO
 
-## How to run
-TODO
-
-## Data Post Processing
+## A Worked Example
 TODO
 
 ## psiDM in the literature
