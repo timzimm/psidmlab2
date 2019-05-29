@@ -93,7 +93,7 @@ To get psiDMLab start by cloning this repo and its submodules:
 # ssh ...
 $ git clone --recurse-submodules git@gitlab.com:ttz/psidm2.git
 # ...or https
-$ git clone --recurse-submodules git@gitlab.com:ttz/psidm2.git
+$ git clone --recurse-submodules https://gitlab.com/ttz/psidm2.git
 ```
 Next, install singularity by following 
 [these](https://www.sylabs.io/guides/3.2/user-guide/installation.html#) instructions.
@@ -123,7 +123,7 @@ CMakeLists.txt          dev                    run                  tags
 README.md               inc                    script
 install                 src                    modules                     
 ```
-To compile the code create a build folder:
+To compile the code create a out-of-source build folder:
 ```bash
 $ mkdir build; cd build
 ```
