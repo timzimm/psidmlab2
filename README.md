@@ -77,12 +77,14 @@ Currently psiDMLab depends on:
 
 ## How to Install
 Installing all of the above is a mess. You don't want this. Trust me.
+
 For the sake of consistency, and to make it easier for you to get started, we
 provide a [singularity](https://www.sylabs.io/singularity/) container defintion file
 as well as a prebuild container for x86_64 hosted on Sylab's Cloud Library. 
 The container includes all the dependencies mentioned above and can directly be used 
 for all development and execution purposes. MKL is preinstalled
 which makes it quite heavy in terms of disk space.
+
 **Their is no need to install any dependencies on your own and performance will not 
 be harmed by running psiDMLab from inside the container**
 
@@ -112,6 +114,7 @@ Don't know. Install Linux :)
 
 That's it! From now on compiling and running the code will happen by invoking
 commands on the container.
+
 ## How to Compile
 We assume the container resides in the projects root and is called dev, i.e.
 ```bash
@@ -124,11 +127,9 @@ To compile the code create a build folder:
 ```bash
 $ mkdir build; cd build
 ```
-Now invoke cmake inside the container to create a makefile, change to build and
-invoke make:
+Now invoke cmake inside the container to create a makefile and start building
 ```bash
-$ singularity exec dev cmake -DCMAKE_BUILD_TYPE=Release -DBLA_VENDOR=Intel10_64lp . -B build
-$ mkdir build
+$ singularity exec dev cmake -DCMAKE_BUILD_TYPE=Release -DBLA_VENDOR=Intel10_64lp ..
 $ make
 ```
 
