@@ -3,21 +3,14 @@ project(psiDM2 VERSION 0.1
     DESCRIPTION "DM simulation with QM techniques"
     LANGUAGES C CXX)
 
-# Add modules/ folder for Find* scripts
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
 
-# TODO ADD LAPACKE. Right now we implicitly assume that BLAS comes with LAPACK
-find_package(HDF5 REQUIRED COMPONENTS C)
+find_package(hdf5 CONFIG REQUIRED)
 find_package(Boost REQUIRED)
-find_package(FFTW REQUIRED)
-
+find_package(FFTW3 CONFIG REQUIRED)
+find_package(blaze CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 find_package(CBLAS)
-
-# Embed json library directly (provided as submodule)
-set(JSON_BuildTests OFF CACHE INTERNAL "")
-set(JSON_MultipleHeaders ON CACHE INTERNAL "")
-
-add_subdirectory(inc/json)
 
 add_executable(psidm 
     src/main.cc 
@@ -35,6 +28,21 @@ add_executable(psidm
     src/schroedinger/pc_cayley.cc
 )
 
+# We use if constexpr
+target_compile_features(psidm PRIVATE cxx_std_17)
+
+# don't use -isystem, just -I
+set_target_properties(psidm PROPERTIES NO_SYSTEM_FROM_IMPORTED TRUE)
+
+#Link time optimization for release build - if supported by the compiler
+include(CheckIPOSupported)
+check_ipo_supported(RESULT result OUTPUT output)
+if(result)
+    set_property(TARGET psidm PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+else()
+    message(WARNING "IPO is not supported: ${output}")
+endif()
+
 # If we find cblas on the target system, we configure blaze to use it
 if(CBLAS_FOUND)
     if ("${CBLAS_INCLUDE_DIRS}" STREQUAL "")
@@ -49,10 +57,6 @@ if(CBLAS_FOUND)
     message(STATUS ${HEADERNAME})
 endif()
 
-# We use if constexpr
-target_compile_features(psidm PRIVATE cxx_std_17)
-
-# BLAS backend on release
 target_compile_definitions(psidm
     PRIVATE $<$<CONFIG:Release>:
             -DBLAZE_BLAS_MODE
@@ -61,15 +65,6 @@ target_compile_definitions(psidm
             -DBLAZE_BLAS_IS_PARALLEL
             -DBLAZE_BLAS_INCLUDE_FILE="${HEADERNAME}">
 )
-
-#Link time optimization for release build - if supported by the compiler
-include(CheckIPOSupported)
-check_ipo_supported(RESULT result OUTPUT output)
-if(result)
-    set_property(TARGET psidm PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-else()
-  message(WARNING "IPO is not supported: ${output}")
-endif()
 
 target_compile_options(psidm
     PRIVATE $<$<CONFIG:Release>:
@@ -89,19 +84,16 @@ target_link_options(psidm
 
 target_include_directories(psidm 
     PUBLIC  inc
-            inc/blaze
-            ${HDF5_C_INCLUDE_DIRS}
             ${Boost_INCLUDE_DIRS} 
-            ${FFTW_INCLUDE_DIRS} 
             $<$<CONFIG:Release>:
             ${CBLAS_INCLUDE_DIRS}>
 )
 
 target_link_libraries(psidm 
-    PRIVATE ${HDF5_C_LIBRARIES} 
-            ${FFTW_LIBRARIES}
-            ${BLAS_LIBRARIES}
+    PRIVATE ${BLAS_LIBRARIES}
+            blaze::blaze
+            FFTW3::fftw3
+            hdf5::hdf5-static 
+            hdf5::hdf5_hl-static
             nlohmann_json::nlohmann_json
 )
-
-
