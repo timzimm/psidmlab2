@@ -12,7 +12,7 @@
     },
     "Initial Conditions":
     {
-        "source_file": "../run/psi_harmonic_shift.txt",
+        "source_file": "../run/psi_harmonic_double.txt",
         "potential_file": "../run/pot_harmonic.txt",
         "ic_type": 0,
         "ev_threshold": -1e-3,
@@ -27,16 +27,16 @@
         "t_end":2,
         "dtau":2e-4,
         "potential": "Poisson::Identity",
-        "integrator": "Schroedinger::PCCayley",
+        "integrator": "Schroedinger::USO_KDK",
         "N":1024
     },
     "Observables":
     {
-        "save_at": [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,2],
+        "save_at": [0, 1, 2],
         "sigma_x": 0,
         "linear_convolution": false,
         "compute": [
-            "Observable::Potential",
+            "Observable::PhaseSpaceDistribution",
             "Observable::DensityContrast",
             "Observable::WaveFunction"
         ]
