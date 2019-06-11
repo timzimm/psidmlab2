@@ -1,11 +1,17 @@
-# psiDM2
+# psiDMLab
 
-## What is psiDM2
+## What is psiDMLab
 
-psiDM2 is rewritten version of psiDMi, a simulation that utilises quantum mechanical techniques 
-to approximate the numerically intractable Vlasov-Poisson system for the evolution of dark matter.
+psiDMLab is meant as a numerical playground for the Schroedinger-Poisson equations, 
+a model that utilises quantum mechanical techniques to approximate the numerically 
+intractable Vlasov-Poisson system for the evolution of dark matter. 
+Currently, our focus lies on modularity not utmost performance. The idea is to draft 
+a numerically stable and accurate scheme that can later on be optimized to run 
+on large scale systems and hopefully is capable of simulating 3+1 dimensional 
+cosmological setups comparable to what is known for N-Body simulations.
 
-## Theory behind psiDM
+## Theory behind psiDMLab
+
 psiDM aims to model the dynamics of (cold) dark matter by employing a time evolution
 described by the Schroedinger-Poisson (SP) PDE system:
 ```math
@@ -45,32 +51,73 @@ distribution moments (such as matter densities or veloctiy dispersions) that
 resemble closely what we expect in the classical case.
 ### 
 
-## What dependenicies does the simulation have
-Currently psiDM2 depends on:
-* **[BLAZE (HEAD)](https://bitbucket.org/blaze-lib/blaze/src/master/)**: A (smart) expression template based, high performance linear algebra library written in C++14
-* **[Boost 1.69](http://www.boost.org)**: for root finding, boost::variant etc.
-* **[FFTW 3.3.8](http://www.fftw.org)**: for, well, DFTs.
-* **[nlohmann's json parser](https://github.com/nlohmann/json)**: for simulation parameter management
-* **[HDF5 1.10.5](https://www.hdfgroup.org/solutions/hdf5/)**: A high-performance data management and storage suite for I/O
-* **[LAPACK(E)](https://software.intel.com/en-us/mkl)**: any implementation of LAPACK(E) will do, but if you work on
-    Intel chips **MKL** is _highly_ recommended.
-* **[BLAS](https://software.intel.com/en-us/mkl)**: for optimized matrix-vector operations that blaze defers to in its
-    backend. Again, any implementation is fine
-    (**[ATLAS](http://math-atlas.sourceforge.net),
-    [openBLAS](https://www.openblas.net), ...**) but
-    **MKL** is the way to go, if you are working with Intel chips.
+## What Dependenicies does the Simulation have
+Currently psiDMLab depends on:
+* **[BLAZE (HEAD)](https://bitbucket.org/blaze-lib/blaze/src/master/)**: 
+    A (smart) expression template based, high performance linear algebra library written in C++14. 
+* **[Boost 1.70](http://www.boost.org)**: For root finding, boost::variant etc.
+* **[FFTW 3.3.8](http://www.fftw.org)**: For, well, DFTs.
+* **[nlohmann's json parser](https://github.com/nlohmann/json)**: 
+    For simulation parameter management.
+* **[HDF5 1.10.5](https://www.hdfgroup.org/solutions/hdf5/)**: 
+    A high-performance data management and storage suite for I/O
+* **[Intel MKL](https://software.intel.com/en-us/mkl)**: 
+    For BLAS and LAPACK(E).
 * **C++17 compiler**: like **[clang++](https://llvm.org),
     [ic++](https://software.intel.com/en-us/c-compilers),
     [g++](https://gcc.gnu.org)**
+* **cmake 3.14**: build file generator
 
-## How to compile
+## How to Install
+Installing all of the above manually is a mess. You don't want this. Trust me.
+The most common case is that you develop locally, but run large scale
+simulations on a cluster. Currently both "modes of operation" are dealt
+differently when it comes to installation. This will change in the future when
+[singularity](https://www.sylabs.io/singularity/) for macOS is less buggy.
+
+### Development
+We provide a bootstrap script that works together with [vcpkg](https://github.com/microsoft/vcpkg)
+to install all third party dependencies. vcpkg works on Linux, macOS and
+Windows. Note that you still need to provide a C++17 compiler. Moreover, make
+sure to install [Intel MKL](https://software.intel.com/en-us/mkl) before your
+procede with the steps below.
+
+That said, start by installing vcpkg:
+```bash
+~$ git clone https://github.com/Microsoft/vcpkg.git
+~$ cd vcpkg
+~$ ./bootstrap-vcpkg.sh
+~$ ./vcpkg integrate install
+~$ echo 'export PATH=~/vcpkg:$PATH' >> ~/.bashrc
+```
+
+To get psiDMLab, clone this repo and run the bootstrap script:
+```bash
+~$ cd
+~$ git clone git@gitlab.com:ttz/psidm2.git
+~$ cd psidm2/install
+~/psidm2/install$ source /opt/intel/mkl/bin/mklvars.sh intel64
+~/psidm2/install$ cd ./bootstrap.sh
+# Coffee break!
+```
+
+That's it. You can now generate the makefile with cmake by executing
+```bash
+~/psidm2$ mkdir build
+~/psidm2$ cmake -DCMAKE_TOOLCHAIN_FILE=~/vcpkg/scripts/buildsystems/vcpkg.cmake \
+                -DCMAKE_BUILD_TYPE=Release . -B build
+~/psidm2$ cd build
+~/psidm2/build$ make
+```
+
+### Cluster
 TODO
 
-## How to run
+## How to Run
 TODO
 
-## Data Post Processing
+## A Worked Example
 TODO
 
-##psiDM in the literature
+## psiDM in the literature
 TODO

@@ -21,6 +21,8 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
       forwards_op(nullptr),
       backwards_op(nullptr),
       psis_cached(N, state.M) {
+    // FFTW reorders frequencies. The upper half starts at the most negative
+    // frequency and increases for increasing index.
     for (int k = 0; k < N / 2; ++k) {
         k_squared[k] = 2 * M_PI / L * k;
         k_squared[k] *= k_squared[k];

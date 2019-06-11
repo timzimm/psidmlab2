@@ -23,8 +23,6 @@ int main(int argc, char** argv) {
     // Load parameters from file and dump them
     Parameters param;
     std::ifstream(argv[1]) >> param;
-    std::cout << INFOTAG("Parsed JSON File. Dump...") << std::endl;
-    std::cout << std::setw(4) << param << std::endl;
 
     // Initialize the cosmological model, i.e. setup the relation
     // a(tau) and tau(a) for the main loop
@@ -33,12 +31,17 @@ int main(int argc, char** argv) {
     // Setup initial state
     SimState state(param);
     ICGenerator ic(param);
-    ic.generate(state, param);
+    ic.generate(state);
 
     // Initialize numerical methods.
     auto integrator_name = param["Simulation"]["integrator"].get<std::string>();
     auto integrator =
         SchroedingerMethod::make(integrator_name, param, state, cosmo);
+
+    // Bring parameter datastructure back to a consistent state (N, M)
+    state >> param;
+    std::cout << INFOTAG("Parameter dump:") << std::endl;
+    std::cout << std::setw(4) << param << std::endl;
 
     // Setup output file
     std::string filename;
@@ -48,7 +51,7 @@ int main(int argc, char** argv) {
 
     // Setup Analysis Functors and I/O visitor for their return variant
     std::vector<std::string> keys;
-    param["Analysis"]["compute"].get_to(keys);
+    param["Observables"]["compute"].get_to(keys);
 
     std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>
         observables;
@@ -62,7 +65,7 @@ int main(int argc, char** argv) {
 
     // Setup I/O checkpoints
     std::vector<double> save_at;
-    param["Analysis"]["save_at"].get_to(save_at);
+    param["Observables"]["save_at"].get_to(save_at);
 
     // Set final simulation time and checkpoints based on cosmological model
     double tau_end;
@@ -79,7 +82,6 @@ int main(int argc, char** argv) {
     }
     const double dtau = param["Simulation"]["dtau"].get<double>();
 
-    // Everything is set up. Enter the main loop
     auto tau_save = std::begin(save_at);
     bool do_IO = false;
 
@@ -105,7 +107,7 @@ int main(int argc, char** argv) {
                 auto& name = pair.first;
                 path_to_ds = "/" + name + "/" + std::to_string(state.n);
 
-                // Computes the observable variant;
+                // Computes the observable variant (i.e. some matrix/vector)
                 auto& routine = pair.second;
                 auto res = routine->compute(state);
                 boost::apply_visitor(write_variant, res);

@@ -20,6 +20,9 @@ struct SimState {
 
     SimState(const Parameters& p);
 };
+
+void operator>>(const SimState& state, Parameters& p);
+
 static decltype(auto) delta_from(const SimState& state) {
     auto psi2 = real(conj(state.psis) % state.psis);
     return psi2 * state.lambda - 1.0;

@@ -63,29 +63,20 @@ ICGenerator::ICGenerator(const Parameters& p)
 
     switch (type) {
         case ICType::External:
-            if (data_N % M != 0) {
-                std::cout << ERRORTAG(
-                                 "Number of lines in source file is not a "
-                                 "multiple of M.")
+            if (data_N != N * M) {
+                std::cout << ERRORTAG("#lines in source_file != N*M")
                           << std::endl;
                 exit(1);
             }
-            break;
         case ICType::Density:
             if (data_N != N) {
-                std::cout << ERRORTAG(
-                                 "Number of lines in source file differs from "
-                                 "parameter N.")
+                std::cout << ERRORTAG("#lines in source_file != N*M")
                           << std::endl;
                 exit(1);
             }
-            break;
         default:
             if (N != pot_N) {
-                std::cout
-                    << ERRORTAG(
-                           "Number of lines in potential file differs from N.")
-                    << std::endl;
+                std::cout << ERRORTAG("#lines in pot_file != N*M") << std::endl;
                 exit(1);
             }
     };
@@ -94,29 +85,33 @@ ICGenerator::ICGenerator(const Parameters& p)
     ic_file.ignore(std::numeric_limits<int>::max(), '\n');
 }
 
-void ICGenerator::generate(SimState& state, Parameters& param) const {
+void ICGenerator::generate(SimState& state) const {
     switch (type) {
         case ICType::External:
+            std::cout << INFOTAG("Load Psi0 from file") << std::endl;
             psi_from_file(state);
             break;
         case ICType::Powerspectrum:
+            std::cout << INFOTAG("Generate Psi0 from P(k)") << std::endl;
             psi_from_power(state);
             break;
         case ICType::Density:
+            std::cout << INFOTAG("Generate Psi0 from rho(x)") << std::endl;
             psi_from_rho(state);
     }
 
-    param["Initial Conditions"]["M"] = state.M;
-
     if (pot_file) {
+        std::cout << INFOTAG("Load potential from file.") << std::endl;
         fill_from_file(pot_file, state.V, state.V);
     } else {
+        std::cout << INFOTAG("Generate U0 from poisson eq.") << std::endl;
         potential->solve(state);
     }
 }
 
 void ICGenerator::psi_from_file(SimState& state) const {
     using namespace blaze;
+
     state.M = M;
     state.psis.resize(N, M);
     state.V.resize(N);
@@ -141,12 +136,12 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     using namespace blaze;
 
     // Read in density data from file
-    DynamicVector<double> rho(N);
+    DynamicVector<double> rho(data_N);
     fill_from_file(ic_file, rho, rho);
 
     // Compute FFT to obtain coefficients for the expansion of rho in
     // harmonic base functions
-    DynamicVector<std::complex<double>> rho_fft(N / 2 + 1);
+    DynamicVector<std::complex<double>> rho_fft(data_N / 2 + 1);
     auto plan = fftw_plan_dft_r2c_1d(
         data_N, rho.data(), reinterpret_cast<fftw_complex*>(rho_fft.data()),
         FFTW_ESTIMATE);
@@ -158,7 +153,7 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     // magnitude. In fact, we also need information about the mode number n
     // to sample from the correct harmonics later on. Therefore, we compute
     // the permutation index array that yields a sorted coefficient list.
-    DynamicVector<int, rowVector> mode(rho_fft.size() - 1);
+    DynamicVector<int, rowVector> mode(data_N - 1);
     std::iota(mode.begin(), mode.end(), 1);
 
     // Construct the permuatation/mode-number vector
@@ -201,7 +196,7 @@ void ICGenerator::psi_from_rho(SimState& state) const {
     // No .of wavefuntions with the same eigenvalue sign
     int M_half = M_true / 2;
 
-    // Constant wvaefunction for background
+    // Constant wavefunction for background
     M_true += 1;
 
     std::cout << INFOTAG("Construct " << M_true << " wavefunctions")

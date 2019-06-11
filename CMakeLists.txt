@@ -1,17 +1,16 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.10)
 project(psiDM2 VERSION 0.1
     DESCRIPTION "DM simulation with QM techniques"
     LANGUAGES C CXX)
 
-# Add modules/ folder for Find* scripts
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
 
-# TODO ADD LAPACKE. Right now we implicitly assume that BLAS comes with LAPACK
-find_package(HDF5 REQUIRED COMPONENTS C)
+find_package(hdf5 CONFIG REQUIRED)
 find_package(Boost REQUIRED)
-find_package(FFTW REQUIRED)
+find_package(FFTW3 CONFIG REQUIRED)
+find_package(blaze CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 find_package(CBLAS)
-find_package(nlohmann_json 3.2.0 REQUIRED)
 
 add_executable(psidm 
     src/main.cc 
@@ -29,57 +28,72 @@ add_executable(psidm
     src/schroedinger/pc_cayley.cc
 )
 
-# If we find cblas on the target system, we configure blaze to use it
-if(CBLAS_FOUND)
-    # Each vendor names cblas differently. This queries the header file name
-    # TODO Check SMT
-    file(GLOB HEADERNAME RELATIVE ${CBLAS_INCLUDE_DIRS} "${CBLAS_INCLUDE_DIRS}/*cblas.h")
+# We use if constexpr
+target_compile_features(psidm PRIVATE cxx_std_17)
 
+# don't use -isystem, just -I
+set_target_properties(psidm PROPERTIES NO_SYSTEM_FROM_IMPORTED TRUE)
+
+#Link time optimization for release build - if supported by the compiler
+include(CheckIPOSupported)
+check_ipo_supported(RESULT result OUTPUT output)
+if(result)
+    set_property(TARGET psidm PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+else()
+    message(WARNING "IPO is not supported: ${output}")
 endif()
 
-# We use if constexpr
-target_compile_features(psidm PUBLIC cxx_std_17)
+# If we find cblas on the target system, we configure blaze to use it
+if(CBLAS_FOUND)
+    if ("${CBLAS_INCLUDE_DIRS}" STREQUAL "")
+        message(FATAL_ERROR "CBLAS was found but its include dir not. Pass it in via
+        -DCBLAS_INCLUDE_DIRS")
+    endif()
+    # Each vendor names cblas differently. This queries the header file name
+    # TODO Check SMT
+    file(GLOB HEADERNAME RELATIVE "${CBLAS_INCLUDE_DIRS}"
+        ${CBLAS_INCLUDE_DIRS}/*cblas.h)
 
-# BLAS backend on release
+    message(STATUS ${HEADERNAME})
+endif()
+
 target_compile_definitions(psidm
     PRIVATE $<$<CONFIG:Release>:
             -DBLAZE_BLAS_MODE
             -DBLAZE_USE_BLAS_MATRIX_VECTOR_MULTIPLICATION
             -DBLAZE_USE_BLAS_MATRIX_MATRIX_MULTIPLICATION 
             -DBLAZE_BLAS_IS_PARALLEL
-            -DBLAZE_BLAS_INCLUDE_FILE="${HEADERNAME}">)
+            -DBLAZE_BLAS_INCLUDE_FILE="${HEADERNAME}">
+)
 
-# Vectorization on Release
 target_compile_options(psidm
     PRIVATE $<$<CONFIG:Release>:
             -Ofast
             -march=native>
-)
-
-# Sanatizers on Debug
-target_compile_options(psidm
     PRIVATE $<$<CONFIG:Debug>:
             -fno-omit-frame-pointer
-            -fsanitize=undefined>
+            -fsanitize=undefined
+            -fsanitize=address>
 )
 
 target_link_options(psidm
     PRIVATE $<$<CONFIG:Debug>:
-            -fsanitize=undefined>
+            -fsanitize=undefined
+            -fsanitize=address>
 )
 
 target_include_directories(psidm 
     PUBLIC  inc
-            inc/blaze
-            ${HDF5_C_INCLUDE_DIRS}
             ${Boost_INCLUDE_DIRS} 
-            ${FFTW_INCLUDE_DIRS} 
+            $<$<CONFIG:Release>:
+            ${CBLAS_INCLUDE_DIRS}>
 )
 
 target_link_libraries(psidm 
-    PRIVATE ${HDF5_C_LIBRARIES} 
-            ${FFTW_LIBRARIES}
-            ${BLAS_LIBRARIES}
-            nlohmann_json::nlohmann_json)
-
-
+    PRIVATE ${BLAS_LIBRARIES}
+            blaze::blaze
+            FFTW3::fftw3
+            hdf5::hdf5-static 
+            hdf5::hdf5_hl-static
+            nlohmann_json::nlohmann_json
+)

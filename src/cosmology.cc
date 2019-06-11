@@ -30,11 +30,11 @@ double Cosmology::dtau_da(const double a) const {
 Cosmology::Cosmology(const Parameters& p)
     : a_start{a_of_z(p["Simulation"]["z_start"].get<double>())},
       a_end{a_of_z(p["Simulation"]["z_end"].get<double>())},
-      A{p["Simulation"]["A"].get<int>()},
+      A{p["Simulation"]["a_grid_N"].get<int>()},
       delta_a{(a_end - a_start) / (A - 1)},
       a_grid{},
-      model{static_cast<CosmoModel>(p["Simulation"]["cosmology"].get<int>())},
-      omega_m0{p["Simulation"]["omega_m0"].get<double>()},
+      model{static_cast<CosmoModel>(p["Cosmology"]["model"].get<int>())},
+      omega_m0{p["Cosmology"]["omega_m0"].get<double>()},
       tau_a_map{} {
     // Super conformal time is defined via its differential
     // Thus, after integrating we still have to fix the integration constant.

@@ -1,7 +1,9 @@
 #ifndef __CONVOLUTION__
 #define __CONVOLUTION__
 
-#include <blaze/math/DynamicVector.h>
+#include "blaze/math/DynamicVector.h"
+#include "blaze/util/TypeTraits.h"
+
 #include <fftw3.h>
 #include <cassert>
 #include <complex>
@@ -63,6 +65,7 @@ convolution_ws<T, TF>::convolution_ws(const bool computeLinear_,
       c2r(nullptr),
       c2c_for(nullptr),
       c2c_back(nullptr) {
+    static_assert(blaze::IsFloatingPoint_v<T> || blaze::IsComplex_v<T>);
     // DFT based
     if (fast_convolution) {
         P = computeLinear ? find_closest_factor(N_signal + N_kernel / 2)
@@ -74,7 +77,7 @@ convolution_ws<T, TF>::convolution_ws(const bool computeLinear_,
         auto in = reinterpret_cast<fftw_complex*>(signal_fft.data());
 
         // Real signal
-        if constexpr (std::is_floating_point_v<T>) {
+        if constexpr (blaze::IsFloatingPoint_v<T>) {
             signal_fft.resize(P / 2 + 1);
             auto out = signal_padded.data();
             // Real signal backwards

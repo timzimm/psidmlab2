@@ -26,6 +26,9 @@ class DensityContrast : public ObservableFunctor::Registrar<DensityContrast> {
 
 class PhaseSpaceDistribution
     : public ObservableFunctor::Registrar<PhaseSpaceDistribution> {
+    // Abbreviations
+    using CCM = blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>;
+    using RCM = blaze::DynamicMatrix<double, blaze::columnMajor>;
     double sigma_x;  // spatial smoothing scale
     bool husimi;
     bool linear;
@@ -36,7 +39,9 @@ class PhaseSpaceDistribution
     double t_prev;
     convolution_ws<std::complex<double>> ws;
     blaze::DynamicVector<double> gaussian_kernel;
-    blaze::DynamicMatrix<double, blaze::columnMajor> f;
+    RCM f;          // cached phase space representation (husimi or wigner)
+    CCM iaf;        // instantaneous autocorrelation function
+    fftw_plan c2c;  // IAF -> wigner transform (complex)
 
     void wigner_distribution(const SimState& state);
 
@@ -44,6 +49,7 @@ class PhaseSpaceDistribution
 
    public:
     PhaseSpaceDistribution(const Parameters& p);
+    ~PhaseSpaceDistribution();
     ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
 
