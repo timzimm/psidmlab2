@@ -54,84 +54,63 @@ resemble closely what we expect in the classical case.
 Currently psiDMLab depends on:
 * **[BLAZE (HEAD)](https://bitbucket.org/blaze-lib/blaze/src/master/)**: 
     A (smart) expression template based, high performance linear algebra library written in C++14. 
-    Provided as submodule.
-* **[Boost 1.65](http://www.boost.org)**: For root finding, boost::variant etc.
-* **[FFTW 3.3.7](http://www.fftw.org)**: For, well, DFTs.
+* **[Boost 1.70](http://www.boost.org)**: For root finding, boost::variant etc.
+* **[FFTW 3.3.8](http://www.fftw.org)**: For, well, DFTs.
 * **[nlohmann's json parser](https://github.com/nlohmann/json)**: 
-    For simulation parameter management. Provided as submodule.
-* **[HDF5 1.10.0](https://www.hdfgroup.org/solutions/hdf5/)**: 
+    For simulation parameter management.
+* **[HDF5 1.10.5](https://www.hdfgroup.org/solutions/hdf5/)**: 
     A high-performance data management and storage suite for I/O
-* **[LAPACK(E)](https://software.intel.com/en-us/mkl)**: 
-    Any implementation of LAPACK(E) will do, but if you work on
-    Intel chips **MKL** is _highly_ recommended.
-* **[BLAS](https://software.intel.com/en-us/mkl)**: 
-    For optimized matrix-vector operations that blaze defers to in its
-    backend. Again, any implementation is fine
-    (**[ATLAS](http://math-atlas.sourceforge.net),
-    [openBLAS](https://www.openblas.net), ...**) but
-    **MKL** is the way to go, if you are working with Intel chips.
+* **[Intel MKL](https://software.intel.com/en-us/mkl)**: 
+    For BLAS and LAPACK(E).
 * **C++17 compiler**: like **[clang++](https://llvm.org),
     [ic++](https://software.intel.com/en-us/c-compilers),
     [g++](https://gcc.gnu.org)**
-* **cmake 3.10**: build file generator
+* **cmake 3.14**: build file generator
 
 ## How to Install
-Installing all of the above is a mess. You don't want this. Trust me.
+Installing all of the above manually is a mess. You don't want this. Trust me.
+The most common case is that you develop locally, but run large scale
+simulations on a cluster. Currently both "modes of operation" are dealt
+differently when it comes to installation. This will change in the future when
+[singularity](https://www.sylabs.io/singularity/) for macOS is less buggy.
 
-For the sake of consistency, and to make it easier for you to get started, we
-provide a [singularity](https://www.sylabs.io/singularity/) container defintion file
-as well as a prebuild container for x86_64 hosted on Sylab's Cloud Library. 
-The container includes all the dependencies mentioned above and can directly be used 
-for all development and execution purposes. MKL is preinstalled
-which makes it quite heavy in terms of disk space.
+### Development
+We provide a bootstrap script that works together with [vcpkg](https://github.com/microsoft/vcpkg)
+to install all third party dependencies. vcpkg works on Linux, macOS and
+Windows. Note that you still need to provide a C++17 compiler. Moreover, make
+sure to install [Intel MKL](https://software.intel.com/en-us/mkl) before your
+procede with the steps below.
 
-**Their is no need to install any dependencies on your own and performance will not 
-be harmed by running psiDMLab from inside the container**
-
-To get psiDMLab start by cloning this repo and its submodules:
+That said, start by installing vcpkg:
 ```bash
-# ssh ...
-$ git clone --recurse-submodules git@gitlab.com:ttz/psidm2.git
-# ...or https
-$ git clone --recurse-submodules https://gitlab.com/ttz/psidm2.git
-```
-Next, install singularity by following 
-[these](https://www.sylabs.io/guides/3.2/user-guide/installation.html#) instructions.
-### Linux
-Pull down the development container from Sylabs Cloud:
-```bash
-$ singularity pull <your container name> library://ttz/psi_dm_lab/dev
+~$ git clone https://github.com/Microsoft/vcpkg.git
+~$ cd vcpkg
+~$ ./bootstrap-vcpkg.sh
+~$ ./vcpkg integrate install
+~$ echo 'export PATH=~/vcpkg:$PATH' >> ~/.bashrc
 ```
 
-### MacOS
-Singularity is still in its alpha stage on macOS. Currently some sort of
-file permission issues stop me from compiling files using the software packaged
-in the container. I opened an [issue](https://github.com/sylabs/singularity/issues/3636) 
-for that purpose.
-
-### Windows
-Don't know. Install Linux :)
-
-That's it! From now on compiling and running the code will happen by invoking
-commands on the container.
-
-## How to Compile
-We assume the container resides in the projects root and is called dev, i.e.
+To get psiDMLab, clone this repo and run the bootstrap script:
 ```bash
-$ ls
-CMakeLists.txt          dev                    run                  tags
-README.md               inc                    script
-install                 src                    modules                     
+~$ cd
+~$ git clone git@gitlab.com:ttz/psidm2.git
+~$ cd psidm2/install
+~/psidm2/install$ source /opt/intel/mkl/bin/mklvars.sh intel64
+~/psidm2/install$ cd ./bootstrap.sh
+# Coffee break!
 ```
-To compile the code create a out-of-source build folder:
+
+That's it. You can now generate the makefile with cmake by executing
 ```bash
-$ mkdir build; cd build
+~/psidm2$ mkdir build
+~/psidm2$ cmake -DCMAKE_TOOLCHAIN_FILE=~/vcpkg/scripts/buildsystems/vcpkg.cmake \
+                -DCMAKE_BUILD_TYPE=Release . -B build
+~/psidm2$ cd build
+~/psidm2/build$ make
 ```
-Now invoke cmake inside the container to create a makefile and start building
-```bash
-$ singularity exec dev cmake -DCMAKE_BUILD_TYPE=Release -DBLA_VENDOR=Intel10_64lp ..
-$ singularity exec dev make
-```
+
+### Cluster
+TODO
 
 ## How to Run
 TODO
