@@ -460,3 +460,7 @@ debug/
 
 #HDF5 files
 *.h5
+
+#vagrant VM
+install/.vagrant
+install/Vagrantfile
