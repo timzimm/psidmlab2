@@ -1,11 +1,12 @@
 #include "observables.h"
-#include "blaze/math/Columns.h"
-#include "blaze/math/Elements.h"
-#include "blaze/math/Submatrix.h"
 #include "parameters.h"
 #include "state.h"
 
+#include <blaze/math/Columns.h>
+#include <blaze/math/Elements.h>
+#include <blaze/math/Submatrix.h>
 #include <algorithm>
+#include <cfenv>
 
 namespace Observable {
 
@@ -83,27 +84,41 @@ PhaseSpaceDistribution::PhaseSpaceDistribution(const Parameters& p)
 
 void PhaseSpaceDistribution::wigner_distribution(const SimState& state) {
     using namespace blaze;
+
+    // A C++ version of Matlabs TFTB Toolkit Wigner-Ville-TFR
+
+    auto negative_v_iaf = submatrix(iaf, N - N / 2, 0, N / 2, N);
+    auto positive_v_iaf = submatrix(iaf, 0, 0, N - N / 2, N);
+
+    auto negative_v_f = submatrix(f, 0, 0, N / 2, N);
+    auto positive_v_f = submatrix(f, N - N / 2, 0, N - N / 2, N);
+
+    f = 0;
     for (int m = 0; m < state.M; ++m) {
         auto psi = column(state.psis, m);
-        for (int i = 0; i < N; ++i) {
-            // TODO Do we need to reinit to zero on each new iteration?
-            auto iaf_i = column(iaf, i);
-            int min = std::min(i, N - 1 - i);
-            int total = 2 * min + 1;
-            auto lag_plus =
-                elements(psi, [&](int tau) { return i + (tau - min); }, total);
-            auto lag_minus =
-                elements(psi, [&](int tau) { return i - (tau - min); }, total);
+        for (int icol = 0; icol < N; ++icol) {
+            auto iaf_i = column(iaf, icol);
+            // Caution: Round ties to next even integer value
+            int ti = std::nearbyint(icol);
+            int taumax = std::min(
+                {ti, N - ti - 1, static_cast<int>(std::nearbyint(N / 2) - 1)});
+            int total = 2 * taumax + 1;
+            auto lag_plus = elements(
+                psi, [&](int tau) { return icol + (tau - taumax); }, total);
+            auto lag_minus = elements(
+                psi, [&](int tau) { return icol - (tau - taumax); }, total);
             auto index = elements(
-                iaf_i, [&](int tau) { return (N + tau - min) % N; }, total);
+                iaf_i, [&](int tau) { return (N + tau - taumax) % N; }, total);
             index = lag_plus * conj(lag_minus);
-            /* for (int j = 0; 2 * j < N; ++j) { */
-            /*     iaf_i[2 * j + 1] *= -1; */
-            /* } */
+
+            if (int tau = std::nearbyint(N / 2); ti <= N - tau && ti >= tau + 1)
+                iaf(tau, icol) = 0.5 * (psi[ti + tau] * conj(psi[ti - tau]) +
+                                        psi[ti - tau] * conj(psi[ti + tau]));
         }
         fftw_execute(c2c);
 
-        f += state.lambda[m] * real(iaf);
+        negative_v_f += state.lambda[m] * real(negative_v_iaf);
+        positive_v_f += state.lambda[m] * real(positive_v_iaf);
     }
 }
 
