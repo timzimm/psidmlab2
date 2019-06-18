@@ -37,6 +37,7 @@ class SchroedingerMethod : public Factory<SchroedingerMethod, const Parameters&,
 class ObservableFunctor : public Factory<ObservableFunctor, const Parameters&> {
    public:
     using ReturnType = boost::variant<
+        const blaze::DynamicMatrix<double>&,
         const blaze::DynamicMatrix<double, blaze::columnMajor>&,
         const blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>&,
         const blaze::DynamicVector<double>&>;

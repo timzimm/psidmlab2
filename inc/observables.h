@@ -8,16 +8,15 @@
 namespace Observable {
 
 class DensityContrast : public ObservableFunctor::Registrar<DensityContrast> {
-    double sigma_x;  // spatial smoothing scale
-    bool husimi;
-    bool linear;
-    int N;
-    double dx;
-    int N_kernel;
-    double t_prev;
-    convolution_ws<double> ws;
-    blaze::DynamicVector<double> gaussian_kernel;
-    blaze::DynamicVector<double> delta;
+    const double sigma_x;       // spatial smoothing scale
+    const bool husimi;          // compute husimi?
+    const bool linear;          // do linear convolution?
+    const int N;                // number of spatial gridpoints
+    const double dx;            // spatial resolution
+    const int N_kernel;         // symmetric 5-sigma_x interval in points
+    double t_prev;              // timestamp of last cached observable
+    convolution_ws<double> ws;  // holds husimi delta
+    blaze::DynamicVector<double> delta;  // holds wigner delta
 
    public:
     DensityContrast(const Parameters& p);
@@ -29,17 +28,18 @@ class PhaseSpaceDistribution
     // Abbreviations
     using CCM = blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>;
     using RCM = blaze::DynamicMatrix<double, blaze::columnMajor>;
+    using RRM = blaze::DynamicMatrix<double>;
+
     double sigma_x;  // spatial smoothing scale
-    bool husimi;
-    bool linear;
-    int N;
-    double L;
-    double dx;
-    int N_kernel;
-    double t_prev;
+    bool husimi;     // compute husimi?
+    bool linear;     // do linear convolution?
+    int N;           // number of spatial gridpoints
+    double dx;       // spatial resolution
+    int N_kernel;    // symmetric 5-sigma_x interval in points
+    double t_prev;   // timestamp of last cached observable
     convolution_ws<std::complex<double>> ws;
-    blaze::DynamicVector<double> gaussian_kernel;
-    RCM f;          // cached phase space representation (husimi or wigner)
+    RCM wigner_f;   // cached wigner
+    RRM husimi_f;   // cached husimi
     CCM iaf;        // instantaneous autocorrelation function
     fftw_plan c2c;  // IAF -> wigner transform (complex)
 

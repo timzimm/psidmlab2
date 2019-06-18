@@ -1,4 +1,5 @@
 #include "observables.h"
+#include "blaze_utils.h"
 #include "parameters.h"
 #include "state.h"
 
@@ -19,34 +20,27 @@ DensityContrast::DensityContrast(const Parameters& p)
       N_kernel(2 * floor(5 * sigma_x / dx) + 1),
       t_prev(-1),
       ws(husimi ? linear : 0, husimi ? N : 0, husimi ? N_kernel : 0),
-      gaussian_kernel(husimi ? N_kernel : 0),
-      delta(N) {
+      delta(husimi ? 0 : N) {
     if (husimi) {
-        // Kernel construction in x-space
-        for (int i = 0; i < N_kernel; ++i) {
-            gaussian_kernel[i] = (i - N_kernel / 2) * dx;
-        }
-        gaussian_kernel =
-            exp(-0.5 / (sigma_x * sigma_x) * gaussian_kernel * gaussian_kernel);
-        gaussian_kernel /= blaze::sum(gaussian_kernel);
+        auto& gaussian = ws.kernel_padded;
+        std::iota(std::begin(gaussian), std::end(gaussian), -N_kernel / 2);
+        gaussian =
+            exp(-0.5 * dx * dx * gaussian * gaussian / (sigma_x * sigma_x));
+        gaussian /= blaze::sum(gaussian);
     }
 }
 
 ObservableFunctor::ReturnType DensityContrast::compute(const SimState& state) {
-    using namespace blaze;
     if (t_prev < state.tau) {
-        delta = delta_from(state);
-
-        if (husimi) {
-            discrete_convolution(ws, gaussian_kernel, delta);
-            delta = blaze::subvector(ws.signal_padded, ws.N_offset, N);
-            if (!linear) {
-                // TODO Benchmark against element selection
-                std::rotate(std::begin(delta), std::begin(delta) + N_kernel / 2,
-                            std::end(delta));
-            }
-        }
         t_prev = state.tau;
+        if (husimi) {
+            // Store delta inside convolution workspace
+            ws.signal_padded = delta_from(state);
+            discrete_convolution(ws);
+            return ws.signal_padded;
+        }
+        // Store delta in dedicated array
+        delta = delta_from(state);
     }
 
     return delta;
@@ -57,29 +51,26 @@ PhaseSpaceDistribution::PhaseSpaceDistribution(const Parameters& p)
       husimi(sigma_x > 0),
       linear(p["Observables"]["linear_convolution"].get<bool>()),
       N(p["Simulation"]["N"].get<int>()),
-      L(p["Simulation"]["L"].get<double>()),
-      dx(L / N),
+      dx(p["Simulation"]["L"].get<double>() / N),
       N_kernel(2 * floor(5 * sigma_x / dx) + 1),
       t_prev(-1),
       ws(husimi ? linear : 0, husimi ? N : 0, husimi ? N_kernel : 0),
-      gaussian_kernel(0),
-      f(N, N, 0),
-      iaf(N, N, 0),
+      wigner_f(husimi ? 0 : N, husimi ? 0 : N),
+      husimi_f(husimi ? N : 0, husimi ? N : 0),
+      iaf(husimi ? 0 : N, husimi ? 0 : N),
       c2c(nullptr) {
     if (husimi) {
-        gaussian_kernel.resize(N_kernel);
-        // Kernel construction in x-space
-        for (int i = 0; i < N_kernel; ++i) {
-            gaussian_kernel[i] = (i - N_kernel / 2) * dx;
-        }
-        gaussian_kernel =
-            exp(-0.5 / (sigma_x * sigma_x) * gaussian_kernel * gaussian_kernel);
-        gaussian_kernel /= blaze::sum(gaussian_kernel);
+        auto& gaussian = ws.kernel_padded;
+        std::iota(std::begin(gaussian), std::end(gaussian), -N_kernel / 2);
+        gaussian =
+            exp(-0.5 * dx * dx * gaussian * gaussian / (sigma_x * sigma_x));
+        gaussian /= blaze::sum(gaussian);
+    } else {
+        auto iaf_ptr = reinterpret_cast<fftw_complex*>(iaf.data());
+        c2c = fftw_plan_many_dft(1, &N, N, iaf_ptr, nullptr, 1, iaf.spacing(),
+                                 iaf_ptr, nullptr, 1, iaf.spacing(),
+                                 FFTW_FORWARD, FFTW_ESTIMATE);
     }
-    auto iaf_ptr = reinterpret_cast<fftw_complex*>(iaf.data());
-    c2c = fftw_plan_many_dft(1, &N, N, iaf_ptr, nullptr, 1, iaf.spacing(),
-                             iaf_ptr, nullptr, 1, iaf.spacing(), FFTW_FORWARD,
-                             FFTW_ESTIMATE);
 }
 
 void PhaseSpaceDistribution::wigner_distribution(const SimState& state) {
@@ -90,10 +81,9 @@ void PhaseSpaceDistribution::wigner_distribution(const SimState& state) {
     auto negative_v_iaf = submatrix(iaf, N - N / 2, 0, N / 2, N);
     auto positive_v_iaf = submatrix(iaf, 0, 0, N - N / 2, N);
 
-    auto negative_v_f = submatrix(f, 0, 0, N / 2, N);
-    auto positive_v_f = submatrix(f, N - N / 2, 0, N - N / 2, N);
+    auto negative_v_f = submatrix(wigner_f, 0, 0, N / 2, N);
+    auto positive_v_f = submatrix(wigner_f, N - N / 2, 0, N - N / 2, N);
 
-    f = 0;
     for (int m = 0; m < state.M; ++m) {
         auto psi = column(state.psis, m);
         for (int icol = 0; icol < N; ++icol) {
@@ -125,49 +115,42 @@ void PhaseSpaceDistribution::wigner_distribution(const SimState& state) {
 void PhaseSpaceDistribution::husimi_distribution(const SimState& state) {
     using namespace blaze;
 
-    DynamicMatrix<std::complex<double>, columnMajor> husimi_fft(N, N);
-
-    double normal = L / (N * sqrt(4 * M_PI * sigma_x * sigma_x));
-
-    // Build up blaze expression representing the gaussian kernel
-    DynamicVector<int> idx(N);
+    // Compute phase matrix
+    DynamicVector<double> idx(N);
     std::iota(idx.begin(), idx.end(), 0);
-    auto idx_mat = expand(idx, N);
-    auto diff = trans(idx_mat) - idx_mat;
-    auto gauss =
-        declsym(normal * exp(-1.0 / (4 * N_kernel * N_kernel) * diff % diff));
-
-    // DFT to obtain psi_husimi
-    fftw_complex* in_out = reinterpret_cast<fftw_complex*>(husimi_fft.data());
-    auto plan = fftw_plan_many_dft(
-        1, &N, N, in_out, nullptr, 1, husimi_fft.spacing(), in_out, nullptr, 1,
-        husimi_fft.spacing(), FFTW_FORWARD, FFTW_ESTIMATE);
+    auto phase_T = exp(idx * (-M_PI + 2 * M_PI / N * trans(idx)) *
+                       std::complex<double>(0, -1));
 
     // Construct mixed state distribution pure state by pure state
     for (int m = 0; m < state.M; ++m) {
         auto psi = column(state.psis, m);
-        husimi_fft = gauss % expand(psi, N);
-        fftw_execute(plan);
-        f += state.lambda[m] * real(husimi_fft % husimi_fft);
-    }
-
-    fftw_destroy_plan(plan);
-
-    // Move zero velocity into matrix center.
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; 2 * j < N; ++j) {
-            f(i, 2 * j + 1) *= -1;
+        auto modulated_psi = phase_T % expand(psi, N);
+        for (int k = 0; k < N; ++k) {
+            ws.signal_padded = column(modulated_psi, k);
+            discrete_convolution(ws);
+            row(husimi_f, k) +=
+                state.lambda[m] *
+                trans(real(conj(ws.signal_padded) * ws.signal_padded));
         }
     }
 }
 
 ObservableFunctor::ReturnType PhaseSpaceDistribution::compute(
     const SimState& state) {
-    if (t_prev < state.tau) {
-        husimi ? husimi_distribution(state) : wigner_distribution(state);
-        t_prev = state.tau;
+    if (husimi) {
+        if (t_prev < state.tau) {
+            t_prev = state.tau;
+            husimi_f = 0;
+            husimi_distribution(state);
+        }
+        return husimi_f;
     }
-    return f;
+    if (t_prev < state.tau) {
+        t_prev = state.tau;
+        wigner_f = 0;
+        wigner_distribution(state);
+    }
+    return wigner_f;
 }
 
 PhaseSpaceDistribution::~PhaseSpaceDistribution() { fftw_destroy_plan(c2c); }
