@@ -1,0 +1,43 @@
+{
+    "General":
+    {
+        "output_file": "../psidm2/run/harmonic_static/harmonic.h5"
+    },
+    "Cosmology":
+    {
+        "model": 0,
+        "h": 0.68,
+        "omega_m0": 0.3,
+        "mu": 0.005
+    },
+    "Initial Conditions":
+    {
+        "source_file": "../psidm2/run/harmonic_static/psi.h5",
+        "potential_file": "../psidm2/run/harmonic_static/potential.h5",
+        "ic_type": 0,
+        "ev_threshold": -1e-3,
+        "M": 1
+    },
+    "Simulation":
+    {
+        "a_grid_N":1000000,
+        "L":1,
+        "z_start":50,
+        "z_end":0,
+        "t_end":2,
+        "dtau":1e-4,
+        "potential": "Poisson::Identity",
+        "integrator": "Schroedinger::USO_KDK",
+        "N":1024
+    },
+    "Observables":
+    {
+        "save_at": [0,1,2],
+        "sigma_x": 0.015,
+        "linear_convolution": false,
+        "compute": [
+            "Observable::DensityContrast",
+            "Observable::Potential"
+        ]
+    }
+}
