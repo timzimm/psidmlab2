@@ -28,12 +28,10 @@ int main(int argc, char** argv) {
     // a(tau) and tau(a) for the main loop
     Cosmology cosmo(param);
 
-    // Setup initial state
     SimState state(param);
     ICGenerator ic(param);
     ic.generate(state);
 
-    // Initialize numerical methods.
     auto integrator_name = param["Simulation"]["integrator"].get<std::string>();
     auto integrator =
         SchroedingerMethod::make(integrator_name, param, state, cosmo);
@@ -43,7 +41,6 @@ int main(int argc, char** argv) {
     std::cout << INFOTAG("Parameter dump:") << std::endl;
     std::cout << std::setw(4) << param << std::endl;
 
-    // Setup output file
     std::string filename;
     param["General"]["output_file"].get_to(filename);
     HDF5File file(filename);
@@ -68,18 +65,24 @@ int main(int argc, char** argv) {
     param["Observables"]["save_at"].get_to(save_at);
 
     // Set final simulation time and checkpoints based on cosmological model
-    double tau_end;
-    if (cosmo == CosmoModel::Static)
-        tau_end = param["Simulation"]["t_end"].get<double>();
-    else {
-        auto z_end = param["Simulation"]["z_end"].get<double>();
-        tau_end = cosmo.tau_of_a(Cosmology::a_of_z(z_end));
-        // save_at holds redshifts
-        std::transform(std::begin(save_at), std::end(save_at),
-                       std::begin(save_at), [&cosmo](double z) {
-                           return cosmo.tau_of_a(Cosmology::a_of_z(z));
-                       });
-    }
+    const double tau_end = [&] {
+        double end = param["Simulation"]["t_end"].get<double>();
+
+        if (cosmo == CosmoModel::Dynamic) {
+            auto tau_of_z = [&cosmo](double z) {
+                return cosmo.tau_of_a(Cosmology::a_of_z(z));
+            };
+
+            // save_at holds redshifts
+            std::transform(std::begin(save_at), std::end(save_at),
+                           std::begin(save_at), tau_of_z);
+
+            end = tau_of_z(param["Simulation"]["z_end"].get<double>());
+        }
+
+        return std::min(end, save_at.back());
+    }();
+
     const double dtau = param["Simulation"]["dtau"].get<double>();
 
     auto tau_save = std::begin(save_at);
@@ -90,9 +93,11 @@ int main(int argc, char** argv) {
         // End of simulation?
         if (tau_dt > tau_end) {
             state.dtau = tau_end - state.tau;
+            tau_dt = tau_end;
         }
+
         // Overstepping I/O checkpoint?
-        if (tau_save != std::end(save_at) && tau_dt > *tau_save) {
+        if (tau_save != std::end(save_at) && tau_dt >= *tau_save) {
             state.dtau = *tau_save - state.tau;
             do_IO = true;
         }
@@ -100,8 +105,11 @@ int main(int argc, char** argv) {
         integrator->step(state);
 
         if (do_IO) {
-            std::cout << INFOTAG("Save state @ tau = ") << *tau_save
-                      << std::endl;
+            std::cout << INFOTAG("Save state @ tau/z=")
+                      << ((cosmo == CosmoModel::Static)
+                              ? *tau_save
+                              : Cosmology::z_of_a(cosmo.a_of_tau(*tau_save)))
+                      << std::flush;
             for (const auto& pair : observables) {
                 // Construct path to dataset
                 auto& name = pair.first;
@@ -115,8 +123,11 @@ int main(int argc, char** argv) {
                 // Supplement informations to the observable
                 file.add_scalar_attribute(path_to_ds, "tau", state.tau);
                 file.add_scalar_attribute(path_to_ds, "a", state.a);
+                file.add_scalar_attribute(path_to_ds, "z",
+                                          Cosmology::z_of_a(state.a));
                 file.add_scalar_attribute(path_to_ds, "n", state.n);
             }
+            std::cout << " ... done" << std::endl;
             state.dtau = dtau;
             tau_save++;
             do_IO = false;
