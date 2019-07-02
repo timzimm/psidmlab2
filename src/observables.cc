@@ -7,7 +7,6 @@
 #include <blaze/math/Elements.h>
 #include <blaze/math/Submatrix.h>
 #include <algorithm>
-#include <cfenv>
 
 namespace Observable {
 
