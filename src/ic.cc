@@ -64,19 +64,23 @@ ICGenerator::ICGenerator(const Parameters& p)
     switch (type) {
         case ICType::External:
             if (data_N != N * M) {
-                std::cout << ERRORTAG("#lines in source_file != N*M")
+                std::cout << ERRORTAG("#lines in source_file(" << data_N
+                                                               << ") != N*M")
                           << std::endl;
                 exit(1);
             }
         case ICType::Density:
             if (data_N != N) {
-                std::cout << ERRORTAG("#lines in source_file != N*M")
+                std::cout << ERRORTAG("#lines in source_file(" << data_N
+                                                               << ") != N")
                           << std::endl;
                 exit(1);
             }
         default:
             if (N != pot_N) {
-                std::cout << ERRORTAG("#lines in pot_file != N*M") << std::endl;
+                std::cout << ERRORTAG("#lines in pot_file(" << pot_N
+                                                            << ") != N")
+                          << std::endl;
                 exit(1);
             }
     };
