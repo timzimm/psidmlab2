@@ -27,8 +27,8 @@ class Cosmology {
     double tau_of_a(const double a) const;
     double a_of_tau(double tau) const;
     bool operator==(const CosmoModel& model) const;
-    static double z_of_a(const double a);
-    static double a_of_z(const double z);
+    static double z_of_a(const double a) { return 1.0 / a - 1; };
+    static double a_of_z(const double z) { return 1.0 / (z + 1); };
 };
 
 #endif

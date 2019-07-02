@@ -5,28 +5,6 @@
 #include "logging.h"
 #include "parameters.h"
 
-// Convenience definitions independent of the cosmological model
-double Cosmology::z_of_a(const double a) { return 1.0 / a - 1; }
-double Cosmology::a_of_z(const double z) { return 1.0 / (z + 1); }
-
-// This defines the cosmological model
-double Cosmology::E(const double a) const {
-    double E;
-    switch (model) {
-        case CosmoModel::Static:
-            E = sqrt(omega_m0);
-            break;
-        case CosmoModel::Dynamic:
-            E = sqrt(omega_m0 / (a * a * a) + (1 - omega_m0));
-            break;
-    }
-    return E;
-}
-
-double Cosmology::dtau_da(const double a) const {
-    return 1 / (a * a * a * E(a)) * sqrt(1.5 * omega_m0);
-}
-
 Cosmology::Cosmology(const Parameters& p)
     : a_start{a_of_z(p["Simulation"]["z_start"].get<double>())},
       a_end{a_of_z(p["Simulation"]["z_end"].get<double>())},
@@ -54,6 +32,24 @@ Cosmology::Cosmology(const Parameters& p)
             tau += dtau_da(a - 0.5 * delta_a) * delta_a;
         }
     }
+}
+
+// This defines the cosmological model
+double Cosmology::E(const double a) const {
+    double E;
+    switch (model) {
+        case CosmoModel::Static:
+            E = sqrt(omega_m0);
+            break;
+        case CosmoModel::Dynamic:
+            E = sqrt(omega_m0 / (a * a * a) + (1 - omega_m0));
+            break;
+    }
+    return E;
+}
+
+double Cosmology::dtau_da(const double a) const {
+    return 1 / (a * a * a * E(a)) * sqrt(1.5 * omega_m0);
 }
 
 double Cosmology::tau_of_a(const double a) const {
