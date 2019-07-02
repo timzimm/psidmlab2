@@ -1,17 +1,18 @@
 #include "poisson/fft.h"
-#include <cassert>
 #include "parameters.h"
 #include "state.h"
+
+#include <cassert>
 
 namespace Poisson {
 FFT::FFT(const Parameters& p)
     : N(p["Simulation"]["N"].get<size_t>()),
       L(p["Simulation"]["L"].get<double>()),
       fft(N / 2 + 1),
+      source(N),
       inv_k_sq(N / 2 + 1) {
-    RCV source_dummy(N);
     RCV potential_dummy(N);
-    forwards = fftw_plan_dft_r2c_1d(N, source_dummy.data(),
+    forwards = fftw_plan_dft_r2c_1d(N, source.data(),
                                     reinterpret_cast<fftw_complex*>(fft.data()),
                                     FFTW_ESTIMATE);
     backwards =
@@ -19,8 +20,11 @@ FFT::FFT(const Parameters& p)
                              potential_dummy.data(), FFTW_ESTIMATE);
 
     auto diag = blaze::diagonal(inv_k_sq);
+
+    // inverse square wavelength and normalization
     for (int k = 1; k < N / 2 + 1; ++k)
         diag[k] = -L * L / (4 * M_PI * M_PI * N) / (k * k);
+
     // makes the DC constraint manifest
     diag[0] = 0;
 }
@@ -31,12 +35,8 @@ FFT::~FFT() {
 }
 
 void FFT::solve(SimState& state) {
-    using namespace blaze;
-    // Calculate source term
-    RCV source = delta_from(state);
+    source = delta_from(state);
 
-    // fftw_execute_dft_r2c and its inverse are applicable in this situation
-    // because blaze takes care of proper alignment
     fftw_execute_dft_r2c(forwards, source.data(),
                          reinterpret_cast<fftw_complex*>(fft.data()));
 

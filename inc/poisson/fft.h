@@ -22,6 +22,7 @@ class FFT : public PotentialMethod::Registrar<FFT> {
     double L;
 
     CCV fft;
+    RCV source;
     RDM inv_k_sq;
 
     fftw_plan forwards;
