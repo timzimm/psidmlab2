@@ -26,7 +26,6 @@ USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
         k_squared[k] = 2 * M_PI / L * (k - N);
         k_squared[k] *= k_squared[k];
     }
-    // This makes me sad. On so many levels :(
     const auto const_in =
         reinterpret_cast<const fftw_complex*>(state.psis.data());
     auto in = const_cast<fftw_complex*>(const_in);
@@ -77,16 +76,25 @@ void USO_DKD::step(SimState& state) {
     // Therefore, we cannot reuse the potential of the last step but
     // have to recalculate it.
     pot->solve(state);
-    psis = blaze::evaluate(drift(psis, V, t, dt, 1.0 / 2));
 
-    fftw_execute(forwards);
+    auto diag_D = blaze::diagonal(D);
+    diag_D = blaze::exp(-0.5 * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
+    psis = D * psis;
 
-    psis = blaze::evaluate(1.0 / N * kick(psis, dt, 1.0));
+    auto state_p = reinterpret_cast<fftw_complex*>(psis.data());
+    fftw_execute_dft(forwards, state_p, state_p);
 
-    fftw_execute(backwards);
+    auto diag_K = blaze::diagonal(K);
+    diag_K = blaze::exp(-0.5 * cmplx(0, 1) * k_squared * dt);
+    psis = 1.0 / N * K * psis;
+
+    state_p = reinterpret_cast<fftw_complex*>(psis.data());
+    fftw_execute_dft(backwards, state_p, state_p);
 
     pot->solve(state);
-    psis = blaze::evaluate(drift(psis, V, t, dt, 1.0 / 2));
+
+    diag_D = blaze::exp(-0.5 * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
+    psis = D * psis;
 
     // psis and V are now @ tau + dtau
     // Update time information
