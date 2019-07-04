@@ -34,6 +34,9 @@ class FFT : public PotentialMethod::Registrar<FFT> {
     FFT(const Parameters& p);
     ~FFT();
     void solve(SimState& state) override;
+    void solve(blaze::DynamicVector<double, blaze::columnVector>& V,
+               const blaze::DynamicVector<double, blaze::columnVector>& source)
+        override;
 };
 
 }  // namespace Poisson

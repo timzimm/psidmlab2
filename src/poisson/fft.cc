@@ -23,7 +23,7 @@ FFT::FFT(const Parameters& p)
 
     // inverse square wavelength and normalization
     for (int k = 1; k < N / 2 + 1; ++k)
-        diag[k] = -L * L / (4 * M_PI * M_PI * N) / (k * k);
+        diag[k] = -L * L / (4 * M_PI * M_PI * N * k * k);
 
     // makes the DC constraint manifest
     diag[0] = 0;
@@ -34,11 +34,15 @@ FFT::~FFT() {
     fftw_destroy_plan(backwards);
 }
 
-void FFT::solve(SimState& state) {
-    source = delta_from(state);
+void FFT::solve(SimState& state) { solve(state.V, delta_from(state)); }
 
-    fftw_execute_dft_r2c(forwards, source.data(),
-                         reinterpret_cast<fftw_complex*>(fft.data()));
+void FFT::solve(blaze::DynamicVector<double, blaze::columnVector>& V,
+                const blaze::DynamicVector<double, blaze::columnVector>& s) {
+    auto fft_p = reinterpret_cast<fftw_complex*>(fft.data());
+    auto source_p =
+        const_cast<double*>(reinterpret_cast<const double*>(s.data()));
+
+    fftw_execute_dft_r2c(forwards, source_p, fft_p);
 
     // Check if the DC constrained is satisfied
     assert(std::abs(fft[0]) < epsilon);
@@ -47,7 +51,7 @@ void FFT::solve(SimState& state) {
     fft = inv_k_sq * fft;
 
     // Get potential by applying the IFFT
-    fftw_execute_dft_c2r(backwards, reinterpret_cast<fftw_complex*>(fft.data()),
-                         state.V.data());
+    fft_p = reinterpret_cast<fftw_complex*>(fft.data());
+    fftw_execute_dft_c2r(backwards, fft_p, V.data());
 }
 }  // namespace Poisson

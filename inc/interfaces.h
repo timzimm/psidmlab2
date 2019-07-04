@@ -24,6 +24,9 @@ class Cosmology;
 class PotentialMethod : public Factory<PotentialMethod, const Parameters&> {
    public:
     virtual void solve(SimState& state) = 0;
+    virtual void solve(
+        blaze::DynamicVector<double, blaze::columnVector>& V,
+        const blaze::DynamicVector<double, blaze::columnVector>& source) = 0;
     virtual ~PotentialMethod() = default;
 };
 

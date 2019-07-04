@@ -18,19 +18,22 @@ FD::FD(const Parameters& p)
     gctrf(dl, d, du, du2, ipiv);
 }
 
-void FD::solve(SimState& state) {
+void FD::solve(SimState& state) { solve(state.V, delta_from(state)); }
+
+void FD::solve(
+    blaze::DynamicVector<double, blaze::columnVector>& V,
+    const blaze::DynamicVector<double, blaze::columnVector>& source) {
     using namespace blaze;
-
     // Calculate source term as matrix
-    RCM source = expand(dx * dx * delta_from(state), 1);
+    RCM source_mat = expand(dx * dx * source, 1);
 
-    gctrs(dl, d, du, du2, ipiv, source);
+    gctrs(dl, d, du, du2, ipiv, source_mat);
 
     // Solution is only determined up to an additive constant. We fix it by
     // requiring a vanishing mean. This is in accordance with the behavior
     // of Poisson::FFT, where the DC mode is set to 0 explicitly
-    double mean = 1.0 / N * sum(source);
-    state.V = column(map(source, [&mean](double V) { return V - mean; }), 0);
+    double mean = 1.0 / N * sum(source_mat);
+    V = column(map(source_mat, [&mean](double V) { return V - mean; }), 0);
 }
 
 }  // namespace Poisson
