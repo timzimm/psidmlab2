@@ -26,9 +26,8 @@ USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
         k_squared[k] = 2 * M_PI / L * (k - N);
         k_squared[k] *= k_squared[k];
     }
-    const auto const_in =
-        reinterpret_cast<const fftw_complex*>(state.psis.data());
-    auto in = const_cast<fftw_complex*>(const_in);
+    auto in = const_cast<fftw_complex*>(
+        reinterpret_cast<const fftw_complex*>(state.psis.data()));
 
     int dist_state = state.psis.spacing();
 

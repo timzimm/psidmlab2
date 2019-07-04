@@ -31,9 +31,8 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
     k_squared *= 2 * M_PI / L;
     k_squared *= k_squared;
 
-    const auto const_in =
-        reinterpret_cast<const fftw_complex*>(state.psis.data());
-    auto in = const_cast<fftw_complex*>(const_in);
+    auto in = const_cast<fftw_complex*>(
+        reinterpret_cast<const fftw_complex*>(state.psis.data()));
     auto out = reinterpret_cast<fftw_complex*>(psis_cached.data());
 
     int dist_state = state.psis.spacing();
@@ -106,7 +105,6 @@ void USO_KDK::step(SimState& state) {
     // We can spare the initial FFT if we use the cached and normalized psi_in_k
     // representation of the last step
     psis = K * psis_cached;
-    /* psis = blaze::evaluate(kick(psis_cached, dt, 1.0 / 2)); */
 
     auto state_p = reinterpret_cast<fftw_complex*>(psis.data());
     fftw_execute_dft(backwards, state_p, state_p);
@@ -119,14 +117,12 @@ void USO_KDK::step(SimState& state) {
     diag_D = blaze::exp(-1.0 * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
 
     psis = D * psis;
-    /* psis = blaze::evaluate(drift(psis, V, t, dt, 1.0)); */
 
     state_p = reinterpret_cast<fftw_complex*>(psis.data());
     fftw_execute_dft(forwards, state_p, state_p);
 
     // Update cached psis and normalize
     psis_cached = 1.0 / N * K * psis;
-    /* psis_cached = blaze::evaluate(1.0 / N * kick(psis, dt, 1.0 / 2)); */
 
     auto cache_p = reinterpret_cast<fftw_complex*>(psis_cached.data());
     fftw_execute_dft(backwards_op, cache_p, state_p);
