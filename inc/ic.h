@@ -10,8 +10,9 @@
 #include "parameters_fwd.h"
 struct SimState;
 class PotentialMethod;
+class Cosmology;
 
-enum class ICType { External, Powerspectrum, Density };
+enum class ICType { External, Powerspectrum, Experimental };
 
 class ICGenerator {
    private:
@@ -22,26 +23,27 @@ class ICGenerator {
     double dx;
     int M;
     double rel_threshold;
+    bool compute_velocity;
     mutable std::ifstream ic_file;
     mutable std::ifstream pot_file;
-    std::unique_ptr<PotentialMethod> potential;
+    std::unique_ptr<PotentialMethod> poisson;
 
-    // init wavefunction matrix ...
+    // init density contrast ...
     //
-    // by loading a file containing Im(psi_i) and Re(psi_i) for all i.
-    void psi_from_file(SimState& state) const;
+    // by loading a file containing delta(x_i)
+    void delta_from_file(SimState& state) const;
+
+    // according to a matter power spectrum provided by file.
+    void delta_from_power(SimState& state) const;
 
     // by solving the associated operator eigenvalue problem
     // for f(x,t) = rho(x) * delta(0) (cold initial conditions)
-    // rho is provided by a file.
-    void psi_from_rho(SimState& state) const;
-
-    // according to a matter power spectrum provided by file.
-    void psi_from_power(SimState& state) const;
+    // rho is provided by a file. (Mixed State)
+    void delta_from_evp(SimState& state) const;
 
    public:
     ICGenerator(const Parameters& param);
-    void generate(SimState& state) const;
+    void generate(SimState& state, const Cosmology&) const;
 
     // Required to deal with incomplete PotentialMethod type
     ~ICGenerator();

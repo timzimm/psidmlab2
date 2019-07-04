@@ -1,32 +1,29 @@
 #include "ic.h"
-#include "blaze/math/Band.h"
-#include "blaze/math/DiagonalMatrix.h"
-#include "blaze/math/Elements.h"
-#include "blaze/math/Row.h"
-#include "blaze/math/Submatrix.h"
+#include "cosmology.h"
 #include "interfaces.h"
+#include "io.h"
 #include "logging.h"
 #include "parameters.h"
 #include "state.h"
 
+#include <blaze/math/Band.h>
+#include <blaze/math/DiagonalMatrix.h>
+#include <blaze/math/Elements.h>
+#include <blaze/math/Row.h>
+#include <blaze/math/Submatrix.h>
 #include <fftw3.h>
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <numeric>
 
-// Stores a two column file into vectors col1 & col2. Copy process stops if end
-// of vector is reached. Caller must ensure that stream is valid for at least
-// 2*N reads from it.
-// TODO: Regex support to generalize readout
-template <typename T, bool TF>
-void fill_from_file(std::istream& s, blaze::DynamicVector<T, TF>& col1,
-                    blaze::DynamicVector<T, TF>& col2) {
-    assert(col1.size() == col2.size());
-    const size_t N = col1.size();
-    for (size_t i = 0; i < N; ++i) {
-        T val1, val2;
-        s >> col1[i] >> col2[i];
+// Reads columns of stream s into the supplied vectors.
+template <typename... Ts>
+void fill_from_file(std::istream& s, Ts&... vecs) {
+    const int N = std::count(std::istreambuf_iterator<char>(s),
+                             std::istreambuf_iterator<char>(), '\n');
+    s.seekg(0);
+    for (int i = 0; i < N; ++i) {
+        (s >> ... >> vecs[i]);
     }
 }
 
@@ -36,29 +33,30 @@ ICGenerator::ICGenerator(const Parameters& p)
       data_N{0},
       L{p["Simulation"]["L"].get<double>()},
       dx{L / N},
-      M{p["Initial Conditions"]["M"].get<int>()},
+      M{(type == ICType::Experimental) ? p["Initial Conditions"]["M"].get<int>()
+                                       : 1},
       rel_threshold{p["Initial Conditions"]["ev_threshold"].get<double>()},
+      compute_velocity{p["Initial Conditions"]["compute_velocity"].get<bool>()},
       ic_file{p["Initial Conditions"]["source_file"].get<std::string>()},
       pot_file{p["Initial Conditions"]["potential_file"].get<std::string>()},
-      potential{nullptr} {
-    ic_file.ignore(std::numeric_limits<int>::max(), '\n');
+      poisson{nullptr} {
     data_N = std::count(std::istreambuf_iterator<char>(ic_file),
                         std::istreambuf_iterator<char>(), '\n');
-
     int pot_N;
     if (pot_file) {
         pot_file.seekg(0);
-        pot_file.ignore(std::numeric_limits<int>::max(), '\n');
 
         pot_N = std::count(std::istreambuf_iterator<char>(pot_file),
                            std::istreambuf_iterator<char>(), '\n');
 
         pot_file.seekg(0);
-        pot_file.ignore(std::numeric_limits<int>::max(), '\n');
     } else {
-        potential = PotentialMethod::make(
+        poisson = PotentialMethod::make(
             p["Simulation"]["potential"].get<std::string>(), p);
         pot_N = N;
+    }
+    if (compute_velocity && !poisson) {
+        poisson = PotentialMethod::make("Poisson::FFT", p);
     }
 
     switch (type) {
@@ -69,7 +67,7 @@ ICGenerator::ICGenerator(const Parameters& p)
                           << std::endl;
                 exit(1);
             }
-        case ICType::Density:
+        case ICType::Experimental:
             if (data_N != N) {
                 std::cout << ERRORTAG("#lines in source_file(" << data_N
                                                                << ") != N")
@@ -86,62 +84,83 @@ ICGenerator::ICGenerator(const Parameters& p)
     };
 
     ic_file.seekg(0);
-    ic_file.ignore(std::numeric_limits<int>::max(), '\n');
 }
 
-void ICGenerator::generate(SimState& state) const {
+void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
+    using namespace blaze;
+    // delta initialization
     switch (type) {
         case ICType::External:
-            std::cout << INFOTAG("Load Psi0 from file") << std::endl;
-            psi_from_file(state);
+            std::cout << INFOTAG("Load delta0 from file") << std::endl;
+            delta_from_file(state);
             break;
         case ICType::Powerspectrum:
-            std::cout << INFOTAG("Generate Psi0 from P(k)") << std::endl;
-            psi_from_power(state);
+            std::cout << INFOTAG("Generate delta0 from P(k)") << std::endl;
+            delta_from_power(state);
             break;
-        case ICType::Density:
+        case ICType::Experimental:
             std::cout << INFOTAG("Generate Psi0 from rho(x)") << std::endl;
-            psi_from_rho(state);
+            delta_from_evp(state);
     }
 
+    // Velocity Initialization - currently for pure states only
+    if (type != ICType::Experimental) {
+        // state.V holds delta at this point. But we will use it in an in-place
+        // manner. Hence we define...
+        auto& delta = state.V;
+        auto& phase = state.V;
+        auto psi = column(state.psis, 0);
+
+        // Set psis modulus before we override delta. For cold conditions that's
+        // all that is left to do.
+        psi = sqrt(1.0 + delta);
+
+        if (compute_velocity) {
+            double a_init = cosmo.a_of_tau(0);
+            double prefactor = -std::sqrt(1.5 * a_init / cosmo.omega_m(a_init));
+            std::cout << prefactor << std::endl;
+
+            std::cout << INFOTAG("Initial Velocity Field from Poisson @ a = ")
+                      << a_init << std::endl;
+
+            poisson->solve(phase, prefactor * delta);
+            // Madelung Representation.
+            psi *= exp(std::complex<double>(0, 1) * phase);
+        }
+    }
+
+    // Potential Initialization
     if (pot_file) {
         std::cout << INFOTAG("Load potential from file.") << std::endl;
-        fill_from_file(pot_file, state.V, state.V);
+        fill_from_file(pot_file, state.V);
     } else {
-        std::cout << INFOTAG("Generate U0 from poisson eq.") << std::endl;
-        potential->solve(state);
+        std::cout << INFOTAG("Generate Potential from Poisson") << std::endl;
+        poisson->solve(state);
     }
 }
 
-void ICGenerator::psi_from_file(SimState& state) const {
-    using namespace blaze;
-
+// currently for pure states only (M=1)
+void ICGenerator::delta_from_file(SimState& state) const {
     state.M = M;
     state.psis.resize(N, M);
     state.V.resize(N);
     state.lambda.resize(M);
 
-    DynamicVector<double> real(N);
-    DynamicVector<double> imag(N);
-
-    for (int m = 0; m < M; ++m) {
-        state.lambda[m] = 1.0;
-        auto psi = column(state.psis, m);
-        fill_from_file(ic_file, real, imag);
-        psi = map(real, imag,
-                  [](double r, double i) { return std::complex(r, i); });
-    }
+    state.lambda[0] = 1.0;
+    // Store delta in V for convenience (real vector vs complex vector);
+    fill_from_file(ic_file, state.V);
 }
 
 // TODO implement power spectrum initial conditions.
-void ICGenerator::psi_from_power(SimState& state) const {}
+// currently for pure states only (M=1)
+void ICGenerator::delta_from_power(SimState& state) const {}
 
-void ICGenerator::psi_from_rho(SimState& state) const {
+void ICGenerator::delta_from_evp(SimState& state) const {
     using namespace blaze;
 
     // Read in density data from file
     DynamicVector<double> rho(data_N);
-    fill_from_file(ic_file, rho, rho);
+    fill_from_file(ic_file, rho);
 
     // Compute FFT to obtain coefficients for the expansion of rho in
     // harmonic base functions
