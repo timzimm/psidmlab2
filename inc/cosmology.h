@@ -6,6 +6,9 @@
 // Forward Declaration
 #include "parameters_fwd.h"
 
+// cosmological model "tags"
+// Static <=> a = a_start = const; omega_m(a) = omega_m0
+// Dynamic <=> a = a(tau); omega_m(a) != const
 enum class CosmoModel { Static, Dynamic };
 
 class Cosmology {
@@ -24,9 +27,19 @@ class Cosmology {
 
    public:
     Cosmology(const Parameters& p);
+    // Time dependent matter density parameter as a function of scalefactor
+    double omega_m(double a) const;
+
+    // Super conformal time as function of sclaefactor
     double tau_of_a(const double a) const;
+
+    // Inverse of the above
     double a_of_tau(double tau) const;
+
+    // EqualityComparable to the models defined above
     bool operator==(const CosmoModel& model) const;
+
+    // Conversion functions from scalefactor to redshift and vice versa
     static double z_of_a(const double a) { return 1.0 / a - 1; };
     static double a_of_z(const double z) { return 1.0 / (z + 1); };
 };

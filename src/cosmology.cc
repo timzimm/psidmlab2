@@ -34,18 +34,13 @@ Cosmology::Cosmology(const Parameters& p)
     }
 }
 
-// This defines the cosmological model
+double Cosmology::omega_m(double a) const {
+    if (model == CosmoModel::Static) return omega_m0;
+    return omega_m0 / (omega_m0 + (1 - omega_m0) * a * a * a);
+}
+
 double Cosmology::E(const double a) const {
-    double E;
-    switch (model) {
-        case CosmoModel::Static:
-            E = sqrt(omega_m0);
-            break;
-        case CosmoModel::Dynamic:
-            E = sqrt(omega_m0 / (a * a * a) + (1 - omega_m0));
-            break;
-    }
-    return E;
+    return sqrt(omega_m0 / (a * a * a) + (1 - omega_m0));
 }
 
 double Cosmology::dtau_da(const double a) const {
