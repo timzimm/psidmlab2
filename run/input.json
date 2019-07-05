@@ -1,44 +1,78 @@
+# This is not a valid json! Remove all "comments" starting with '#' to make this working
+# config file!
 {
     "General":
     {
-        "output_file": "../run/oscillator.h5"
+# The path and name to the output HDF5 file (relative to the compiled binary)
+        "output_file": "relative/path/to/output/location"
     },
     "Cosmology":
     {
-        "model": 0,
+# model can be either...
+# model = 0 (=Static spacestime, i.e. a(tau) = 1/(1+z_start)) 
+# model = 1 (=dynamic spacetime, i.e. a(tau) != const, a(tau=0) = 1/(1+z_start)
+        "model": 1,
+# Initial redshift (see it's meaning above)
+        "z_start": 200,
+# Present day dimensionless Hubble paramter
         "h": 0.68,
-        "omega_m0": 0.3,
+# Present day matter density. If omega_m0 = 1 and model = 1 we recover an EdS-universe
+# If omega_m0 < 1 we recover lCDM with omega_l0 = 1 - omega_m0
+        "omega_m0": 1,
+# Phasespace resolution 
         "mu": 0.005
     },
     "Initial Conditions":
     {
-        "source_file": "../run/psi_harmonic_double.txt",
-        "potential_file": "../run/pot_harmonic.txt",
+# Initial condition type. The following values are possible...
+# ic_type = 0 (density contrast provided by external file)
+# ic_type = 1 (density constrast generated from powerspectrum)
+# ic_type = 2 (mixed state construction generated from external density contrast.
+#              EXPERIMENTAL!!!)
         "ic_type": 0,
+# Path to external density contrast or power spectrum
+        "source_file": "relative/path/to/source/location",
+# If true the phase of the initial wavefunction is set according to Poisson's eqaution.
+        "compute_velocity": false,
+# If supplied the initial graviational potential is not constructed from computing the
+# solution to Poisson's eqaution.
+        "potential_file": "relative/path/to/potential/file/if/required",
+# Only required for ic_type=2 
         "ev_threshold": -1e-3,
         "M": 1
     },
     "Simulation":
     {
+# Number of uniform gird points used to set up the scalefactor lookup table
         "a_grid_N":1000000,
-        "L":20,
-        "z_start":0,
-        "z_end":0,
-        "t_end":2,
-        "dtau":2e-4,
-        "potential": "Poisson::Identity",
-        "integrator": "Schroedinger::USO_KDK",
-        "N":1024
+# Spatial extend of the domain (in code units)
+        "L":1,
+#Number of spatial grid points
+        "N":1024,
+# Time step (in superconformal time)
+        "dtau":1e-4,
+# Selects the Poisson solver, i.e...
+# Poisson::FFT, Poisson::FD, Poisson::Identity
+        "potential": "Poisson::FFT",
+# Selects the SP integrator, i.e...
+# Schroedinger::PCCayley, Schroedinger::USO_KDK, Schroedinger::USO_DKD
+        "integrator": "Schroedinger::USO_KDK"
     },
     "Observables":
     {
-        "save_at": [0, 1, 2],
+# Times at which the below observables are computed. If model=0 these are tau values,
+# else redshifts need to be supplied.
+        "save_at": [50, 49],
+# Spatial smoothing scale for Husimi based observables
         "sigma_x": 0,
+# If false a circular convolution is performed
         "linear_convolution": false,
+# Selects the computed Observables. The list below is complete.
         "compute": [
-            "Observable::PhaseSpaceDistribution",
             "Observable::DensityContrast",
-            "Observable::WaveFunction"
+            "Observable::PhaseSpaceDistribution",
+            "Observable::WaveFunction",
+            "Observable::Potential"
         ]
     }
 }

@@ -6,13 +6,15 @@
     "Cosmology":
     {
         "model": 0,
+        "z_start":0,
         "h": 0.68,
         "omega_m0": 0.3,
         "mu": 0.005
     },
     "Initial Conditions":
     {
-        "source_file": "../run/harmonic_static/psi.txt",
+        "source_file": "../run/harmonic_static/delta.txt",
+        "compute_velocity": false,
         "potential_file": "../run/harmonic_static/potential.txt",
         "ic_type": 0,
         "ev_threshold": -1e-3,
@@ -22,22 +24,20 @@
     {
         "a_grid_N":1000000,
         "L":20,
-        "z_start":0,
-        "z_end":0,
-        "t_end":2,
+        "N":1024,
         "dtau":2e-4,
         "potential": "Poisson::Identity",
-        "integrator": "Schroedinger::PCCayley",
-        "N":1024
+        "integrator": "Schroedinger::USO_KDK"
     },
     "Observables":
     {
-        "save_at": [0, 1, 2],
-        "sigma_x": 0,
+        "save_at": [0,1,2],
+        "sigma_x": 0.2,
         "linear_convolution": false,
         "compute": [
             "Observable::DensityContrast",
-            "Observable::Potential"
+            "Observable::Potential",
+            "Observable::PhaseSpaceDistribution"
         ]
     }
 }

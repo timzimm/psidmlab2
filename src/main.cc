@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
 
     SimState state(param);
     ICGenerator ic(param);
-    ic.generate(state);
+    ic.generate(state, cosmo);
 
     auto integrator_name = param["Simulation"]["integrator"].get<std::string>();
     auto integrator =
@@ -61,26 +61,20 @@ int main(int argc, char** argv) {
     };
 
     // Setup I/O checkpoints
-    std::vector<double> save_at;
-    param["Observables"]["save_at"].get_to(save_at);
+    auto save_at = param["Observables"]["save_at"].get<std::vector<double>>();
 
     // Set final simulation time and checkpoints based on cosmological model
     const double tau_end = [&] {
-        double end = param["Simulation"]["t_end"].get<double>();
-
         if (cosmo == CosmoModel::Dynamic) {
-            auto tau_of_z = [&cosmo](double z) {
+            auto tau_of_a = [&cosmo](double z) {
                 return cosmo.tau_of_a(Cosmology::a_of_z(z));
             };
 
             // save_at holds redshifts
             std::transform(std::begin(save_at), std::end(save_at),
-                           std::begin(save_at), tau_of_z);
-
-            end = tau_of_z(param["Simulation"]["z_end"].get<double>());
+                           std::begin(save_at), tau_of_a);
         }
-
-        return std::min(end, save_at.back());
+        return *std::max_element(std::begin(save_at), std::end(save_at));
     }();
 
     const double dtau = param["Simulation"]["dtau"].get<double>();
@@ -88,13 +82,8 @@ int main(int argc, char** argv) {
     auto tau_save = std::begin(save_at);
     bool do_IO = false;
 
-    while (state.tau < tau_end) {
+    while (state.tau <= tau_end) {
         double tau_dt = state.tau + state.dtau;
-        // End of simulation?
-        if (tau_dt > tau_end) {
-            state.dtau = tau_end - state.tau;
-            tau_dt = tau_end;
-        }
 
         // Overstepping I/O checkpoint?
         if (tau_save != std::end(save_at) && tau_dt >= *tau_save) {

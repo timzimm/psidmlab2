@@ -6,21 +6,28 @@
 #include "parameters.h"
 
 Cosmology::Cosmology(const Parameters& p)
-    : a_start{a_of_z(p["Simulation"]["z_start"].get<double>())},
-      a_end{a_of_z(p["Simulation"]["z_end"].get<double>())},
-      A{p["Simulation"]["a_grid_N"].get<int>()},
-      delta_a{(a_end - a_start) / (A - 1)},
-      a_grid{},
-      model{static_cast<CosmoModel>(p["Cosmology"]["model"].get<int>())},
+    : model{static_cast<CosmoModel>(p["Cosmology"]["model"].get<int>())},
       omega_m0{p["Cosmology"]["omega_m0"].get<double>()},
+      a_start{a_of_z(p["Cosmology"]["z_start"].get<double>())},
+      a_end{a_start},
+      delta_a{0},
+      A{p["Simulation"]["a_grid_N"].get<int>()},
+      a_grid{},
       tau_a_map{} {
-    // Super conformal time is defined via its differential
-    // Thus, after integrating we still have to fix the integration constant.
-    // We do this by defining tau = 0 for the simulation start time.
-    // tau increases strictly monotone so our time parameter can be interpreted
-    // as a proper time.
-
     if (model != CosmoModel::Static) {
+        // Here the save_at array in the config file holds redshift values. We
+        // transform them to scalefactor values and take the largest of them
+        // to determine a_end
+        auto save_at = p["Observables"]["save_at"].get<std::vector<double>>();
+        std::transform(save_at.begin(), save_at.end(), save_at.begin(), a_of_z);
+        a_end = *std::max_element(save_at.begin(), save_at.end());
+        delta_a = (a_end - a_start) / (A - 1);
+
+        // Super conformal time is defined via its differential
+        // Thus, after integrating we still have to fix the integration
+        // constant. We do this by defining tau = 0 for the simulation start
+        // time. tau increases strictly monotone so our time parameter can
+        // be interpreted as a proper time.
         a_grid.resize(A);
         std::cout << INFOTAG("Initialize time lookup table") << std::endl;
         double tau = 0;
