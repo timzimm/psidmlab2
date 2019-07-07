@@ -23,21 +23,31 @@
     "Simulation":
     {
         "a_grid_N":1000000,
-        "L":1,
-        "dtau":1e-4,
+        "L":17,
+        "dtau":5e-4,
         "potential": "Poisson::FFT",
         "integrator": "Schroedinger::USO_KDK",
-        "N":1024
+        "N":4096
     },
     "Observables":
     {
-        "save_at": [200,100,50,14,6,3,1],
-        "sigma_x": 0,
+        "save_at": [
+            200,
+            100,
+            50,
+            25,
+            12,
+            6,
+            3,
+            1,
+            0
+        ],
+        "sigma_x": 0.05,
         "linear_convolution": false,
         "compute": [
             "Observable::DensityContrast",
             "Observable::Potential",
-            "Observable::WaveFunction"
+            "Observable::PhaseSpaceDistribution"
         ]
     }
 }

@@ -28,8 +28,7 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
     std::iota(k_squared.begin(), k_squared.end(), -N / 2);
     std::rotate(k_squared.begin(), k_squared.end() - (N + 1) / 2,
                 k_squared.end());
-    k_squared *= 2 * M_PI / L;
-    k_squared *= k_squared;
+    k_squared = 4 * M_PI * M_PI / (L * L) * k_squared * k_squared;
 
     auto in = const_cast<fftw_complex*>(
         reinterpret_cast<const fftw_complex*>(state.psis.data()));
@@ -96,11 +95,10 @@ void USO_KDK::step(SimState& state) {
     const double dt = state.dtau;
     const double t = state.tau;
     CCM& psis = state.psis;
-    RCV& V = state.V;
 
     // Set kick operator once for the entire time step
-    auto diag_K = blaze::diagonal(K);
-    diag_K = blaze::exp(-0.5 * 0.5 * cmplx(0, 1) * k_squared * dt);
+    auto diag_K = diagonal(K);
+    diag_K = exp(-0.5 * 0.5 * cmplx(0, 1) * k_squared * dt);
 
     // We can spare the initial FFT if we use the cached and normalized psi_in_k
     // representation of the last step
@@ -113,8 +111,8 @@ void USO_KDK::step(SimState& state) {
     pot->solve(state);
 
     // Set drift operator with intermediate potential
-    auto diag_D = blaze::diagonal(D);
-    diag_D = blaze::exp(-1.0 * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
+    auto diag_D = diagonal(D);
+    diag_D = exp(-1.0 * cmplx(0, 1) * cosmo.a_of_tau(t) * state.V * dt);
 
     psis = D * psis;
 

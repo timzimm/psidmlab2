@@ -107,7 +107,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
     if (type != ICType::Experimental) {
         // state.V holds delta at this point. But we will use it in an in-place
         // manner. Hence we define...
-        auto& delta = state.V;
+        const auto& delta = state.V;
         auto& phase = state.V;
         auto psi = column(state.psis, 0);
 
@@ -116,14 +116,15 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
         psi = sqrt(1.0 + delta);
 
         if (compute_velocity) {
-            double a_init = cosmo.a_of_tau(0);
-            double prefactor = -std::sqrt(1.5 * a_init / cosmo.omega_m(a_init));
-            std::cout << prefactor << std::endl;
+            const double a_init = cosmo.a_of_tau(0);
+            const double prefactor =
+                -std::sqrt(2.0 / 3 * a_init / cosmo.omega_m(a_init));
 
             std::cout << INFOTAG("Initial Velocity Field from Poisson @ a = ")
                       << a_init << std::endl;
 
             poisson->solve(phase, prefactor * delta);
+
             // Madelung Representation.
             psi *= exp(std::complex<double>(0, 1) * phase);
         }

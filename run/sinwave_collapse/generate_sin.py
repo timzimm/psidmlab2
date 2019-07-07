@@ -2,14 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Code Units
-L = 1 
 A = 0.1
-N = 2**10
+N = 2**12
 
-x = np.linspace(0, L, N, endpoint=False)
+x = np.linspace(0, 1, N, endpoint=False)
 dx = x[1] - x[0]
 
-delta = -A * np.cos(2*np.pi/L * x)
+delta = -A * np.cos(2*np.pi * x)
 
 print(np.sum(delta))
 

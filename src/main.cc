@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
         observables[key] = ObservableFunctor::make(key, param);
 
     std::string path_to_ds;
-    auto write_variant = [&file, &path_to_ds](auto& output) {
+    auto write_variant = [&file, &path_to_ds](const auto& output) {
         file.write(path_to_ds, output);
     };
 
@@ -102,7 +102,9 @@ int main(int argc, char** argv) {
             for (const auto& pair : observables) {
                 // Construct path to dataset
                 auto& name = pair.first;
-                path_to_ds = "/" + name + "/" + std::to_string(state.n);
+                auto ds_name = std::to_string(state.n);
+                ds_name.insert(ds_name.begin(), 10 - ds_name.length(), '0');
+                path_to_ds = "/" + name + "/" + ds_name;
 
                 // Computes the observable variant (i.e. some matrix/vector)
                 auto& routine = pair.second;
