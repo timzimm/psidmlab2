@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 # Code Units
 A = 0.1
-N = 2**12
+N = 2**13
 
 x = np.linspace(0, 1, N, endpoint=False)
 dx = x[1] - x[0]

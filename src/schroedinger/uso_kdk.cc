@@ -15,8 +15,6 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
                                 p)},
       N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
-      K(N, N),
-      D(N, N),
       k_squared(N),
       forwards(nullptr),
       backwards(nullptr),
@@ -59,30 +57,6 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
     psis_cached /= N;
 }
 
-// Kick Operator
-decltype(auto) USO_KDK::kick(const CCM& psis_in_k, const double dt,
-                             const double weight) {
-    auto diag_K = blaze::diagonal(K);
-
-    diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * k_squared * dt);
-
-    // This is a dense-sparse product
-    return K * psis_in_k;
-}
-
-// Drift Operator
-decltype(auto) USO_KDK::drift(const CCM& psis_in_x, const RCV& V,
-                              const double t, const double dt,
-                              const double weight) {
-    auto diag_D = blaze::diagonal(D);
-
-    diag_D =
-        blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
-
-    // This is a dense-sparse product
-    return D * psis_in_x;
-}
-
 USO_KDK::~USO_KDK() {
     fftw_destroy_plan(forwards);
     fftw_destroy_plan(backwards);
@@ -97,12 +71,11 @@ void USO_KDK::step(SimState& state) {
     CCM& psis = state.psis;
 
     // Set kick operator once for the entire time step
-    auto diag_K = diagonal(K);
-    diag_K = exp(-0.5 * 0.5 * cmplx(0, 1) * k_squared * dt);
+    auto kick = expand(exp(-0.5 * 0.5 * cmplx(0, 1) * k_squared * dt), state.M);
 
-    // We can spare the initial FFT if we use the cached and normalized psi_in_k
-    // representation of the last step
-    psis = K * psis_cached;
+    // We can spare the initial FFT if we use the cached and normalized
+    // psi_in_k representation of the last step
+    psis = kick % psis_cached;
 
     auto state_p = reinterpret_cast<fftw_complex*>(psis.data());
     fftw_execute_dft(backwards, state_p, state_p);
@@ -111,16 +84,15 @@ void USO_KDK::step(SimState& state) {
     pot->solve(state);
 
     // Set drift operator with intermediate potential
-    auto diag_D = diagonal(D);
-    diag_D = exp(-1.0 * cmplx(0, 1) * cosmo.a_of_tau(t) * state.V * dt);
-
-    psis = D * psis;
+    auto drift = expand(
+        exp(-1.0 * cmplx(0, 1) * cosmo.a_of_tau(t) * state.V * dt), state.M);
+    psis = drift % psis;
 
     state_p = reinterpret_cast<fftw_complex*>(psis.data());
     fftw_execute_dft(forwards, state_p, state_p);
 
     // Update cached psis and normalize
-    psis_cached = 1.0 / N * K * psis;
+    psis_cached = 1.0 / N * kick % psis;
 
     auto cache_p = reinterpret_cast<fftw_complex*>(psis_cached.data());
     fftw_execute_dft(backwards_op, cache_p, state_p);

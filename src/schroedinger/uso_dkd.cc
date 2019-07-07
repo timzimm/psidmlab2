@@ -13,8 +13,6 @@ USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
                                 p)},
       N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
-      K(N, N),
-      D(N, N),
       k_squared(N),
       forwards(nullptr),
       backwards(nullptr) {
@@ -39,26 +37,6 @@ USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
                                    FFTW_ESTIMATE);
 }
 
-// Kick Operator - returns a blaze expression
-decltype(auto) USO_DKD::kick(const CCM& psis_in_k, const double dt,
-                             const double weight) {
-    auto diag_K = blaze::diagonal(K);
-    diag_K = blaze::exp(-1.0 * weight / 2 * cmplx(0, 1) * k_squared * dt);
-
-    return K * psis_in_k;
-}
-
-// Drift Operator - returns a blaze expression
-decltype(auto) USO_DKD::drift(const CCM& psis_in_x, const RCV& V,
-                              const double t, const double dt,
-                              const double weight) {
-    auto diag_D = blaze::diagonal(D);
-    diag_D =
-        blaze::exp(-1.0 * weight * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
-    // This is a dense-sparse product
-    return D * psis_in_x;
-}
-
 USO_DKD::~USO_DKD() {
     fftw_destroy_plan(forwards);
     fftw_destroy_plan(backwards);
@@ -68,7 +46,6 @@ void USO_DKD::step(SimState& state) {
     double dt = state.dtau;
     double t = state.tau;
     CCM& psis = state.psis;
-    RCV& V = state.V;
 
     // Drift step
     // It is crucial to always use the most up-to date version of psi.
@@ -76,24 +53,24 @@ void USO_DKD::step(SimState& state) {
     // have to recalculate it.
     pot->solve(state);
 
-    auto diag_D = blaze::diagonal(D);
-    diag_D = blaze::exp(-0.5 * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
-    psis = D * psis;
+    psis = expand(exp(-0.5 * cmplx(0, 1) * cosmo.a_of_tau(t) * state.V * dt),
+                  state.M) %
+           psis;
 
     auto state_p = reinterpret_cast<fftw_complex*>(psis.data());
     fftw_execute_dft(forwards, state_p, state_p);
 
-    auto diag_K = blaze::diagonal(K);
-    diag_K = blaze::exp(-0.5 * cmplx(0, 1) * k_squared * dt);
-    psis = 1.0 / N * K * psis;
+    auto kick = expand(exp(-0.5 * cmplx(0, 1) * k_squared * dt), state.M);
+    psis = 1.0 / N * kick % psis;
 
     state_p = reinterpret_cast<fftw_complex*>(psis.data());
     fftw_execute_dft(backwards, state_p, state_p);
 
     pot->solve(state);
 
-    diag_D = blaze::exp(-0.5 * cmplx(0, 1) * cosmo.a_of_tau(t) * V * dt);
-    psis = D * psis;
+    psis = expand(exp(-0.5 * cmplx(0, 1) * cosmo.a_of_tau(t) * state.V * dt),
+                  state.M) %
+           psis;
 
     // psis and V are now @ tau + dtau
     // Update time information

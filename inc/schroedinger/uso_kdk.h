@@ -36,8 +36,6 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     std::unique_ptr<PotentialMethod> pot;  // potential method
     int N;                                 // No. of spatial points
     double L;                              // size of domain
-    CDM K;  // Kick operator as sparse diagonal matrix
-    CDM D;  // Drift operator as sparse diagonal matrix
     RCV k_squared;
 
     fftw_plan forwards;      // in-place forward FFT
@@ -47,14 +45,6 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
 
     // Buffer to store k representation of psi for KDK
     CCM psis_cached;
-
-    // Kick Operator - returns a blaze expression
-    decltype(auto) kick(const CCM& psis_in_k, const double dt,
-                        const double weight);
-
-    // Drift Operator - returns a blaze expression
-    decltype(auto) drift(const CCM& psis_in_x, const RCV& V, const double t,
-                         const double dt, const double weight);
 
    public:
     USO_KDK(const Parameters& p, const SimState& state,

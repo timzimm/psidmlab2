@@ -37,20 +37,10 @@ class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
     std::unique_ptr<PotentialMethod> pot;  // Potential method
     int N;                                 // No. of spatial grid points
     double L;                              // Domain size
-    CDM K;  // Kick operator as sparse diagonal matrix
-    CDM D;  // Drift operator as sparse diagonal matrix
     RCV k_squared;
 
     fftw_plan forwards;   // in-place forward FFT
     fftw_plan backwards;  // in-place backward FFT
-
-    // Kick Operator - returns a blaze expression
-    decltype(auto) kick(const CCM& psis_in_k, const double dt,
-                        const double weight);
-
-    // Drift Operator - returns a blaze expression
-    decltype(auto) drift(const CCM& psis_in_x, const RCV& V, const double t,
-                         const double dt, const double weight);
 
    public:
     USO_DKD(const Parameters& p, const SimState& state,
