@@ -1,13 +1,14 @@
 #ifndef __IO__
 #define __IO__
+
+#include <blaze/math/DynamicVector.h>
+#include <hdf5.h>
 #include <cstring>
+#include <iostream>
 #include <map>
 #include <string>
 #include <vector>
-#include "blaze/math/DynamicVector.h"
-#include "hdf5.h"
 
-// Type Traits
 template <typename T>
 struct is_complex : public std::false_type {};
 template <typename T>
@@ -17,6 +18,9 @@ template <typename T>
 struct is_string : public std::false_type {};
 template <>
 struct is_string<std::string> : public std::true_type {};
+
+template <typename T>
+using is_bool = std::is_same<typename std::remove_cv<T>::type, bool>;
 
 // Definition of the File Interface. The project uses HDF5 as file format. HDF5
 // is the quasi-standard in scientific computing. It handles multidimensional,
@@ -71,6 +75,7 @@ class HDF5File {
         hsize_t offset_mem[] = {0, 0};
         hsize_t count_mem[] = {1, buf.rows()};
         for (int i = 0; i < buf.columns(); ++i) {
+            std::cout << "test" << std::endl;
             // Select column in file
             offset_file[1] = i;
             H5Sselect_hyperslab(file_space_id, H5S_SELECT_SET, offset_file,
@@ -87,7 +92,6 @@ class HDF5File {
     }
 
     // mkdir -p for HDF5
-    // TODO Regex
     hid_t create_groups_along_path(const std::string& path) {
         size_t end = 0;
         herr_t status;
@@ -186,29 +190,55 @@ class HDF5File {
 
         // Create new dataspaces in both the file and the memory area
         const int rank = 2;
-        hsize_t dim_file[] = {data.rows(), data.columns()};
-        auto dataspace_file = H5Screate_simple(rank, dim_file, NULL);
 
+        const hsize_t dim_file[] = {
+            (SO == blaze::columnMajor) ? data.columns() : data.rows(),
+            (SO == blaze::columnMajor) ? data.rows() : data.columns()};
+
+        // Mem and file dataspace are not necessarily the same due to padding.
+        const hsize_t dim[] = {
+            (SO == blaze::columnMajor) ? data.columns() : data.rows(),
+            data.spacing()};
+
+        /* // Moreover, if SO=columnMajor, padding is added after each column
+         * not */
+        /* // row. */
+        /* if (SO == blaze::columnMajor) { */
+        /*     dim_file[0] = data.columns(); */
+        /*     dim_file[1] = data.rows(); */
+
+        /*     dim[0] = data.columns(); */
+        /*     dim[1] = data.spacing(); */
+        /* } */
+
+        auto dataspace_file = H5Screate_simple(rank, dim_file, NULL);
+        auto dataspace_matrix = H5Screate_simple(rank, dim, NULL);
+
+        // Discard padding in memory
+        const hsize_t offset[] = {0, 0};
+        H5Sselect_hyperslab(dataspace_matrix, H5S_SELECT_SET, offset, NULL,
+                            dim_file, NULL);
+
+        // Select the correct H5T dataype
         hid_t datatype;
         if constexpr (std::is_floating_point_v<T>)
             datatype = H5T_NATIVE_DOUBLE;
         else if constexpr (is_complex<T>())
             datatype = complex_type;
+
         auto dataset =
             H5Dcreate(parent_group, ds_path.c_str(), datatype, dataspace_file,
                       H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-        hsize_t dim[2];
-        // Mem and file dataspace are not necessarily the same due to padding
-        matrix_dataspace_dim(data, dim);
-        auto dataspace_matrix = H5Screate_simple(rank, dim, NULL);
-        hsize_t offset[] = {0, 0};
-        // Discard padding
-        H5Sselect_hyperslab(dataspace_matrix, H5S_SELECT_SET, offset, NULL,
-                            dim_file, NULL);
+        H5Dwrite(dataset, datatype, dataspace_matrix, dataspace_file,
+                 H5P_DEFAULT, data.data());
 
-        H5Dwrite_wrapper(dataset, datatype, dataspace_matrix, dataspace_file,
-                         H5P_DEFAULT, data);
+        // If columnMajor data is written to file, the user needs to be aware
+        // that an additional transpose is required
+        if (SO == blaze::columnMajor)
+            add_scalar_attribute(ds_path, "transpose", true, dataset);
+        else
+            add_scalar_attribute(ds_path, "transpose", false, dataset);
 
         // Close all handles
         H5Sclose(dataspace_matrix);
@@ -241,6 +271,7 @@ class HDF5File {
         hsize_t dim = 1;
         hid_t attr_space = H5Screate_simple(1, &dim, nullptr);
 
+        // TODO: This needs to be reworked!
         hid_t attr_type = H5T_NATIVE_INT;
 
         auto c_ptr = reinterpret_cast<const void*>(&value);
@@ -248,7 +279,9 @@ class HDF5File {
             attr_type = H5T_NATIVE_DOUBLE;
         else if constexpr (is_complex<T>())
             attr_type = complex_type;
-        else if constexpr (is_string<T>()) {
+        else if constexpr (is_bool<T>::value) {
+            attr_type = H5T_NATIVE_HBOOL;
+        } else if constexpr (is_string<T>()) {
             attr_type = str_type;
             H5Tset_size(str_type, value.size());
             c_ptr = reinterpret_cast<const void*>(value.c_str());
