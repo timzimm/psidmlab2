@@ -1,6 +1,5 @@
 #include "schroedinger/uso_kdk.h"
 #include "cosmology.h"
-#include "io.h"
 #include "parameters.h"
 #include "state.h"
 
@@ -70,6 +69,9 @@ void USO_KDK::step(SimState& state) {
     const double t = state.tau;
     CCM& psis = state.psis;
 
+    const double a_tau = cosmo.a_of_tau(t);
+    const double a_tau_dtau = cosmo.a_of_tau(t + dt);
+
     // Set kick operator once for the entire time step
     auto kick = expand(exp(-0.5 * 0.5 * cmplx(0, 1) * k_squared * dt), state.M);
 
@@ -85,7 +87,8 @@ void USO_KDK::step(SimState& state) {
 
     // Set drift operator with intermediate potential
     auto drift = expand(
-        exp(-1.0 * cmplx(0, 1) * cosmo.a_of_tau(t) * state.V * dt), state.M);
+        exp(-1.0 * cmplx(0, 1) * 0.5 * (a_tau + a_tau_dtau) * state.V * dt),
+        state.M);
     psis = drift % psis;
 
     state_p = reinterpret_cast<fftw_complex*>(psis.data());
@@ -100,7 +103,7 @@ void USO_KDK::step(SimState& state) {
     // psis and V are now @ tau + dtau
     state.tau += dt;
     state.n += 1;
-    state.a = cosmo.a_of_tau(t + dt);
+    state.a = a_tau_dtau;
 }
 
 }  // namespace Schroedinger
