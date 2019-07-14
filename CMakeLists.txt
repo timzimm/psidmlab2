@@ -68,6 +68,8 @@ target_compile_definitions(psidm
 
 target_compile_options(psidm
     PRIVATE $<$<CONFIG:Release>:
+            -g
+            -fno-omit-frame-pointer
             -Ofast
             -march=native>
     PRIVATE $<$<CONFIG:Debug>:
