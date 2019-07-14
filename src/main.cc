@@ -1,9 +1,3 @@
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <memory>
-#include <unordered_map>
-#include <vector>
 #include "cosmology.h"
 #include "ic.h"
 #include "interfaces.h"
@@ -12,7 +6,15 @@
 #include "parameters.h"
 #include "state.h"
 
+#include <chrono>
+#include <fstream>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
 int main(int argc, char** argv) {
+    using namespace std::chrono;
+
     // We need a json file. Otherwise, we give up...
     if (argc != 2) {
         std::cerr << ERRORTAG("Usage: ./sim /path/to/config_file.json")
@@ -26,13 +28,14 @@ int main(int argc, char** argv) {
 
     // Initialize the cosmological model, i.e. setup the relation
     // a(tau) and tau(a) for the main loop
-    Cosmology cosmo(param);
+    const Cosmology cosmo(param);
 
     SimState state(param);
     ICGenerator ic(param);
     ic.generate(state, cosmo);
 
-    auto integrator_name = param["Simulation"]["integrator"].get<std::string>();
+    const auto integrator_name =
+        param["Simulation"]["integrator"].get<std::string>();
     auto integrator =
         SchroedingerMethod::make(integrator_name, param, state, cosmo);
 
@@ -82,6 +85,8 @@ int main(int argc, char** argv) {
     auto tau_save = std::begin(save_at);
     bool do_IO = false;
 
+    const auto start = high_resolution_clock::now();
+
     while (state.tau <= tau_end) {
         double tau_dt = state.tau + state.dtau;
 
@@ -124,6 +129,10 @@ int main(int argc, char** argv) {
             do_IO = false;
         }
     }
+
+    const auto stop = high_resolution_clock::now();
+    const auto runtime = duration_cast<duration<double>>(stop - start);
+    file.add_scalar_attribute("/", "runtime", runtime.count());
 
     return 0;
 }
