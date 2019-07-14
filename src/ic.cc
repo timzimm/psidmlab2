@@ -1,7 +1,6 @@
 #include "ic.h"
 #include "cosmology.h"
 #include "interfaces.h"
-#include "io.h"
 #include "logging.h"
 #include "parameters.h"
 #include "state.h"
@@ -91,16 +90,19 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
     // delta initialization
     switch (type) {
         case ICType::External:
-            std::cout << INFOTAG("Load delta0 from file") << std::endl;
+            std::cout << INFOTAG("Load delta0 from file") << std::flush;
             delta_from_file(state);
+            std::cout << " ... done" << std::endl;
             break;
         case ICType::Powerspectrum:
-            std::cout << INFOTAG("Generate delta0 from P(k)") << std::endl;
+            std::cout << INFOTAG("Generate delta0 from P(k)") << std::flush;
             delta_from_power(state);
+            std::cout << " ... done" << std::endl;
             break;
         case ICType::Experimental:
-            std::cout << INFOTAG("Generate Psi0 from rho(x)") << std::endl;
+            std::cout << INFOTAG("Generate Psi0 from rho(x)") << std::flush;
             delta_from_evp(state);
+            std::cout << " ... done" << std::endl;
     }
 
     // Velocity Initialization - currently for pure states only
@@ -132,11 +134,13 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
 
     // Potential Initialization
     if (pot_file) {
-        std::cout << INFOTAG("Load potential from file.") << std::endl;
+        std::cout << INFOTAG("Load potential from file.") << std::flush;
         fill_from_file(pot_file, state.V);
+        std::cout << " ... done" << std::endl;
     } else {
-        std::cout << INFOTAG("Generate Potential from Poisson") << std::endl;
+        std::cout << INFOTAG("Generate Potential from Poisson") << std::flush;
         poisson->solve(state);
+        std::cout << " ... done" << std::endl;
     }
 }
 
