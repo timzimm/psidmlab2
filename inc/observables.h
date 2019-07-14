@@ -29,6 +29,7 @@ class PhaseSpaceDistribution
     using CCM = blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>;
     using RCM = blaze::DynamicMatrix<double, blaze::columnMajor>;
     using RRM = blaze::DynamicMatrix<double>;
+    using RRV = blaze::DynamicVector<double>;
 
     double sigma_x;  // spatial smoothing scale
     bool husimi;     // compute husimi?
@@ -38,8 +39,9 @@ class PhaseSpaceDistribution
     int N_kernel;    // symmetric 5-sigma_x interval in points
     double t_prev;   // timestamp of last cached observable
     convolution_ws<std::complex<double>> ws;
-    RCM wigner_f;   // cached wigner
-    RRM husimi_f;   // cached husimi
+    RCM wigner_f;  // cached wigner
+    RRM husimi_f;  // cached husimi
+    RRV idx;
     CCM iaf;        // instantaneous autocorrelation function
     fftw_plan c2c;  // IAF -> wigner transform (complex)
 

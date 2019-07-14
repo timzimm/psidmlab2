@@ -56,9 +56,11 @@ PhaseSpaceDistribution::PhaseSpaceDistribution(const Parameters& p)
       ws(husimi ? linear : 0, husimi ? N : 0, husimi ? N_kernel : 0),
       wigner_f(husimi ? 0 : N, husimi ? 0 : N),
       husimi_f(husimi ? N : 0, husimi ? N : 0),
+      idx(husimi ? N : 0),
       iaf(husimi ? 0 : N, husimi ? 0 : N),
       c2c(nullptr) {
     if (husimi) {
+        std::iota(idx.begin(), idx.end(), 0);
         auto& gaussian = ws.kernel_padded;
         std::iota(std::begin(gaussian), std::end(gaussian), -N_kernel / 2);
         gaussian =
@@ -114,11 +116,9 @@ void PhaseSpaceDistribution::wigner_distribution(const SimState& state) {
 void PhaseSpaceDistribution::husimi_distribution(const SimState& state) {
     using namespace blaze;
 
-    // Compute phase matrix
-    DynamicVector<double> idx(N);
-    std::iota(idx.begin(), idx.end(), 0);
-    auto phase_T = exp(idx * (-M_PI + 2 * M_PI / N * trans(idx)) *
-                       std::complex<double>(0, -1));
+    // Compute phase matrix only once
+    static auto phase_T = exp(idx * (-M_PI + 2 * M_PI / N * trans(idx)) *
+                              std::complex<double>(0, -1));
 
     // Construct mixed state distribution pure state by pure state
     for (int m = 0; m < state.M; ++m) {
