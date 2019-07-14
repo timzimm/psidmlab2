@@ -8,7 +8,6 @@
 #define LAPACK_ROW_MAJOR 101
 #define LAPACK_COL_MAJOR 102
 
-// Forward declare LAPACKE routines
 extern "C" {
 // ?gttrs solves a tridiagonal matrix system previously factorized with ?gttrf
 int LAPACKE_dgttrs(int matrix_layout, char trans, int n, int nrhs,
@@ -31,31 +30,29 @@ int LAPACKE_zgttrf(int n, std::complex<double>* dl, std::complex<double>* d,
                    int* ipiv);
 }
 
-// C++17 versions of LAPACK functions. Branch decision at compile time.
 template <typename T, typename = blaze::EnableIf_t<blaze::IsNumeric_v<T>>>
-static void gttrs(int matrix_layout, char trans, int n, int nrhs, const T* dl,
+inline void gttrs(int matrix_layout, char trans, int n, int nrhs, const T* dl,
                   const T* d, const T* du, const T* du2, const int* ipiv, T* b,
                   int ldb) {
-    using namespace blaze;
-    if constexpr (IsComplexDouble_v<T>)
+    if constexpr (blaze::IsComplexDouble_v<T>)
         LAPACKE_zgttrs(matrix_layout, trans, n, nrhs, dl, d, du, du2, ipiv, b,
                        ldb);
-    if constexpr (IsDouble_v<T>)
+    if constexpr (blaze::IsDouble_v<T>)
         LAPACKE_dgttrs(matrix_layout, trans, n, nrhs, dl, d, du, du2, ipiv, b,
                        ldb);
 }
 
 template <typename T, typename = blaze::EnableIf_t<blaze::IsNumeric_v<T>>>
-static void gttrf(int n, T* dl, T* d, T* du, T* du2, int* ipiv) {
-    using namespace blaze;
-    if constexpr (IsComplexDouble_v<T>) LAPACKE_zgttrf(n, dl, d, du, du2, ipiv);
-    if constexpr (IsDouble_v<T>) LAPACKE_dgttrf(n, dl, d, du, du2, ipiv);
+inline void gttrf(int n, T* dl, T* d, T* du, T* du2, int* ipiv) {
+    if constexpr (blaze::IsComplexDouble_v<T>)
+        LAPACKE_zgttrf(n, dl, d, du, du2, ipiv);
+    if constexpr (blaze::IsDouble_v<T>) LAPACKE_dgttrf(n, dl, d, du, du2, ipiv);
 }
 
 // Factorizes a general tridiagonal CYCLIC matrix via LU
 template <typename T, bool TF,
           typename = blaze::EnableIf_t<blaze::IsNumeric_v<T>>>
-static void gctrf(blaze::DynamicVector<T, TF>& dl,
+inline void gctrf(blaze::DynamicVector<T, TF>& dl,
                   blaze::DynamicVector<T, TF>& d,
                   blaze::DynamicVector<T, TF>& du,
                   blaze::DynamicVector<T, TF>& du2,
@@ -68,7 +65,7 @@ static void gctrf(blaze::DynamicVector<T, TF>& dl,
 // by gctrf
 template <typename T, bool TF, bool SO,
           typename = blaze::EnableIf_t<blaze::IsNumeric_v<T>>>
-static void gctrs(const blaze::DynamicVector<T, TF>& dl,
+inline void gctrs(const blaze::DynamicVector<T, TF>& dl,
                   const blaze::DynamicVector<T, TF>& d,
                   const blaze::DynamicVector<T, TF>& du,
                   const blaze::DynamicVector<T, TF>& du2,
@@ -76,46 +73,41 @@ static void gctrs(const blaze::DynamicVector<T, TF>& dl,
                   blaze::DynamicMatrix<T, SO>& rhs) {
     using namespace blaze;
 
+    const int matrix_layout =
+        (SO == columnMajor) ? LAPACK_COL_MAJOR : LAPACK_ROW_MAJOR;
     // Size of the cyclic problem
-    unsigned int N = rhs.rows();
-    unsigned int nrhs = rhs.columns();
+    const int N = rhs.rows();
+    const int nrhs = rhs.columns();
 
     // Condense cyclic matrix into two tridiagonal problems by dropping the last
     // row of the matrix and bringing the last col to the right. Thus, we have
     // an extended right hand side.
-    DynamicMatrix<T, columnMajor> rhs_ext(N - 1, nrhs + 1);
-    auto x_1 = submatrix(rhs_ext, 0, 0, N - 1, nrhs);
-    auto x_2 = column(rhs_ext, nrhs) = 0;
+    rhs.resize(N, nrhs + 1);
 
-    x_1 = submatrix(rhs, 0, 0, N - 1, nrhs);
-    x_2 = -1.0 * dl[0];
-    x_2 = -1.0 * du[N - 2];
+    auto x_2 = subvector(column(rhs, nrhs), 0, N - 1) = T{};
+    x_2[0] = -1.0 * dl[0];
+    x_2[N - 2] = -1.0 * du[N - 2];
 
-    // Solve tridiagonal systems.
+    // Solve tridiagonal systems by calling LAPACKE
     // LDB parameter is given by spacing() because blaze adds padding to allow
     // for vectorization
-    if constexpr (SO == columnMajor)
-        gttrs(LAPACK_COL_MAJOR, 'N', N - 1, nrhs + 1, dl.data() + 1, d.data(),
-              du.data(), du2.data(), ipiv.data(), rhs_ext.data(),
-              rhs_ext.spacing());
-    else
-        gttrs(LAPACK_ROW_MAJOR, 'N', N - 1, nrhs + 1, dl.data() + 1, d.data(),
-              du.data(), du2.data(), ipiv.data(), rhs_ext.data(),
-              rhs_ext.spacing());
+    gttrs(matrix_layout, 'N', N - 1, nrhs + 1, dl.data() + 1, d.data(),
+          du.data(), du2.data(), ipiv.data(), rhs.data(), rhs.spacing());
 
     // Assemble solution to original problem by linear combination
+    auto x_1 = submatrix(rhs, 0, 0, N - 1, nrhs);
     auto x_11 = row(x_1, 0);
     auto x_1N = row(x_1, N - 2);
 
-    auto x_s_c = submatrix(rhs, 0, 0, N - 1, nrhs);
-    auto x_s_N = row(rhs, N - 1);
+    auto x_s_N = subvector(row(rhs, N - 1), 0, nrhs);
 
     x_s_N -= (du[N - 1] * x_11 + dl[N - 1] * x_1N);
     T normalization =
         1.0 / (d[N - 1] + du[N - 1] * x_2[0] + dl[N - 1] * x_2[N - 2]);
     if (!std::isinf(std::abs(normalization))) x_s_N *= normalization;
 
-    x_s_c = x_1 + x_2 * x_s_N;
+    x_1 += x_2 * x_s_N;
+    rhs.resize(N, nrhs);
 }
 
 // Expression templates to enable addition/subtraction of scalars and blaze
