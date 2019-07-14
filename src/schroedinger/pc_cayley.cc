@@ -1,5 +1,4 @@
 #include "schroedinger/pc_cayley.h"
-#include "blaze/math/UniformVector.h"
 #include "blaze_utils.h"
 #include "parameters.h"
 #include "state.h"
@@ -22,33 +21,46 @@ PCCayley::PCCayley(const Parameters& p, const SimState& state,
       du(N),
       du2(N),
       ipiv(N) {
-    // Compute K at @ construction (symmetry automatically enforced)
-    blaze::band(K, -1) = blaze::UniformVector<double>(N - 1, 1);
-    blaze::band(K, 0) = blaze::UniformVector<double>(N, -2);
-    K(N - 1, 0) = 1.0;
-    K *= -1.0 / (2 * dx * dx);
+    blaze::CompressedMatrix<double> dx2_coeff(N, N);
+    dx2_coeff.reserve(3 * N);
+    dx2_coeff.append(0, 0, -2);
+    dx2_coeff.append(0, 1, 1);
+    dx2_coeff.append(0, N - 1, 1);
+    dx2_coeff.finalize(0);
+
+    for (int i = 1; i < N - 1; ++i) {
+        dx2_coeff.append(i, i - 1, 1);
+        dx2_coeff.append(i, i, -2);
+        dx2_coeff.append(i, i + 1, 1);
+        dx2_coeff.finalize(i);
+    }
+    dx2_coeff.append(N - 1, 0, 1);
+    dx2_coeff.append(N - 1, N - 2, 1);
+    dx2_coeff.append(N - 1, N - 1, -2);
+    dx2_coeff.finalize(N - 1);
+    K = declsym(-1.0 / (2 * dx * dx) * dx2_coeff);
 }
 
 void PCCayley::step(SimState& state) {
     using namespace blaze;
 
-    std::complex<double> I{0, 1.0};
-    double dt = state.dtau;
-    double t = state.tau;
-    double a = state.a;
-    double a_da = cosmo.a_of_tau(t + dt);
+    const std::complex<double> I{0, 1.0};
+    const double dt = state.dtau;
+    const double t = state.tau;
+    const double a = state.a;
+    const double a_da = cosmo.a_of_tau(t + dt);
 
     // Save the input state for the corrector step - no copy
     swap(psi_old, state.psis);
     swap(V_old, state.V);
 
-    auto a_V = a * expand(V_old, M);
+    const auto a_V = a * expand(V_old, M);
 
     // PREDICTOR STEP
     state.psis = psi_old - I * 0.5 * dt * (K * psi_old + a_V % psi_old);
 
     // Left hand side matrix M+
-    dl = du = -1.0 * std::complex<double>{0, 1} / (4 * dx * dx) * dt;
+    dl = du = -1.0 * I / (4 * dx * dx) * dt;
     d = -2.0 * dl + I * 0.5 * dt * a * V_old + 1.0;
 
     // Solve cyclic tridiagonal matrix equation
@@ -64,8 +76,7 @@ void PCCayley::step(SimState& state) {
     // Left hand side matrix M+
     // LU decomposition works in place. Thus, everything has to be
     // reinitialized.
-    // TODO: Can we change this even though LAPACK defines this behavior?
-    dl = du = -1.0 * std::complex<double>{0, 1} / (4 * dx * dx) * dt;
+    dl = du = -1.0 * I / (4 * dx * dx) * dt;
     d = -2.0 * dl + I * 0.5 * dt * 0.5 * (a * V_old + a_da * state.V) + 1.0,
 
     gctrf(dl, d, du, du2, ipiv);

@@ -1,14 +1,15 @@
 #ifndef __SCHROEDINGER_PC_CAYLEY__
 #define __SCHROEDINGER_PC_CAYLEY__
 
-#include <complex>
-#include <memory>
-#include "blaze/math/CompressedMatrix.h"
-#include "blaze/math/DynamicMatrix.h"
-#include "blaze/math/DynamicVector.h"
-#include "blaze/math/SymmetricMatrix.h"
 #include "cosmology.h"
 #include "interfaces.h"
+
+#include <blaze/math/CompressedMatrix.h>
+#include <blaze/math/DynamicMatrix.h>
+#include <blaze/math/DynamicVector.h>
+#include <blaze/math/SymmetricMatrix.h>
+#include <complex>
+#include <memory>
 
 // TODO Add integrator description
 
