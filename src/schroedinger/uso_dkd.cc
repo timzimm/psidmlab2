@@ -16,14 +16,10 @@ USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
       k_squared(N),
       forwards(nullptr),
       backwards(nullptr) {
-    for (int k = 0; k < N / 2; ++k) {
-        k_squared[k] = 2 * M_PI / L * k;
-        k_squared[k] *= k_squared[k];
-    }
-    for (int k = N / 2; k < N; ++k) {
-        k_squared[k] = 2 * M_PI / L * (k - N);
-        k_squared[k] *= k_squared[k];
-    }
+    std::iota(k_squared.begin(), k_squared.end(), -N / 2);
+    std::rotate(k_squared.begin(), k_squared.end() - (N + 1) / 2,
+                k_squared.end());
+    k_squared = 4 * M_PI * M_PI / (L * L) * k_squared * k_squared;
     auto in = const_cast<fftw_complex*>(
         reinterpret_cast<const fftw_complex*>(state.psis.data()));
 
