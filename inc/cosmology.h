@@ -30,6 +30,9 @@ class Cosmology {
     // Time dependent matter density parameter as a function of scalefactor
     double omega_m(double a) const;
 
+    // Linear growth factor
+    double Dplus(double a) const;
+
     // Super conformal time as function of sclaefactor
     double tau_of_a(const double a) const;
 

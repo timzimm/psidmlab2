@@ -45,6 +45,11 @@ double Cosmology::omega_m(double a) const {
     if (model == CosmoModel::Static) return omega_m0;
     return omega_m0 / (omega_m0 + (1 - omega_m0) * a * a * a);
 }
+double Cosmology::Dplus(double a) const {
+    double om = omega_m(a);
+    return 5.0 * a / 2 * om /
+           (pow(om, 4.0 / 7) - (1 - om) + (1 + 0.5 * om) * (1 + (1 - om) / 70));
+}
 
 double Cosmology::E(const double a) const {
     return sqrt(omega_m0 / (a * a * a) + (1 - omega_m0));

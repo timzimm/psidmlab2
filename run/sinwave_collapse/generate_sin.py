@@ -3,16 +3,9 @@ import matplotlib.pyplot as plt
 
 # Code Units
 A = 0.1
-N = 2**13
+for N in np.power(8 * [2], range(9,17)):
 
-x = np.linspace(0, 1, N, endpoint=False)
-dx = x[1] - x[0]
+    x = np.linspace(0, 1, N, endpoint=False)
+    delta = -A * np.cos(2*np.pi * x)
 
-delta = -A * np.cos(2*np.pi * x)
-
-print(np.sum(delta))
-
-plt.plot(x, delta)
-plt.show()
-
-np.savetxt('./delta.txt', delta)
+    np.savetxt('./delta_%d.txt' % N, delta)

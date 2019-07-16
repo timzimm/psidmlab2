@@ -12,15 +12,17 @@
 #include <blaze/math/Submatrix.h>
 #include <fftw3.h>
 #include <algorithm>
+#include <boost/math/interpolators/barycentric_rational.hpp>
 #include <cmath>
 #include <numeric>
+#include <random>
 
 // Reads columns of stream s into the supplied vectors.
+// Passed in vectors already have to be large enough to hold the colums
+// of s.
 template <typename... Ts>
 void fill_from_file(std::istream& s, Ts&... vecs) {
-    const int N = std::count(std::istreambuf_iterator<char>(s),
-                             std::istreambuf_iterator<char>(), '\n');
-    s.seekg(0);
+    const int N = std::max({std::size(vecs)...});
     for (int i = 0; i < N; ++i) {
         (s >> ... >> vecs[i]);
     }
@@ -96,7 +98,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
             break;
         case ICType::Powerspectrum:
             std::cout << INFOTAG("Generate delta0 from P(k)") << std::flush;
-            delta_from_power(state);
+            delta_from_power(state, cosmo);
             std::cout << " ... done" << std::endl;
             break;
         case ICType::Experimental:
@@ -152,13 +154,61 @@ void ICGenerator::delta_from_file(SimState& state) const {
     state.lambda.resize(M);
 
     state.lambda[0] = 1.0;
+
     // Store delta in V for convenience (real vector vs complex vector);
-    fill_from_file(ic_file, state.V);
+    auto& delta = state.V;
+
+    fill_from_file(ic_file, delta);
 }
 
-// TODO implement power spectrum initial conditions.
 // currently for pure states only (M=1)
-void ICGenerator::delta_from_power(SimState& state) const {}
+void ICGenerator::delta_from_power(SimState& state,
+                                   const Cosmology& cosmo) const {
+    using namespace blaze;
+    state.M = M;
+    state.psis.resize(N, M);
+    state.V.resize(N);
+    state.lambda.resize(M);
+    state.lambda[0] = 1.0;
+
+    std::vector<double> k_data(data_N);
+    std::vector<double> powerspectrum(data_N);
+    fill_from_file(ic_file, k_data, powerspectrum);
+    boost::math::barycentric_rational<double> P(std::move(k_data),
+                                                std::move(powerspectrum));
+
+    // Store fourier representation of delta in state.psis (complex vector)
+    auto delta_k = subvector(column(state.psis, 0), 0, N / 2 + 1);
+    auto k = subvector(state.V, 0, N / 2 + 1);
+    std::iota(k.begin(), k.end(), 0);
+    k *= 2 * M_PI / L;
+
+    // Independent number generators for modulus and phase.
+    // Seed chosen at random.
+    auto uniform_rayleigh = std::bind(std::uniform_real_distribution<>{0, 1},
+                                      std::mt19937(std::random_device{}()));
+    auto uniform_phase = std::bind(std::uniform_real_distribution<>{0, 1},
+                                   std::mt19937(std::random_device{}()));
+
+    const double a_init = cosmo.a_of_tau(0);
+    const double G = cosmo.Dplus(1) / cosmo.Dplus(a_init);
+
+    auto sigma = [&](double k) {
+        return sqrt(k * k / (4 * M_PI * L * G * G) * P(k));
+    };
+
+    delta_k = map(delta_k, k, [&](std::complex<double> d, double k) {
+        // Exact inversion yields transformation formulas for modulus and phase.
+        return std::polar(sigma(k) * sqrt(-2 * log(uniform_rayleigh())),
+                          2 * M_PI * uniform_phase());
+    });
+
+    auto in = reinterpret_cast<fftw_complex*>(delta_k.data());
+    // Store delta in V for convenience (real vector vs complex vector);
+    auto c2r = fftw_plan_dft_c2r_1d(N, in, state.V.data(), FFTW_ESTIMATE);
+    fftw_execute(c2r);
+    fftw_destroy_plan(c2r);
+}
 
 void ICGenerator::delta_from_evp(SimState& state) const {
     using namespace blaze;

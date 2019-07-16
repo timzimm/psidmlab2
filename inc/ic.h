@@ -34,7 +34,7 @@ class ICGenerator {
     void delta_from_file(SimState& state) const;
 
     // according to a matter power spectrum provided by file.
-    void delta_from_power(SimState& state) const;
+    void delta_from_power(SimState& state, const Cosmology& cosmo) const;
 
     // by solving the associated operator eigenvalue problem
     // for f(x,t) = rho(x) * delta(0) (cold initial conditions)
