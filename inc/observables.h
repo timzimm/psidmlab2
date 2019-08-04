@@ -56,6 +56,9 @@ class PhaseSpaceDistribution
 };
 
 class Potential : public ObservableFunctor::Registrar<Potential> {
+    std::unique_ptr<PotentialMethod> pot;  // potential method
+    blaze::DynamicVector<double, blaze::columnVector> potential;
+
    public:
     Potential(const Parameters& p);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
@@ -64,6 +67,29 @@ class Potential : public ObservableFunctor::Registrar<Potential> {
 class WaveFunction : public ObservableFunctor::Registrar<WaveFunction> {
    public:
     WaveFunction(const Parameters& p);
+    ObservableFunctor::ReturnType compute(const SimState& state) override;
+};
+
+class Energy : public ObservableFunctor::Registrar<Energy> {
+    int N;
+    double dx;
+    blaze::CompressedMatrix<double> grad;
+    blaze::DynamicVector<double> energies;
+    blaze::DynamicVector<double, blaze::columnVector> x;
+
+   public:
+    Energy(const Parameters& p);
+    ObservableFunctor::ReturnType compute(const SimState& state) override;
+};
+
+class ParticleFlux : public ObservableFunctor::Registrar<ParticleFlux> {
+    int N;
+    double dx;
+    blaze::CompressedMatrix<double> grad;
+    blaze::DynamicVector<double> flux;
+
+   public:
+    ParticleFlux(const Parameters& p);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
 
