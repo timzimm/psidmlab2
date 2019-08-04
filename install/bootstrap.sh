@@ -6,6 +6,7 @@
 vcpkg install boost-math
 vcpkg install boost-variant 
 vcpkg install boost-core 
+vcpkg install boost-units 
 vcpkg install fftw3
 vcpkg install hdf5
 vcpkg install --head blaze
