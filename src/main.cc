@@ -26,30 +26,23 @@ int main(int argc, char** argv) {
     Parameters param;
     std::ifstream(argv[1]) >> param;
 
-    // Initialize the cosmological model, i.e. setup the relation
-    // a(tau) and tau(a) for the main loop
+    // Setup a(tau) and tau(a) and transform length scales to code units
     const Cosmology cosmo(param);
+    param << cosmo;
 
     SimState state(param);
+
     ICGenerator ic(param);
     ic.generate(state, cosmo);
+    // Bring parameter datastructure back to a consistent state (N, M)
+    state >> param;
 
     const auto integrator_name =
         param["Simulation"]["integrator"].get<std::string>();
     auto integrator =
         SchroedingerMethod::make(integrator_name, param, state, cosmo);
 
-    // Bring parameter datastructure back to a consistent state (N, M)
-    state >> param;
-    std::cout << INFOTAG("Parameter dump:") << std::endl;
-    std::cout << std::setw(4) << param << std::endl;
-
-    std::string filename;
-    param["General"]["output_file"].get_to(filename);
-    HDF5File file(filename);
-    file.add_scalar_attribute("/", "parameters", param.dump());
-
-    // Setup Analysis Functors and I/O visitor for their return variant
+    // Setup Analysis Functors
     std::vector<std::string> keys;
     param["Observables"]["compute"].get_to(keys);
 
@@ -57,11 +50,6 @@ int main(int argc, char** argv) {
         observables;
     for (auto& key : keys)
         observables[key] = ObservableFunctor::make(key, param);
-
-    std::string path_to_ds;
-    auto write_variant = [&file, &path_to_ds](const auto& output) {
-        file.write(path_to_ds, output);
-    };
 
     // Setup I/O checkpoints
     auto save_at = param["Observables"]["save_at"].get<std::vector<double>>();
@@ -84,6 +72,24 @@ int main(int argc, char** argv) {
 
     auto tau_save = std::begin(save_at);
     bool do_IO = false;
+
+    // Output file setup
+    std::string filename;
+    param["General"]["output_file"].get_to(filename);
+    HDF5File file(filename);
+
+    // Define I/O visitor
+    std::string path_to_ds;
+    auto write_variant = [&file, &path_to_ds](const auto& output) {
+        file.write(path_to_ds, output);
+    };
+
+    // Ready to go...
+    // Dump parameters (modulo the i/o checkpoints)
+    param["Observables"]["save_at"] = "";
+    std::cout << INFOTAG("Parameter dump:") << std::endl;
+    std::cout << std::setw(4) << param << std::endl;
+    file.add_scalar_attribute("/", "parameters", param.dump());
 
     const auto start = high_resolution_clock::now();
 
