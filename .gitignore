@@ -462,6 +462,9 @@ debug/
 #HDF5 files
 *.h5
 
+#Plain text
+*.txt
+
 #vagrant VM
 install/.vagrant
 install/Vagrantfile
