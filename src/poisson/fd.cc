@@ -1,7 +1,6 @@
 #include "poisson/fd.h"
 #include "blaze_utils.h"
 #include "parameters.h"
-#include "state.h"
 
 namespace Poisson {
 FD::FD(const Parameters& p)

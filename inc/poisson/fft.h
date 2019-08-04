@@ -1,12 +1,10 @@
 #ifndef __POISSON_FFT__
 #define __POISSON_FFT__
 
-#include <complex>
-#include "blaze/math/CompressedMatrix.h"
-#include "blaze/math/DiagonalMatrix.h"
-#include "blaze/math/DynamicVector.h"
 #include "fftw3.h"
 #include "interfaces.h"
+
+#include <blaze/math/CompressedMatrix.h>
 
 // Solves Poisson Equation by taking a discrete Fourier transformation of the
 // source, transforming its coefficient and taking its inverse FT.

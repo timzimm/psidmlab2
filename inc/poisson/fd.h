@@ -1,8 +1,6 @@
 #ifndef __POISSON_FD__
 #define __POISSON_FD__
 
-#include <complex>
-#include "blaze/math/DynamicVector.h"
 #include "fftw3.h"
 #include "interfaces.h"
 

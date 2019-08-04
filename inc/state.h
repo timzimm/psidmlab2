@@ -1,10 +1,10 @@
 #ifndef __STATE__
 #define __STATE__
-#include <complex>
-#include "blaze_utils.h"
-
-// Forward Declaration
 #include "parameters_fwd.h"
+
+#include <blaze/math/DynamicMatrix.h>
+#include <blaze/math/DynamicVector.h>
+#include <complex>
 
 struct SimState {
     int n;        // time step number
@@ -24,8 +24,8 @@ struct SimState {
 void operator>>(const SimState& state, Parameters& p);
 
 inline decltype(auto) delta_from(const SimState& state) {
-    auto psi2 = real(conj(state.psis) % state.psis);
-    return psi2 * state.lambda - 1.0;
+    auto psi2 = real(conj(state.psis) % state.psis) - 1;
+    return psi2 * state.lambda;
 }
 
 #endif
