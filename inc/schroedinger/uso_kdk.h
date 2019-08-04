@@ -2,12 +2,10 @@
 #define __SCHROEDINGER_USO_KDK__
 
 #include <fftw3.h>
-#include <complex>
 #include <memory>
+
 #include "blaze/math/CompressedMatrix.h"
 #include "blaze/math/DiagonalMatrix.h"
-#include "blaze/math/DynamicMatrix.h"
-#include "blaze/math/DynamicVector.h"
 #include "cosmology.h"
 #include "interfaces.h"
 
@@ -45,6 +43,7 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
 
     // Buffer to store k representation of psi for KDK
     CCM psis_cached;
+    void step_internal(SimState& state, const double dt);
 
    public:
     USO_KDK(const Parameters& p, const SimState& state,

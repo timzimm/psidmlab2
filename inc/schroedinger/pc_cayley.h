@@ -5,10 +5,7 @@
 #include "interfaces.h"
 
 #include <blaze/math/CompressedMatrix.h>
-#include <blaze/math/DynamicMatrix.h>
-#include <blaze/math/DynamicVector.h>
 #include <blaze/math/SymmetricMatrix.h>
-#include <complex>
 #include <memory>
 
 // TODO Add integrator description

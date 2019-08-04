@@ -1,8 +1,8 @@
-#include "schroedinger/uso_dkd.h"
 #include <cassert>
+
 #include "cosmology.h"
 #include "parameters.h"
-#include "state.h"
+#include "schroedinger/uso_dkd.h"
 
 namespace Schroedinger {
 
@@ -37,19 +37,14 @@ USO_DKD::~USO_DKD() {
     fftw_destroy_plan(forwards);
     fftw_destroy_plan(backwards);
 }
-
-void USO_DKD::step(SimState& state) {
-    double dt = state.dtau;
-    double t = state.tau;
+void USO_DKD::step_internal(SimState& state, const double dt) {
+    using namespace blaze;
     CCM& psis = state.psis;
+    const double& a_t = state.a;
+    const double a_t_dt = cosmo.a_of_tau(state.tau + dt);
 
     // Drift step
-    // It is crucial to always use the most up-to date version of psi.
-    // Therefore, we cannot reuse the potential of the last step but
-    // have to recalculate it.
-    pot->solve(state);
-
-    psis = expand(exp(-0.5 * cmplx(0, 1) * cosmo.a_of_tau(t) * state.V * dt),
+    psis = expand(exp(-0.5 * cmplx(0, 1) * 0.5 * (a_t + a_t_dt) * state.V * dt),
                   state.M) %
            psis;
 
@@ -64,14 +59,33 @@ void USO_DKD::step(SimState& state) {
 
     pot->solve(state);
 
-    psis = expand(exp(-0.5 * cmplx(0, 1) * cosmo.a_of_tau(t) * state.V * dt),
+    psis = expand(exp(-0.5 * cmplx(0, 1) * 0.5 * (a_t + a_t_dt) * state.V * dt),
                   state.M) %
            psis;
 
-    // psis and V are now @ tau + dtau
-    // Update time information
+    // state is now @ tau + dt
+    pot->solve(state);
     state.tau += dt;
+    state.a = a_t_dt;
+}
+
+void USO_DKD::step(SimState& state) {
+    using namespace blaze;
+    CCM& psis = state.psis;
+    const double tau_final = state.tau + state.dtau;
+    const double a_final = cosmo.a_of_tau(tau_final);
+    const double& t = state.tau;
+
+    auto next_dt = [&]() {
+        return std::min({L * L / (2 * N * N * M_PI),
+                         M_PI / (2 * a_final * max(abs(state.V)))});
+    };
+
+    for (double dt = next_dt(); t + dt < tau_final; dt = next_dt())
+        step_internal(state, dt);
+
+    step_internal(state, tau_final - t);
+
     state.n += 1;
-    state.a = cosmo.a_of_tau(t + dt);
 }
 }  // namespace Schroedinger

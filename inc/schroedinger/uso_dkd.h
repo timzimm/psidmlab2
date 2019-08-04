@@ -2,12 +2,10 @@
 #define __SCHROEDINGER_USO_DKD__
 
 #include <fftw3.h>
-#include <complex>
 #include <memory>
+
 #include "blaze/math/CompressedMatrix.h"
 #include "blaze/math/DiagonalMatrix.h"
-#include "blaze/math/DynamicMatrix.h"
-#include "blaze/math/DynamicVector.h"
 #include "cosmology.h"
 #include "interfaces.h"
 
@@ -41,6 +39,8 @@ class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
 
     fftw_plan forwards;   // in-place forward FFT
     fftw_plan backwards;  // in-place backward FFT
+
+    void step_internal(SimState& state, const double dt);
 
    public:
     USO_DKD(const Parameters& p, const SimState& state,

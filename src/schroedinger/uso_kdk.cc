@@ -1,7 +1,6 @@
 #include "schroedinger/uso_kdk.h"
 #include "cosmology.h"
 #include "parameters.h"
-#include "state.h"
 
 #include <algorithm>
 
@@ -63,14 +62,11 @@ USO_KDK::~USO_KDK() {
     fftw_destroy_plan(backwards_op);
 }
 
-void USO_KDK::step(SimState& state) {
+void USO_KDK::step_internal(SimState& state, const double dt) {
     using namespace blaze;
-    const double dt = state.dtau;
-    const double t = state.tau;
     CCM& psis = state.psis;
-
-    const double a_tau = cosmo.a_of_tau(t);
-    const double a_tau_dtau = cosmo.a_of_tau(t + dt);
+    const double& a_t = state.a;
+    const double a_t_dt = cosmo.a_of_tau(state.tau + dt);
 
     // Set kick operator once for the entire time step
     auto kick = expand(exp(-0.5 * 0.5 * cmplx(0, 1) * k_squared * dt), state.M);
@@ -87,8 +83,7 @@ void USO_KDK::step(SimState& state) {
 
     // Set drift operator with intermediate potential
     auto drift = expand(
-        exp(-1.0 * cmplx(0, 1) * 0.5 * (a_tau + a_tau_dtau) * state.V * dt),
-        state.M);
+        exp(-1.0 * cmplx(0, 1) * 0.5 * (a_t + a_t_dt) * state.V * dt), state.M);
     psis = drift % psis;
 
     state_p = reinterpret_cast<fftw_complex*>(psis.data());
@@ -97,13 +92,34 @@ void USO_KDK::step(SimState& state) {
     // Update cached psis and normalize
     psis_cached = 1.0 / N * kick % psis;
 
+    // psis is now @ tau + dt
+    // potential is in intermediate state
+    state.tau += dt;
+    state.a = a_t_dt;
+}
+
+void USO_KDK::step(SimState& state) {
+    using namespace blaze;
+    CCM& psis = state.psis;
+    const double tau_final = state.tau + state.dtau;
+    const double a_final = cosmo.a_of_tau(tau_final);
+    const double& t = state.tau;
+
+    auto next_dt = [&]() {
+        return std::min(
+            {L * L / (N * N * M_PI), M_PI / (a_final * max(abs(state.V)))});
+    };
+
+    for (double dt = next_dt(); t + dt < tau_final; dt = next_dt())
+        step_internal(state, dt);
+
+    step_internal(state, tau_final - t);
+
+    auto state_p = reinterpret_cast<fftw_complex*>(psis.data());
     auto cache_p = reinterpret_cast<fftw_complex*>(psis_cached.data());
     fftw_execute_dft(backwards_op, cache_p, state_p);
 
-    // psis and V are now @ tau + dtau
-    state.tau += dt;
     state.n += 1;
-    state.a = a_tau_dtau;
 }
 
 }  // namespace Schroedinger
