@@ -1,7 +1,7 @@
 {
     "General":
     {
-        "output_file": "../run/sinwave_collapse/test.h5"
+        "output_file": "../run/sinwave_collapse/phasespace.h5"
     },
     "Cosmology":
     {
@@ -14,7 +14,7 @@
     "Initial Conditions":
     {
         "ic_type": 0,
-        "source_file": "../run/sinwave_collapse/delta_32768.txt",
+        "source_file": "../run/sinwave_collapse/delta_16384.txt",
         "compute_velocity": true,
         "potential_file": "",
         "ev_threshold": -1e-3,
@@ -24,15 +24,15 @@
     {
         "a_grid_N":1000000,
         "L":60,
-        "dtau":1e-3,
-        "potential": "Poisson::FFT",
-        "integrator": "Schroedinger::PCCayley",
-        "N":32768
+        "dtau":1e-4,
+        "potential": "Poisson::FD",
+        "integrator": "Schroedinger::USO_KDK",
+        "N":16384
     },
     "Observables":
     {
         "save_at": [
-            500, 400, 300, 200, 100, 50, 25, 12, 6, 3, 1, 0
+            80, 60, 36, 9,0
         ],
         "sigma_x": 0,
         "linear_convolution": false,
