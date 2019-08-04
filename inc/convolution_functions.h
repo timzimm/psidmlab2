@@ -16,8 +16,6 @@ bool is_optimal(int n, int* implemented_factors);
 
 int find_closest_factor(int n);
 
-// Based on @jeremyfix's convolution benchmark for GSL and FFTW
-//
 // This workspace is passed around to compute (FFT based) convolutions.
 // Typically, such a struct is owned by a class that wishes to perform
 // convolutions. Kernels are currently expected to be real and one-dimensional
