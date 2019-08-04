@@ -12,8 +12,8 @@
 #include <blaze/math/Submatrix.h>
 #include <fftw3.h>
 #include <algorithm>
-#include <boost/math/interpolators/barycentric_rational.hpp>
 #include <cmath>
+#include <map>
 #include <numeric>
 #include <random>
 
@@ -36,6 +36,7 @@ ICGenerator::ICGenerator(const Parameters& p)
       dx{L / N},
       M{(type == ICType::Experimental) ? p["Initial Conditions"]["M"].get<int>()
                                        : 1},
+      seed{p["Initial Conditions"]["seed"].get<int>()},
       rel_threshold{p["Initial Conditions"]["ev_threshold"].get<double>()},
       compute_velocity{p["Initial Conditions"]["compute_velocity"].get<bool>()},
       ic_file{p["Initial Conditions"]["source_file"].get<std::string>()},
@@ -61,7 +62,7 @@ ICGenerator::ICGenerator(const Parameters& p)
     }
 
     switch (type) {
-        case ICType::External:
+        case ICType::ExternalDelta... ICType::ExternalPsi:
             if (data_N != N * M) {
                 std::cout << ERRORTAG("#lines in source_file(" << data_N
                                                                << ") != N*M")
@@ -91,9 +92,14 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
     using namespace blaze;
     // delta initialization
     switch (type) {
-        case ICType::External:
+        case ICType::ExternalDelta:
             std::cout << INFOTAG("Load delta0 from file") << std::flush;
             delta_from_file(state);
+            std::cout << " ... done" << std::endl;
+            break;
+        case ICType::ExternalPsi:
+            std::cout << INFOTAG("Load Psi0 from file") << std::flush;
+            psi_from_file(state);
             std::cout << " ... done" << std::endl;
             break;
         case ICType::Powerspectrum:
@@ -108,7 +114,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
     }
 
     // Velocity Initialization - currently for pure states only
-    if (type != ICType::Experimental) {
+    if (type != ICType::Experimental && type != ICType::ExternalPsi) {
         // state.V holds delta at this point. But we will use it in an in-place
         // manner. Hence we define...
         const auto& delta = state.V;
@@ -162,6 +168,23 @@ void ICGenerator::delta_from_file(SimState& state) const {
 }
 
 // currently for pure states only (M=1)
+void ICGenerator::psi_from_file(SimState& state) const {
+    state.M = M;
+    state.psis.resize(N, M);
+    state.V.resize(N);
+    state.lambda.resize(M);
+
+    state.lambda[0] = 1.0;
+
+    blaze::DynamicVector<double> re(N);
+    blaze::DynamicVector<double> im(N);
+
+    fill_from_file(ic_file, re, im);
+    column(state.psis, 0) =
+        map(re, im, [](double r, double i) { return std::complex(r, i); });
+}
+
+// currently for pure states only (M=1)
 void ICGenerator::delta_from_power(SimState& state,
                                    const Cosmology& cosmo) const {
     using namespace blaze;
@@ -173,28 +196,48 @@ void ICGenerator::delta_from_power(SimState& state,
 
     std::vector<double> k_data(data_N);
     std::vector<double> powerspectrum(data_N);
+    std::map<double, double> discrete_P;
     fill_from_file(ic_file, k_data, powerspectrum);
-    boost::math::barycentric_rational<double> P(std::move(k_data),
-                                                std::move(powerspectrum));
+
+    std::transform(k_data.begin(), k_data.end(), powerspectrum.begin(),
+                   std::inserter(discrete_P, discrete_P.end()),
+                   std::make_pair<const double&, const double&>);
+
+    // Linear interpolant for non-uniform data. boost::barycentric_interpolation
+    // yields nonsense and B-Splines require uniform data.
+
+    auto P = [&](double k) {
+        auto k1_i = discrete_P.lower_bound(k);
+        auto k0_i = k1_i--;
+        const double k0 = k0_i->first;
+        const double P0 = k0_i->second;
+        const double k1 = k1_i->first;
+        const double P1 = k1_i->second;
+
+        return P0 + (k - k0) * (P1 - P0) / (k1 - k0);
+    };
 
     // Store fourier representation of delta in state.psis (complex vector)
     auto delta_k = subvector(column(state.psis, 0), 0, N / 2 + 1);
     auto k = subvector(state.V, 0, N / 2 + 1);
     std::iota(k.begin(), k.end(), 0);
-    k *= 2 * M_PI / L;
+
+    // physical box size in Mpc h-1
+    const double L_phys = cosmo.x_of_chi(L) / 1e6;
+    k *= 2 * M_PI / L_phys;
 
     // Independent number generators for modulus and phase.
     // Seed chosen at random.
-    auto uniform_rayleigh = std::bind(std::uniform_real_distribution<>{0, 1},
-                                      std::mt19937(std::random_device{}()));
-    auto uniform_phase = std::bind(std::uniform_real_distribution<>{0, 1},
-                                   std::mt19937(std::random_device{}()));
+    auto uniform_rayleigh =
+        std::bind(std::uniform_real_distribution<>{0, 1}, std::mt19937(seed));
+    auto uniform_phase =
+        std::bind(std::uniform_real_distribution<>{0, 1}, std::mt19937(seed));
 
     const double a_init = cosmo.a_of_tau(0);
     const double G = cosmo.Dplus(1) / cosmo.Dplus(a_init);
 
     auto sigma = [&](double k) {
-        return sqrt(k * k / (4 * M_PI * L * G * G) * P(k));
+        return sqrt(k * k / (4 * M_PI * L_phys * G * G) * P(k));
     };
 
     delta_k = map(delta_k, k, [&](std::complex<double> d, double k) {

@@ -12,7 +12,7 @@ struct SimState;
 class PotentialMethod;
 class Cosmology;
 
-enum class ICType { External, Powerspectrum, Experimental };
+enum class ICType { ExternalDelta, ExternalPsi, Powerspectrum, Experimental };
 
 class ICGenerator {
    private:
@@ -22,6 +22,7 @@ class ICGenerator {
     double L;
     double dx;
     int M;
+    int seed;
     double rel_threshold;
     bool compute_velocity;
     mutable std::ifstream ic_file;
@@ -40,6 +41,9 @@ class ICGenerator {
     // for f(x,t) = rho(x) * delta(0) (cold initial conditions)
     // rho is provided by a file. (Mixed State)
     void delta_from_evp(SimState& state) const;
+
+    // init wavefunction from file
+    void psi_from_file(SimState& state) const;
 
    public:
     ICGenerator(const Parameters& param);
