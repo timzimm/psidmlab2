@@ -44,9 +44,6 @@ void FFT::solve(blaze::DynamicVector<double, blaze::columnVector>& V,
 
     fftw_execute_dft_r2c(forwards, source_p, fft_p);
 
-    // Check if the DC constrained is satisfied
-    assert(std::abs(fft[0]) < epsilon);
-
     // Compute fourier coefficients of the potential
     fft = inv_k_sq * fft;
 
