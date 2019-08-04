@@ -1,10 +1,9 @@
 #ifndef __INTERFACES__
 #define __INTERFACES__
 #include <boost/variant.hpp>
-#include <complex>
-#include "blaze/math/DynamicMatrix.h"
-#include "blaze/math/DynamicVector.h"
+
 #include "factory.h"
+#include "state.h"
 
 // This header defines all interfaces of
 //
@@ -43,7 +42,8 @@ class ObservableFunctor : public Factory<ObservableFunctor, const Parameters&> {
         const blaze::DynamicMatrix<double>&,
         const blaze::DynamicMatrix<double, blaze::columnMajor>&,
         const blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>&,
-        const blaze::DynamicVector<double>&>;
+        const blaze::DynamicVector<double>&,
+        const blaze::DynamicVector<double, blaze::columnVector>&>;
 
     virtual ReturnType compute(const SimState& state) = 0;
     virtual ~ObservableFunctor() = default;

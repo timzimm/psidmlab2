@@ -1,6 +1,8 @@
 #ifndef __FACTORY__
 #define __FACTORY__
 
+#include "logging.h"
+
 #include <boost/core/typeinfo.hpp>
 #include <exception>
 #include <iostream>
@@ -9,7 +11,6 @@
 #include <typeinfo>
 #include <unordered_map>
 #include <utility>
-#include "logging.h"
 
 // CRTP. Inject Base class dependent Factory interface into Base class (i.e. the
 // ABC) by inheriting via
