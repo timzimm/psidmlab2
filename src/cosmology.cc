@@ -1,13 +1,26 @@
 #include "cosmology.h"
-#include <boost/math/tools/roots.hpp>
-#include <iostream>
-#include <tuple>
 #include "logging.h"
 #include "parameters.h"
+
+#include <boost/math/tools/roots.hpp>
+#include <boost/units/cmath.hpp>
+#include <boost/units/systems/si/codata/electron_constants.hpp>
+#include <boost/units/systems/si/codata/universal_constants.hpp>
+#include <boost/units/systems/si/io.hpp>
+#include <boost/units/systems/si/prefixes.hpp>
+#include <iostream>
+#include <tuple>
+
+using namespace boost::units;
+using namespace boost::units::si;
+using namespace boost::units::si::constants::codata;
+BOOST_UNITS_STATIC_CONSTANT(parsec, astronomical::parsec_base_unit::unit_type);
 
 Cosmology::Cosmology(const Parameters& p)
     : model{static_cast<CosmoModel>(p["Cosmology"]["model"].get<int>())},
       omega_m0{p["Cosmology"]["omega_m0"].get<double>()},
+      hubble{p["Cosmology"]["h"].get<double>()},
+      mu{p["Cosmology"]["mu"].get<double>()},
       a_start{a_of_z(p["Cosmology"]["z_start"].get<double>())},
       a_end{a_start},
       delta_a{0},
@@ -110,3 +123,47 @@ double Cosmology::a_of_tau(double tau) const {
 }
 
 bool Cosmology::operator==(const CosmoModel& m) const { return model == m; }
+
+double Cosmology::chi_of_x(
+    const quantity<astronomical::parsec_base_unit::unit_type> x) const {
+    using phasevolume = derived_dimension<length_base_dimension, 2,
+                                          time_base_dimension, -1>::type;
+
+    const quantity<energy> eV = e_over_m_e * m_e * volt;
+    const quantity<unit<phasevolume, si::system>> mu_si =
+        mu * hbar / (1e-22 * eV) * pow<2>(c);
+    const auto H0 = static_cast<quantity<frequency>>(hubble * kilo * meter /
+                                                     (second * mega * parsec));
+
+    return 1.0 / root<2>(mu_si) * root<4>(1.5 * pow<2>(H0) * omega_m0) *
+           static_cast<quantity<length>>(x);
+}
+
+double Cosmology::x_of_chi(double chi) const {
+    using phasevolume = derived_dimension<length_base_dimension, 2,
+                                          time_base_dimension, -1>::type;
+
+    const quantity<energy> eV = e_over_m_e * m_e * volt;
+    const quantity<unit<phasevolume, si::system>> mu_si =
+        mu * hbar / (1e-22 * eV) * pow<2>(c);
+    const auto H0 = static_cast<quantity<frequency>>(hubble * kilo * meter /
+                                                     (second * mega * parsec));
+
+    return (root<2>(mu_si) / root<4>(1.5 * pow<2>(H0) * omega_m0) * chi) /
+           static_cast<quantity<length>>(1.0 * parsec);
+}
+
+Parameters& operator<<(Parameters& p, const Cosmology& cosmo) {
+    const bool convert = p["General"]["physical_units"].get<bool>();
+    if (convert) {
+        const auto L = p["Simulation"]["L"].get<double>() * parsec;
+        const auto sigma_x = p["Observables"]["sigma_x"].get<double>() * parsec;
+
+        p["Simulation"]["L_phys"] = L.value();
+        p["Observables"]["sigma_phys"] = sigma_x.value();
+
+        p["Simulation"]["L"] = cosmo.chi_of_x(L);
+        p["Observables"]["sigma_x"] = cosmo.chi_of_x(sigma_x);
+    }
+    return p;
+}

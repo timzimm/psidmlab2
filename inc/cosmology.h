@@ -1,5 +1,6 @@
 #ifndef __COSMOLOGY__
 #define __COSMOLOGY__
+#include <boost/units/base_units/astronomical/parsec.hpp>
 #include <unordered_map>
 #include <vector>
 
@@ -15,6 +16,8 @@ class Cosmology {
    private:
     CosmoModel model;
     double omega_m0;
+    double hubble;
+    double mu;
     double a_start;
     double a_end;
     double delta_a;
@@ -42,9 +45,15 @@ class Cosmology {
     // EqualityComparable to the models defined above
     bool operator==(const CosmoModel& model) const;
 
-    // Conversion functions from scalefactor to redshift and vice versa
+    // Conversion functions
+    double chi_of_x(const boost::units::quantity<
+                    boost::units::astronomical::parsec_base_unit::unit_type>
+                        x) const;
+    double x_of_chi(double chi) const;
+
     static double z_of_a(const double a) { return 1.0 / a - 1; };
     static double a_of_z(const double z) { return 1.0 / (z + 1); };
 };
+Parameters& operator<<(Parameters& p, const Cosmology& cosmo);
 
 #endif
