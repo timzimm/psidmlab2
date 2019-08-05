@@ -11,6 +11,7 @@ find_package(FFTW3 CONFIG REQUIRED)
 find_package(blaze CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(CBLAS)
+find_package(OpenMP)
 
 add_executable(psidm 
     src/main.cc 
@@ -54,7 +55,7 @@ if(CBLAS_FOUND)
     file(GLOB HEADERNAME RELATIVE "${CBLAS_INCLUDE_DIRS}"
         ${CBLAS_INCLUDE_DIRS}/*cblas.h)
 
-    message(STATUS "CBLAS header found: ${HEADERNAME})
+    message(STATUS "CBLAS header found: ${HEADERNAME}")
 endif()
 
 target_compile_definitions(psidm
@@ -94,6 +95,7 @@ target_include_directories(psidm
 target_link_libraries(psidm 
     PRIVATE ${BLAS_LIBRARIES}
             blaze::blaze
+            $<$<BOOL:OpenMP_CXX_FOUND>:OpenMP::OpenMP_CXX>
             FFTW3::fftw3
             hdf5::hdf5-static 
             hdf5::hdf5_hl-static
