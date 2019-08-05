@@ -54,7 +54,7 @@ if(CBLAS_FOUND)
     file(GLOB HEADERNAME RELATIVE "${CBLAS_INCLUDE_DIRS}"
         ${CBLAS_INCLUDE_DIRS}/*cblas.h)
 
-    message(STATUS ${HEADERNAME})
+    message(STATUS "CBLAS header found: ${HEADERNAME})
 endif()
 
 target_compile_definitions(psidm
