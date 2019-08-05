@@ -78,8 +78,8 @@ differently when it comes to installation. This will change in the future when
 ### Development
 We provide a bootstrap script that works together with [vcpkg](https://github.com/microsoft/vcpkg)
 to install all third party dependencies. vcpkg works on Linux, macOS and
-Windows. Note that you still need to provide a C++17 compiler. Moreover, make
-sure to install [Intel MKL](https://software.intel.com/en-us/mkl) before your
+Windows. Note that you still need to provide a C++17 compiler and cmake. Moreover, make
+sure to install [Intel MKL](https://software.intel.com/en-us/mkl) before you
 procede with the steps below.
 
 That said, start by installing vcpkg:
