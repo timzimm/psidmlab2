@@ -97,7 +97,7 @@ To get psiDMLab, clone this repo and run the bootstrap script:
 ~$ git clone git@gitlab.com:ttz/psidm2.git
 ~$ cd psidm2/install
 ~/psidm2/install$ source /opt/intel/mkl/bin/mklvars.sh intel64
-~/psidm2/install$ cd ./bootstrap.sh
+~/psidm2/install$ ./bootstrap.sh
 # Coffee break!
 ```
 
