@@ -71,7 +71,7 @@ target_compile_options(psidm
     PRIVATE $<$<CONFIG:Release>:
             -g
             -fno-omit-frame-pointer
-            -Ofast
+            -ffast-math
             -march=native>
     PRIVATE $<$<CONFIG:Debug>:
             -fno-omit-frame-pointer
