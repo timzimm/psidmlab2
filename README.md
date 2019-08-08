@@ -55,32 +55,25 @@ resemble closely what we expect in the classical case.
 Currently psiDMLab depends on:
 * **[BLAZE (HEAD)](https://bitbucket.org/blaze-lib/blaze/src/master/)**: 
     A (smart) expression template based, high performance linear algebra library written in C++14. 
-* **[Boost 1.70](http://www.boost.org)**: For root finding, boost::variant etc.
+* **[Boost 1.65](http://www.boost.org)**: For root finding, boost::variant etc.
 * **[FFTW 3.3.8](http://www.fftw.org)**: For, well, DFTs.
-* **[nlohmann's json parser](https://github.com/nlohmann/json)**: 
+* **[nlohmann's json library](https://github.com/nlohmann/json)**: 
     For simulation parameter management.
 * **[HDF5 1.10.5](https://www.hdfgroup.org/solutions/hdf5/)**: 
     A high-performance data management and storage suite for I/O
 * **[Intel MKL](https://software.intel.com/en-us/mkl)**: 
     For BLAS and LAPACK(E).
 * **C++17 compiler**: like **[clang++](https://llvm.org),
-    [ic++](https://software.intel.com/en-us/c-compilers),
     [g++](https://gcc.gnu.org)**
 * **cmake 3.14**: build file generator
 
 ## How to Install
-Installing all of the above manually is a mess. You don't want this. Trust me.
-The most common case is that you develop locally, but run large scale
-simulations on a cluster. Currently both "modes of operation" are dealt
-differently when it comes to installation. This will change in the future when
-[singularity](https://www.sylabs.io/singularity/) for macOS is less buggy.
+### macOS
 
-### Development
-We provide a bootstrap script that works together with [vcpkg](https://github.com/microsoft/vcpkg)
-to install all third party dependencies. vcpkg works on Linux, macOS and
-Windows. Note that you still need to provide a C++17 compiler and cmake. Moreover, make
-sure to install [Intel MKL](https://software.intel.com/en-us/mkl) before you
-procede with the steps below.
+Apple's Clang compiler works out of the box with psiDMLab. You only have to
+install cmake as well as Intel MKL or any other BLAS/LAPACKE library. For the
+remaining dependencies we use [vcpkg](https://github.com/microsoft/vcpkg).
+vcpkg works on Linux, macOS and Windows. 
 
 That said, start by installing vcpkg:
 ```bash
@@ -100,8 +93,7 @@ To get psiDMLab, clone this repo and run the bootstrap script:
 ~/psidm2/install$ ./bootstrap.sh
 # Coffee break!
 ```
-
-That's it. You can now generate the makefile with cmake by executing
+You can now generate the makefile with cmake by executing
 ```bash
 ~/psidm2$ mkdir build
 ~/psidm2$ cmake -DCMAKE_TOOLCHAIN_FILE=~/vcpkg/scripts/buildsystems/vcpkg.cmake \
@@ -109,7 +101,26 @@ That's it. You can now generate the makefile with cmake by executing
 ~/psidm2$ cd build
 ~/psidm2/build$ make
 ```
-
+### Linux
+Theoretically, the procedure above works for Linux as well. However, we also
+provide a Singularity recipe file to build a container that holds all requried
+dependencies including clang 8.0.0 and gcc 9.1.0. If you choose to use the
+containerized version, install [singularity](https://sylabs.io/docs) first. After that:
+```bash
+~$ git clone git@gitlab.com:ttz/psidm2.git
+~$ cd psidm2/install
+~/psidm2/install$ sudo singularity build psidmlab psiDMLab.def
+```
+This creates a SIF-container in the install directory. Next, spawn a shell
+inside the container to configure and compile psiDMLab as follows:
+```bash
+~/psidm2/install$ singularity shell psidmlab
+~/psidm2/install$ mkdir ../build; cd ..
+~/psidm2$ cmake -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake \
+                -DCMAKE_BUILD_TYPE=Release .. -B build
+~/psidm2$ cd build
+~/psidm2/build$ make
+```
 ### Cluster
 TODO
 
