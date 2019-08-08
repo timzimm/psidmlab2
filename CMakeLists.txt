@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 project(psiDM2 VERSION 0.1
     DESCRIPTION "DM simulation with QM techniques"
     LANGUAGES C CXX)
@@ -29,7 +29,6 @@ add_executable(psidm
     src/schroedinger/pc_cayley.cc
 )
 
-# We use if constexpr
 target_compile_features(psidm PRIVATE cxx_std_17)
 
 # don't use -isystem, just -I
@@ -87,13 +86,13 @@ target_link_options(psidm
 
 target_include_directories(psidm 
     PUBLIC  inc
-            ${Boost_INCLUDE_DIRS} 
             $<$<CONFIG:Release>:
             ${CBLAS_INCLUDE_DIRS}>
 )
 
 target_link_libraries(psidm 
     PRIVATE ${BLAS_LIBRARIES}
+            Boost::boost
             blaze::blaze
             $<$<BOOL:OpenMP_CXX_FOUND>:OpenMP::OpenMP_CXX>
             FFTW3::fftw3
