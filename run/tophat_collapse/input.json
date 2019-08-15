@@ -17,7 +17,7 @@
         "ic_type":0,
         "potential_file":"",
         "seed":42,
-        "source_file":"../run/tophat_collapse/delta_16384.txt"
+        "source_file":"../run/tophat_collapse/delta_10kpc.txt"
     },
     "Observables":{
         "compute":[
@@ -3037,6 +3037,7 @@
         "a_grid_N":1000000,
         "dtau":0.0001,
         "integrator":"Schroedinger::USO_KDK",
-        "potential":"Poisson::FFT"
+        "potential":"Poisson::FFT",
+        "adaptive": false
     }
 }

@@ -24,26 +24,31 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     using CCV = blaze::DynamicVector<cmplx>;
     // Real column vector
     using RCV = blaze::DynamicVector<double>;
+
     // Complex dense matrix in column-major order
     using CCM = blaze::DynamicMatrix<cmplx, blaze::columnMajor>;
+    // Complex dense matrix in column-major order
+    using CRM = blaze::DynamicMatrix<cmplx>;
     // Complex sparse diagonal matrix in row-major order
     using CDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<cmplx>>;
 
-    // Data members
     const Cosmology& cosmo;                // Cosmological model for a(t)
     std::unique_ptr<PotentialMethod> pot;  // potential method
     int N;                                 // No. of spatial points
     double L;                              // size of domain
     RCV k_squared;
+    CCV kick_vector;
+    CCM psis_cached;  // Buffer to store k representation
+    double dt_last;
+    bool adaptive_dt;
 
     fftw_plan forwards;      // in-place forward FFT
     fftw_plan backwards;     // in-place backward FFT
     fftw_plan forwards_op;   // out-place forward FFT
     fftw_plan backwards_op;  // out-place backward FFT
 
-    // Buffer to store k representation of psi for KDK
-    CCM psis_cached;
     void step_internal(SimState& state, const double dt);
+    double next_dt(const SimState& state) const;
 
    public:
     USO_KDK(const Parameters& p, const SimState& state,

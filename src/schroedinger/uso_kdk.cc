@@ -4,6 +4,9 @@
 
 #include <algorithm>
 
+using namespace blaze;
+using namespace std::complex_literals;
+
 namespace Schroedinger {
 
 USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
@@ -14,11 +17,14 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
       N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
       k_squared(N),
-      forwards(nullptr),
-      backwards(nullptr),
-      forwards_op(nullptr),
-      backwards_op(nullptr),
-      psis_cached(N, state.M) {
+      kick_vector(N),
+      psis_cached(N, state.M),
+      dt_last{0},
+      adaptive_dt{p["Simulation"]["adaptive"].get<bool>()},
+      forwards{nullptr},
+      backwards{nullptr},
+      forwards_op{nullptr},
+      backwards_op{nullptr} {
     // FFTW reorders frequencies. The upper half starts at the most negative
     // frequency and increases for increasing index.
     std::iota(k_squared.begin(), k_squared.end(), -N / 2);
@@ -63,16 +69,18 @@ USO_KDK::~USO_KDK() {
 }
 
 void USO_KDK::step_internal(SimState& state, const double dt) {
-    using namespace blaze;
     CCM& psis = state.psis;
     const double& a_t = state.a;
     const double a_t_dt = cosmo.a_of_tau(state.tau + dt);
 
     // Set kick operator once for the entire time step
-    auto kick = expand(exp(-0.5 * 0.5 * cmplx(0, 1) * k_squared * dt), state.M);
+    if (dt - dt_last != 0) {
+        kick_vector = exp(-0.5 * 0.5i * k_squared * dt);
+    }
 
     // We can spare the initial FFT if we use the cached and normalized
     // psi_in_k representation of the last step
+    auto kick = expand(kick_vector, state.M);
     psis = kick % psis_cached;
 
     auto state_p = reinterpret_cast<fftw_complex*>(psis.data());
@@ -82,8 +90,8 @@ void USO_KDK::step_internal(SimState& state, const double dt) {
     pot->solve(state);
 
     // Set drift operator with intermediate potential
-    auto drift = expand(
-        exp(-1.0 * cmplx(0, 1) * 0.5 * (a_t + a_t_dt) * state.V * dt), state.M);
+    auto drift =
+        expand(exp(-1.0 * 0.5i * (a_t + a_t_dt) * state.V * dt), state.M);
     psis = drift % psis;
 
     state_p = reinterpret_cast<fftw_complex*>(psis.data());
@@ -96,21 +104,21 @@ void USO_KDK::step_internal(SimState& state, const double dt) {
     // potential is in intermediate state
     state.tau += dt;
     state.a = a_t_dt;
+    dt_last = dt;
+}
+
+double USO_KDK::next_dt(const SimState& state) const {
+    return adaptive_dt ? std::min({L * L / (N * N * M_PI),
+                                   M_PI / (state.a * max(abs(state.V)))})
+                       : state.dtau;
 }
 
 void USO_KDK::step(SimState& state) {
-    using namespace blaze;
     CCM& psis = state.psis;
     const double tau_final = state.tau + state.dtau;
-    const double a_final = cosmo.a_of_tau(tau_final);
     const double& t = state.tau;
 
-    auto next_dt = [&]() {
-        return std::min(
-            {L * L / (N * N * M_PI), M_PI / (a_final * max(abs(state.V)))});
-    };
-
-    for (double dt = next_dt(); t + dt < tau_final; dt = next_dt())
+    for (double dt = next_dt(state); t + dt < tau_final; dt = next_dt(state))
         step_internal(state, dt);
 
     step_internal(state, tau_final - t);
