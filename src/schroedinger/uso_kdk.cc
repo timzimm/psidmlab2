@@ -17,9 +17,9 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
       N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
       k_squared(N),
-      kick_vector(N),
+      kick(N, state.M),
       psis_cached(N, state.M),
-      dt_last{0},
+      dt_last{-1},
       adaptive_dt{p["Simulation"]["adaptive"].get<bool>()},
       forwards{nullptr},
       backwards{nullptr},
@@ -75,12 +75,11 @@ void USO_KDK::step_internal(SimState& state, const double dt) {
 
     // Set kick operator once for the entire time step
     if (dt - dt_last != 0) {
-        kick_vector = exp(-0.5 * 0.5i * k_squared * dt);
+        kick = expand(exp(-0.5 * 0.5i * k_squared * dt), state.M);
     }
 
     // We can spare the initial FFT if we use the cached and normalized
     // psi_in_k representation of the last step
-    auto kick = expand(kick_vector, state.M);
     psis = kick % psis_cached;
 
     auto state_p = reinterpret_cast<fftw_complex*>(psis.data());

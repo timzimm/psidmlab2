@@ -37,7 +37,7 @@ class USO_KDK : public SchroedingerMethod::Registrar<USO_KDK> {
     int N;                                 // No. of spatial points
     double L;                              // size of domain
     RCV k_squared;
-    CCV kick_vector;
+    CRM kick;
     CCM psis_cached;  // Buffer to store k representation
     double dt_last;
     bool adaptive_dt;
