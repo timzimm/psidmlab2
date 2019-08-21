@@ -27,8 +27,9 @@ add_executable(psidm
     src/schroedinger/uso_kdk.cc
     src/schroedinger/uso_dkd.cc
     src/schroedinger/pc_cayley.cc
+    src/schroedinger/splitting.cc
+    src/schroedinger/kinetic.cc
 )
-    # src/schroedinger/splitting.cc
 
 target_compile_features(psidm PRIVATE cxx_std_17)
 
