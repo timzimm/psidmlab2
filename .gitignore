@@ -465,6 +465,9 @@ debug/
 #Plain text
 *.txt
 
+# Build meta data for vim
+compile_commands.json
+
 #vagrant VM
 install/.vagrant
 install/Vagrantfile
