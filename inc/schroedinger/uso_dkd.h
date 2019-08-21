@@ -16,37 +16,25 @@
 namespace Schroedinger {
 
 class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
-    // Abbreviations
-    using cmplx = std::complex<double>;
-
-    // Complex row vector
-    using CRV = blaze::DynamicVector<cmplx, blaze::rowVector>;
-    // Complex column vector
-    using CCV = blaze::DynamicVector<cmplx>;
     // Real column vector
-    using RCV = blaze::DynamicVector<double>;
+    using RCV = blaze::DynamicVector<double, blaze::columnVector>;
     // Complex dense matrix in column-major order
-    using CCM = blaze::DynamicMatrix<cmplx, blaze::columnMajor>;
-    // Complex sparse diagonal matrix in row-major order
-    using CDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<cmplx>>;
+    using CCM = blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>;
 
     // Data members
     const Cosmology& cosmo;                // Cosmological model for a(t)
     std::unique_ptr<PotentialMethod> pot;  // Potential method
-    int N;                                 // No. of spatial grid points
-    double L;                              // Domain size
+    const int N;                           // No. of spatial grid points
+    const double L;                        // Domain size
+    double dt_last;
     RCV k_squared;
-
-    fftw_plan forwards;   // in-place forward FFT
-    fftw_plan backwards;  // in-place backward FFT
-
-    void step_internal(SimState& state, const double dt);
+    CCM kick;
 
    public:
     USO_DKD(const Parameters& p, const SimState& state,
             const Cosmology& cosmo_);
-    ~USO_DKD();
-    void step(SimState& state) override;
+    void step(SimState& state, const double dt);
+    double next_dt(const SimState& state) const;
 };
 }  // namespace Schroedinger
 #endif

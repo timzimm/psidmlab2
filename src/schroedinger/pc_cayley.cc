@@ -1,9 +1,11 @@
 #include "schroedinger/pc_cayley.h"
 #include "blaze_utils.h"
 #include "parameters.h"
-#include "state.h"
 
 namespace Schroedinger {
+
+using namespace blaze;
+using namespace std::complex_literals;
 
 PCCayley::PCCayley(const Parameters& p, const SimState& state,
                    const Cosmology& cosmo_)
@@ -11,6 +13,7 @@ PCCayley::PCCayley(const Parameters& p, const SimState& state,
       N{p["Simulation"]["N"].get<size_t>()},
       M{p["Initial Conditions"]["M"].get<size_t>()},
       dx{p["Simulation"]["L"].get<double>() / N},
+      dt{p["Simulation"]["dtau"].get<double>()},
       potential{PotentialMethod::make(
           p["Simulation"]["potential"].get<std::string>(), p)},
       K(N, N),
@@ -41,15 +44,13 @@ PCCayley::PCCayley(const Parameters& p, const SimState& state,
     K = declsym(-1.0 / (2 * dx * dx) * dx2_coeff);
 }
 
-void PCCayley::step(SimState& state) {
-    using namespace blaze;
-
+void PCCayley::step(SimState& state, const double dt) {
     const std::complex<double> I{0, 1.0};
-    const double dt = state.dtau;
     const double t = state.tau;
     const double a = state.a;
     const double a_da = cosmo.a_of_tau(t + dt);
 
+    state.transform(SimState::Representation::Position);
     // Save the input state for the corrector step - no copy
     swap(psi_old, state.psis);
     swap(V_old, state.V);
@@ -57,11 +58,11 @@ void PCCayley::step(SimState& state) {
     const auto a_V = a * expand(V_old, M);
 
     // PREDICTOR STEP
-    state.psis = psi_old - I * 0.5 * dt * (K * psi_old + a_V % psi_old);
+    state.psis = psi_old - 0.5i * dt * (K * psi_old + a_V % psi_old);
 
     // Left hand side matrix M+
-    dl = du = -1.0 * I / (4 * dx * dx) * dt;
-    d = -2.0 * dl + I * 0.5 * dt * a * V_old + 1.0;
+    dl = du = -1.0i / (4 * dx * dx) * dt;
+    d = -2.0 * dl + 0.5i * dt * a * V_old + 1.0;
 
     // Solve cyclic tridiagonal matrix equation
     gctrf(dl, d, du, du2, ipiv);
@@ -71,22 +72,24 @@ void PCCayley::step(SimState& state) {
     potential->solve(state);
     auto V_corr = 0.5 * (a_V + a_da * expand(state.V, M));
 
-    state.psis = psi_old - I * 0.5 * dt * (K * psi_old + V_corr % psi_old);
+    state.psis = psi_old - 0.5i * dt * (K * psi_old + V_corr % psi_old);
 
     // Left hand side matrix M+
     // LU decomposition works in place. Thus, everything has to be
     // reinitialized.
-    dl = du = -1.0 * I / (4 * dx * dx) * dt;
-    d = -2.0 * dl + I * 0.5 * dt * 0.5 * (a * V_old + a_da * state.V) + 1.0,
+    dl = du = -1.0i / (4 * dx * dx) * dt;
+    d = -2.0 * dl + 0.5i * dt * 0.5 * (a * V_old + a_da * state.V) + 1.0,
 
     gctrf(dl, d, du, du2, ipiv);
     gctrs(dl, d, du, du2, ipiv, state.psis);
 
     // At last we calculate the potential again such that state is @ t + dt
     potential->solve(state);
-    state.tau = t + dt;
-    state.n += 1;
+    state.tau += dt;
     state.a = a_da;
+    state.n += 1;
 }
 
+// TODO Stability Analysis
+double PCCayley::next_dt(const SimState& state) const { return dt; }
 }  // namespace Schroedinger

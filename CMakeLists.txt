@@ -18,16 +18,17 @@ add_executable(psidm
     src/state.cc 
     src/cosmology.cc
     src/ic.cc
+    src/driver.cc
     src/observables.cc
     src/convolution_functions.cc
     src/poisson/fft.cc
     src/poisson/fd.cc
     src/poisson/identity.cc
-    src/schroedinger/uso_dkd.cc
     src/schroedinger/uso_kdk.cc
-    src/schroedinger/pccn.cc
+    src/schroedinger/uso_dkd.cc
     src/schroedinger/pc_cayley.cc
 )
+    # src/schroedinger/splitting.cc
 
 target_compile_features(psidm PRIVATE cxx_std_17)
 

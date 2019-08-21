@@ -28,6 +28,7 @@ class PCCayley : public SchroedingerMethod::Registrar<PCCayley> {
     size_t N;
     size_t M;
     double dx;
+    double dt;
     std::unique_ptr<PotentialMethod> potential;
     RSM K;  // Cyclic Kinetic matrix (i.e. the - 0.5*second derivative)
     CCM psi_old;
@@ -39,7 +40,8 @@ class PCCayley : public SchroedingerMethod::Registrar<PCCayley> {
    public:
     PCCayley(const Parameters& p, const SimState& state,
              const Cosmology& cosmo_);
-    void step(SimState& state) override;
+    void step(SimState& state, const double dt);
+    double next_dt(const SimState& state) const;
 };
 
 }  // namespace Schroedinger

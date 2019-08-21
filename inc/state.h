@@ -4,13 +4,16 @@
 
 #include <blaze/math/DynamicMatrix.h>
 #include <blaze/math/DynamicVector.h>
+#include <fftw3.h>
 #include <complex>
 
 struct SimState {
-    int n;        // time step number
-    double tau;   // current time
-    double dtau;  // current time increment
-    double a;     // current scale factor
+    // Representation tags for the stored wavefunction
+    enum class Representation { Position, Momentum };
+
+    int n;       // time step number
+    double tau;  // current time
+    double a;    // current scale factor
     blaze::DynamicVector<double> V;
 
     // state = sum_i lambda_i * |psi_i><psi_i|
@@ -19,6 +22,14 @@ struct SimState {
     blaze::DynamicVector<double> lambda;
 
     SimState(const Parameters& p);
+    void transform(const Representation target);
+    ~SimState();
+
+   private:
+    Representation representation;
+    fftw_plan position_to_momentum;
+    fftw_plan momentum_to_position;
+    int N_plan, M_plan;
 };
 
 void operator>>(const SimState& state, Parameters& p);

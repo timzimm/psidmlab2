@@ -5,7 +5,6 @@
 
 #include <boost/core/typeinfo.hpp>
 #include <exception>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <typeinfo>
