@@ -1,6 +1,6 @@
-#include "schroedinger/splitting.h"
-
-namespace Schroedinger {
+#include "splitting.h"
+#include "schroedinger/kinetic.h"
+#include "schroedinger/poisson_potential.h"
 
 template <typename FlowMapA, typename FlowMapB>
 StrangSplitting<FlowMapA, FlowMapB>::StrangSplitting(const Parameters& p,
@@ -11,7 +11,7 @@ StrangSplitting<FlowMapA, FlowMapB>::StrangSplitting(const Parameters& p,
 template <typename FlowMapA, typename FlowMapB>
 double StrangSplitting<FlowMapA, FlowMapB>::next_dt(
     const SimState& state) const {
-    return std::min({phiA.next_dt(), phiB.next_dt()});
+    return std::min({phiA.next_dt(state), phiB.next_dt(state)});
 }
 
 template <typename FlowMapA, typename FlowMapB>
@@ -34,8 +34,7 @@ void StrangSplitting<FlowMapA, FlowMapB>::step(SimState& state,
     state.n += 1;
 }
 
-/* template class StrangSplitting<Kinetic, PoissonPotential>; */
+template class StrangSplitting<Schroedinger::Kinetic,
+                               Schroedinger::PoissonPotential>;
 /* template class StrangSplitting<PMLKinetic, PoissonPotential>; */
-
-}  // namespace Schroedinger
 

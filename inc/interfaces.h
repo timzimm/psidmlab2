@@ -7,7 +7,8 @@
 
 // This header defines all interfaces of
 //
-// SchroedingerMethod (like Schroedinger::USO_DKD, Schroedinger::PCCaley, ...)
+// Stepper (like Schroedinger::USO_DKD, Schroedinger::PCCaley, ...)
+// Driver (like SimpleDriver, StableDriver, ...)
 // PotentialMethod (like Poisson::FFT, Poisson::FD, ...)
 // ObservableFunctor (like Observable::DensityConstrast, Observable::Potential)
 
@@ -29,26 +30,26 @@ class PotentialMethod : public Factory<PotentialMethod, const Parameters&> {
 
 // Class representing a PDE stepper for Schroedingers equation (e.g. linear,
 // general non-linear ...)
-class SchroedingerMethod : public Factory<SchroedingerMethod, const Parameters&,
-                                          const SimState&, const Cosmology&> {
+class Stepper : public Factory<Stepper, const Parameters&, const SimState&,
+                               const Cosmology&> {
    public:
     // Step to t + dt without considering any stability criterion. It is the
-    // responsibility of the derived SchroedingerMethod to change the
+    // responsibility of the derived Stepper to change the
     // representation of state.psis as required, that is no guarantees are made
     // whether the passed in state is in momentum, position or any other
     // representation.
     virtual void step(SimState& state, const double dt) = 0;
     // Returns next stable dt based on current state
     virtual double next_dt(const SimState& state) const = 0;
-    virtual ~SchroedingerMethod() = default;
+    virtual ~Stepper() = default;
 };
 
 class Driver : public Factory<Driver, const Parameters&> {
    public:
     // Integrates the numerical solution over the finite, macroscopic time
     // interval [state.tau, state.tau + t_final]
-    virtual void integrate(std::unique_ptr<SchroedingerMethod>& stepper,
-                           SimState& state, const double t_final) = 0;
+    virtual void integrate(std::unique_ptr<Stepper>& stepper, SimState& state,
+                           const double t_final) = 0;
     virtual ~Driver() = default;
 };
 

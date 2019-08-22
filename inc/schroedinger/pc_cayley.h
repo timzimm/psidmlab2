@@ -12,7 +12,7 @@
 
 namespace Schroedinger {
 
-class PCCayley : public SchroedingerMethod::Registrar<PCCayley> {
+class PCCayley : public Stepper::Registrar<PCCayley> {
     // integer row vector
     using IRV = blaze::DynamicVector<int>;
     // complex row vector

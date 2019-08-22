@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
 
     // This defines the PDE to integrate as well as its discretization
     const auto stepper_name = param["Simulation"]["stepper"].get<std::string>();
-    auto stepper = SchroedingerMethod::make(stepper_name, param, state, cosmo);
+    auto stepper = Stepper::make(stepper_name, param, state, cosmo);
 
     // This sets the propagation method, e.g. naive stepping. stability driven,
     // controlled by truncation error etc.
@@ -95,10 +95,11 @@ int main(int argc, char** argv) {
         // Depending on the stepper a retransformation to real space might be
         // necessary. If not, transform acts as identity.
         state.transform(SimState::Representation::Position);
-        std::cout << INFOTAG("Save state @ tau/z=")
-                  << ((cosmo == CosmoModel::Static)
-                          ? checkpoint
-                          : Cosmology::z_of_a(cosmo.a_of_tau(checkpoint)))
+
+        const double a = cosmo.a_of_tau(checkpoint);
+        const double z = Cosmology::z_of_a(a);
+        std::cout << INFOTAG("Save state @ tau/z = ")
+                  << ((cosmo == CosmoModel::Static) ? checkpoint : z)
                   << std::flush;
         for (const auto& pair : observables) {
             // Construct path to dataset
@@ -113,10 +114,9 @@ int main(int argc, char** argv) {
             boost::apply_visitor(write_variant, res);
 
             // Supplement informations to the observable
-            const double a = cosmo.a_of_tau(state.tau);
             file.add_scalar_attribute(path_to_ds, "tau", state.tau);
             file.add_scalar_attribute(path_to_ds, "a", a);
-            file.add_scalar_attribute(path_to_ds, "z", Cosmology::z_of_a(a));
+            file.add_scalar_attribute(path_to_ds, "z", z);
             file.add_scalar_attribute(path_to_ds, "n", state.n);
         }
         std::cout << " ... done" << std::endl;

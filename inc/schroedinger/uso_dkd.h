@@ -15,7 +15,7 @@
 
 namespace Schroedinger {
 
-class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
+class USO_DKD : public Stepper::Registrar<USO_DKD> {
     // Real column vector
     using RCV = blaze::DynamicVector<double, blaze::columnVector>;
     // Complex dense matrix in column-major order

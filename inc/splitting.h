@@ -3,11 +3,9 @@
 
 #include "interfaces.h"
 
-namespace Schroedinger {
-
 template <typename FlowMapA, typename FlowMapB>
-class StrangSplitting : public SchroedingerMethod::Registrar<
-                            StrangSplitting<FlowMapA, FlowMapB>> {
+class StrangSplitting
+    : public Stepper::Registrar<StrangSplitting<FlowMapA, FlowMapB>> {
     // Subproblem Integrators (A, B possible nonlinear)
     FlowMapA phiA;  // integrator for i del_t psi = A psi
     FlowMapB phiB;  // integrator for i del_t psi = B psi
@@ -24,5 +22,4 @@ class StrangSplitting : public SchroedingerMethod::Registrar<
     void step(SimState& state, const double dt);
 };
 
-}  // namespace Schroedinger
 #endif
