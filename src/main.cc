@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
     std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>
         observables;
     for (auto& key : keys)
-        observables[key] = ObservableFunctor::make(key, param);
+        observables[key] = ObservableFunctor::make(key, param, cosmo);
 
     // Setup I/O checkpoints
     auto save_at = param["Observables"]["save_at"].get<std::vector<double>>();
@@ -113,10 +113,10 @@ int main(int argc, char** argv) {
             boost::apply_visitor(write_variant, res);
 
             // Supplement informations to the observable
+            const double a = cosmo.a_of_tau(state.tau);
             file.add_scalar_attribute(path_to_ds, "tau", state.tau);
-            file.add_scalar_attribute(path_to_ds, "a", state.a);
-            file.add_scalar_attribute(path_to_ds, "z",
-                                      Cosmology::z_of_a(state.a));
+            file.add_scalar_attribute(path_to_ds, "a", a);
+            file.add_scalar_attribute(path_to_ds, "z", Cosmology::z_of_a(a));
             file.add_scalar_attribute(path_to_ds, "n", state.n);
         }
         std::cout << " ... done" << std::endl;

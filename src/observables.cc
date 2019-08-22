@@ -1,5 +1,5 @@
 #include "observables.h"
-#include "blaze_utils.h"
+#include "cosmology.h"
 #include "parameters.h"
 #include "state.h"
 
@@ -11,7 +11,7 @@
 
 namespace Observable {
 
-DensityContrast::DensityContrast(const Parameters& p)
+DensityContrast::DensityContrast(const Parameters& p, const Cosmology&)
     : sigma_x(p["Observables"]["sigma_x"].get<double>()),
       husimi(sigma_x > 0),
       linear(p["Observables"]["linear_convolution"].get<bool>()),
@@ -46,7 +46,8 @@ ObservableFunctor::ReturnType DensityContrast::compute(const SimState& state) {
     return delta;
 }
 
-PhaseSpaceDistribution::PhaseSpaceDistribution(const Parameters& p)
+PhaseSpaceDistribution::PhaseSpaceDistribution(const Parameters& p,
+                                               const Cosmology&)
     : sigma_x(std::sqrt(2) * p["Observables"]["sigma_x"].get<double>()),
       husimi(sigma_x > 0),
       linear(p["Observables"]["linear_convolution"].get<bool>()),
@@ -155,7 +156,7 @@ ObservableFunctor::ReturnType PhaseSpaceDistribution::compute(
 
 PhaseSpaceDistribution::~PhaseSpaceDistribution() { fftw_destroy_plan(c2c); }
 
-Potential::Potential(const Parameters& p)
+Potential::Potential(const Parameters& p, const Cosmology&)
     : pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
                                 p)},
       potential(p["Simulation"]["N"].get<int>()){};
@@ -167,15 +168,16 @@ inline ObservableFunctor::ReturnType Potential::compute(const SimState& state) {
     return potential;
 }
 
-WaveFunction::WaveFunction(const Parameters& p){};
+WaveFunction::WaveFunction(const Parameters& p, const Cosmology&){};
 
 inline ObservableFunctor::ReturnType WaveFunction::compute(
     const SimState& state) {
     return state.psis;
 }
 
-Energy::Energy(const Parameters& p)
-    : N(p["Simulation"]["N"].get<int>()),
+Energy::Energy(const Parameters& p, const Cosmology& cosmo_)
+    : cosmo(cosmo_),
+      N(p["Simulation"]["N"].get<int>()),
       dx(p["Simulation"]["L"].get<double>() / N),
       grad(N, N + 4),
       energies(4, 0),
@@ -198,16 +200,18 @@ ObservableFunctor::ReturnType Energy::compute(const SimState& state) {
     using namespace blaze;
     auto cyclic_extension = [N = N](int i) { return (N - 2 + i) % N; };
 
+    const double a = cosmo.a_of_tau(state.tau);
+
     // Kinetic Energy via trapezodial rule
     double& E_kinetic = energies[0];
     auto psi = rows(state.psis, cyclic_extension, N + 4);
     auto nabla_psi = grad * psi;
-    E_kinetic = 0.5 * dx / (state.a * state.a) *
+    E_kinetic = 0.5 * dx / (a * a) *
                 sum(real(conj(nabla_psi) % nabla_psi) * state.lambda);
 
     // Potential Energy via trapezodial rule
     double& E_pot = energies[1];
-    E_pot = 0.5 * dx / state.a *
+    E_pot = 0.5 * dx / a *
             sum(state.V * (real(conj(state.psis) % state.psis) * state.lambda));
 
     // Total Energy
@@ -220,13 +224,13 @@ ObservableFunctor::ReturnType Energy::compute(const SimState& state) {
     auto V = elements(state.V, cyclic_extension, N + 4);
     auto nabla_V = grad * V;
     x_grad_V =
-        dx / state.a *
+        dx / a *
         sum(x * nabla_V * (real(conj(state.psis) % state.psis) * state.lambda));
 
     return energies;
 }
 
-ParticleFlux::ParticleFlux(const Parameters& p)
+ParticleFlux::ParticleFlux(const Parameters& p, const Cosmology&)
     : N(p["Simulation"]["N"].get<int>()),
       dx(p["Simulation"]["L"].get<double>() / N),
       grad(N, N + 4),

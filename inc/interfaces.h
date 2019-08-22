@@ -53,7 +53,8 @@ class Driver : public Factory<Driver, const Parameters&> {
 };
 
 // Class representing an Observable constructed from the simulation state.
-class ObservableFunctor : public Factory<ObservableFunctor, const Parameters&> {
+class ObservableFunctor
+    : public Factory<ObservableFunctor, const Parameters&, const Cosmology&> {
    public:
     using ReturnType = boost::variant<
         const blaze::DynamicMatrix<double>&,

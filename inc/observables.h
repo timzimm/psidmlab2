@@ -19,7 +19,7 @@ class DensityContrast : public ObservableFunctor::Registrar<DensityContrast> {
     blaze::DynamicVector<double> delta;  // holds wigner delta
 
    public:
-    DensityContrast(const Parameters& p);
+    DensityContrast(const Parameters& p, const Cosmology&);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
 
@@ -50,7 +50,7 @@ class PhaseSpaceDistribution
     void husimi_distribution(const SimState& state);
 
    public:
-    PhaseSpaceDistribution(const Parameters& p);
+    PhaseSpaceDistribution(const Parameters& p, const Cosmology&);
     ~PhaseSpaceDistribution();
     ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
@@ -60,17 +60,18 @@ class Potential : public ObservableFunctor::Registrar<Potential> {
     blaze::DynamicVector<double, blaze::columnVector> potential;
 
    public:
-    Potential(const Parameters& p);
+    Potential(const Parameters& p, const Cosmology&);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
 
 class WaveFunction : public ObservableFunctor::Registrar<WaveFunction> {
    public:
-    WaveFunction(const Parameters& p);
+    WaveFunction(const Parameters& p, const Cosmology&);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
 
 class Energy : public ObservableFunctor::Registrar<Energy> {
+    const Cosmology& cosmo;
     int N;
     double dx;
     blaze::CompressedMatrix<double> grad;
@@ -78,7 +79,7 @@ class Energy : public ObservableFunctor::Registrar<Energy> {
     blaze::DynamicVector<double, blaze::columnVector> x;
 
    public:
-    Energy(const Parameters& p);
+    Energy(const Parameters& p, const Cosmology& cosmo_);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
 
@@ -89,7 +90,7 @@ class ParticleFlux : public ObservableFunctor::Registrar<ParticleFlux> {
     blaze::DynamicVector<double> flux;
 
    public:
-    ParticleFlux(const Parameters& p);
+    ParticleFlux(const Parameters& p, const Cosmology&);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
 };
 
