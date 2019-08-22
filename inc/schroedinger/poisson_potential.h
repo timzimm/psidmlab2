@@ -14,7 +14,6 @@ namespace Schroedinger {
 class PoissonPotential : public Stepper::Registrar<PoissonPotential> {
     const Cosmology& cosmo;                // Cosmological model for a(t)
     std::unique_ptr<PotentialMethod> pot;  // potential method
-    double a;                              // scalefactor
 
    public:
     PoissonPotential(const Parameters& p, const SimState& state,

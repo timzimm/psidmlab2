@@ -11,11 +11,10 @@ PoissonPotential::PoissonPotential(const Parameters& p, const SimState& state,
                                    const Cosmology& cosmo_)
     : cosmo{cosmo_},
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
-                                p)},
-      a{cosmo.a_of_tau(-1)} {}
+                                p)} {}
 
 double PoissonPotential::next_dt(const SimState& state) const {
-    return M_PI / (a * max(abs(state.V)));
+    return M_PI / (cosmo.a_of_tau(state.tau) * max(abs(state.V)));
 }
 
 void PoissonPotential::step(SimState& state, const double dt) {
@@ -23,6 +22,7 @@ void PoissonPotential::step(SimState& state, const double dt) {
     // |psi|^2 is invariant. Thus we can use the input state to determine the
     // potential for the entire time step.
     pot->solve(state);
+    const double a = cosmo.a_of_tau(state.tau);
     const double a_next = cosmo.a_of_tau(state.tau + dt);
     auto drift =
         expand(exp(-1.0i * 0.5 * (a + a_next) * state.V * dt), state.M);
@@ -30,7 +30,6 @@ void PoissonPotential::step(SimState& state, const double dt) {
 
     state.tau += dt;
     state.n += 1;
-    a = a_next;
 }
 
 }  // namespace Schroedinger

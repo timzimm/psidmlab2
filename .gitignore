@@ -471,3 +471,6 @@ compile_commands.json
 #vagrant VM
 install/.vagrant
 install/Vagrantfile
+
+# Run folder
+run/
