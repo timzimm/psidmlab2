@@ -21,7 +21,6 @@ add_executable(psidm
     src/driver.cc
     src/observables.cc
     src/convolution_functions.cc
-    src/splitting.cc
     src/poisson/fft.cc
     src/poisson/fd.cc
     src/poisson/identity.cc
@@ -29,6 +28,7 @@ add_executable(psidm
     src/schroedinger/uso_dkd.cc
     src/schroedinger/pc_cayley.cc
     src/schroedinger/kinetic.cc
+    src/schroedinger/concrete_splittings.cc
     src/schroedinger/poisson_potential.cc
 )
 
