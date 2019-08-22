@@ -1,10 +1,6 @@
 #ifndef __SCHROEDINGER_KINETIC__
 #define __SCHROEDINGER_KINETIC__
 
-#include <fftw3.h>
-
-#include "blaze/math/CompressedMatrix.h"
-#include "blaze/math/DiagonalMatrix.h"
 #include "interfaces.h"
 
 class Cosmology;

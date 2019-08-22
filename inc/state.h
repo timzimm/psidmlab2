@@ -13,7 +13,6 @@ struct SimState {
 
     int n;       // time step number
     double tau;  // current time
-    double a;    // current scale factor
     blaze::DynamicVector<double> V;
 
     // state = sum_i lambda_i * |psi_i><psi_i|

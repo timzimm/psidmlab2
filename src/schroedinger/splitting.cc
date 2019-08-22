@@ -21,15 +21,21 @@ void StrangSplitting<FlowMapA, FlowMapB>::step(SimState& state,
     const int n = state.n;
 
     phiA.step(state, 0.5 * dt);
+    state.tau = t;
+    state.n = n;
     phiB.step(state, dt);
+    state.tau = t;
+    state.n = n;
     phiA.step(state, 0.5 * dt);
+    state.tau = t;
+    state.n = n;
 
     state.tau = t + dt;
     state.n += 1;
 }
 
-/* template class StrangSplitting<Kinetic, PeriodicPotential>; */
-/* template class StrangSplitting<Kinetic, PMLPeriodicPotential>; */
+/* template class StrangSplitting<Kinetic, PoissonPotential>; */
+/* template class StrangSplitting<PMLKinetic, PoissonPotential>; */
 
 }  // namespace Schroedinger
 

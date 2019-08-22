@@ -27,6 +27,7 @@ class USO_DKD : public SchroedingerMethod::Registrar<USO_DKD> {
     const int N;                           // No. of spatial grid points
     const double L;                        // Domain size
     double dt_last;
+    double a;  // scalefactor
     RCV k_squared;
     CCM kick;
 

@@ -16,6 +16,7 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
                                 p)},
       N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
+      a{cosmo.a_of_tau(-1)},
       k_squared(N),
       kick(N, state.M),
       dt_last{-1} {
@@ -29,8 +30,7 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
 
 void USO_KDK::step(SimState& state, const double dt) {
     CCM& psis = state.psis;
-    const double& a_t = state.a;
-    const double a_t_dt = cosmo.a_of_tau(state.tau + dt);
+    const double a_next = cosmo.a_of_tau(state.tau + dt);
 
     // Set kick operator once for the entire time step
     if (dt - dt_last != 0) {
@@ -46,23 +46,20 @@ void USO_KDK::step(SimState& state, const double dt) {
 
     // Set drift operator with intermediate potential
     auto drift =
-        expand(exp(-1.0 * 0.5i * (a_t + a_t_dt) * state.V * dt), state.M);
+        expand(exp(-1.0 * 0.5i * (a + a_next) * state.V * dt), state.M);
     psis = drift % psis;
 
     state.transform(SimState::Representation::Momentum);
     psis = kick % psis;
 
-    // psis is now @ tau + dt
-    // potential is in intermediate state
     state.tau += dt;
-    state.a = a_t_dt;
+    a = a_next;
     dt_last = dt;
     state.n += 1;
 }
 
 double USO_KDK::next_dt(const SimState& state) const {
-    return std::min(
-        {L * L / (N * N * M_PI), M_PI / (state.a * max(abs(state.V)))});
+    return std::min({L * L / (N * N * M_PI), M_PI / (a * max(abs(state.V)))});
 }
 
 }  // namespace Schroedinger

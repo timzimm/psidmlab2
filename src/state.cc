@@ -5,7 +5,6 @@
 SimState::SimState(const Parameters& p)
     : n(0),
       tau(0),
-      a(Cosmology::a_of_z(p["Cosmology"]["z_start"].get<double>())),
       representation{Representation::Position},
       position_to_momentum{nullptr},
       momentum_to_position{nullptr},

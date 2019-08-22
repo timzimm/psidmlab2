@@ -16,6 +16,7 @@ USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
       N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
       dt_last{-1},
+      a{cosmo.a_of_tau(-1)},
       k_squared(N),
       kick(N, state.M) {
     std::iota(k_squared.begin(), k_squared.end(), -N / 2);
@@ -26,18 +27,17 @@ USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
 
 double USO_DKD::next_dt(const SimState& state) const {
     return std::min(
-        {L * L / (2 * N * N * M_PI), M_PI / (2 * state.a * max(abs(state.V)))});
+        {L * L / (2 * N * N * M_PI), M_PI / (2 * a * max(abs(state.V)))});
 }
 
 void USO_DKD::step(SimState& state, const double dt) {
     CCM& psis = state.psis;
-    const double& a_t = state.a;
-    const double a_t_dt = cosmo.a_of_tau(state.tau + dt);
+    const double a_next = cosmo.a_of_tau(state.tau + dt);
 
     // Drift step
     state.transform(SimState::Representation::Position);
-    psis = expand(exp(-0.5i * 0.5 * (a_t + a_t_dt) * state.V * dt), state.M) %
-           psis;
+    psis =
+        expand(exp(-0.5i * 0.5 * (a + a_next) * state.V * dt), state.M) % psis;
 
     state.transform(SimState::Representation::Momentum);
 
@@ -49,13 +49,13 @@ void USO_DKD::step(SimState& state, const double dt) {
     state.transform(SimState::Representation::Position);
     pot->solve(state);
 
-    psis = expand(exp(-0.5i * 0.5 * (a_t + a_t_dt) * state.V * dt), state.M) %
-           psis;
+    psis =
+        expand(exp(-0.5i * 0.5 * (a + a_next) * state.V * dt), state.M) % psis;
 
     // state is now @ tau + dt
     pot->solve(state);
     state.tau += dt;
-    state.a = a_t_dt;
+    a = a_next;
     state.n += 1;
     dt_last = dt;
 }

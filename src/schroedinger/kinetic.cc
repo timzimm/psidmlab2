@@ -3,10 +3,9 @@
 
 #include <algorithm>
 
+namespace Schroedinger {
 using namespace blaze;
 using namespace std::complex_literals;
-
-namespace Schroedinger {
 
 Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
     : N{p["Simulation"]["N"].get<int>()},

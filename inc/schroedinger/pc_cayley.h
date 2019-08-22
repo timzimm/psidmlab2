@@ -29,6 +29,7 @@ class PCCayley : public SchroedingerMethod::Registrar<PCCayley> {
     size_t M;
     double dx;
     double dt;
+    double a;  // scalefactor
     std::unique_ptr<PotentialMethod> potential;
     RSM K;  // Cyclic Kinetic matrix (i.e. the - 0.5*second derivative)
     CCM psi_old;

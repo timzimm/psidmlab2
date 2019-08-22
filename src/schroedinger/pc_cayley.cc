@@ -14,6 +14,7 @@ PCCayley::PCCayley(const Parameters& p, const SimState& state,
       M{p["Initial Conditions"]["M"].get<size_t>()},
       dx{p["Simulation"]["L"].get<double>() / N},
       dt{p["Simulation"]["dtau"].get<double>()},
+      a{cosmo.a_of_tau(-1)},
       potential{PotentialMethod::make(
           p["Simulation"]["potential"].get<std::string>(), p)},
       K(N, N),
@@ -46,9 +47,7 @@ PCCayley::PCCayley(const Parameters& p, const SimState& state,
 
 void PCCayley::step(SimState& state, const double dt) {
     const std::complex<double> I{0, 1.0};
-    const double t = state.tau;
-    const double a = state.a;
-    const double a_da = cosmo.a_of_tau(t + dt);
+    const double a_next = cosmo.a_of_tau(state.tau + dt);
 
     state.transform(SimState::Representation::Position);
     // Save the input state for the corrector step - no copy
@@ -70,7 +69,7 @@ void PCCayley::step(SimState& state, const double dt) {
 
     // CORRECTOR STEP
     potential->solve(state);
-    auto V_corr = 0.5 * (a_V + a_da * expand(state.V, M));
+    auto V_corr = 0.5 * (a_V + a_next * expand(state.V, M));
 
     state.psis = psi_old - 0.5i * dt * (K * psi_old + V_corr % psi_old);
 
@@ -78,7 +77,7 @@ void PCCayley::step(SimState& state, const double dt) {
     // LU decomposition works in place. Thus, everything has to be
     // reinitialized.
     dl = du = -1.0i / (4 * dx * dx) * dt;
-    d = -2.0 * dl + 0.5i * dt * 0.5 * (a * V_old + a_da * state.V) + 1.0,
+    d = -2.0 * dl + 0.5i * dt * 0.5 * (a * V_old + a_next * state.V) + 1.0,
 
     gctrf(dl, d, du, du2, ipiv);
     gctrs(dl, d, du, du2, ipiv, state.psis);
@@ -86,7 +85,7 @@ void PCCayley::step(SimState& state, const double dt) {
     // At last we calculate the potential again such that state is @ t + dt
     potential->solve(state);
     state.tau += dt;
-    state.a = a_da;
+    a = a_next;
     state.n += 1;
 }
 
