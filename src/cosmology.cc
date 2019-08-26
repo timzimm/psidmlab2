@@ -157,13 +157,17 @@ Parameters& operator<<(Parameters& p, const Cosmology& cosmo) {
     const bool convert = p["General"]["physical_units"].get<bool>();
     if (convert) {
         const auto L = p["Simulation"]["L"].get<double>() * parsec;
-        const auto sigma_x = p["Observables"]["sigma_x"].get<double>() * parsec;
-
         p["Simulation"]["L_phys"] = L.value();
-        p["Observables"]["sigma_phys"] = sigma_x.value();
-
         p["Simulation"]["L"] = cosmo.chi_of_x(L);
-        p["Observables"]["sigma_x"] = cosmo.chi_of_x(sigma_x);
+
+        for (auto& observable : p["Observables"]) {
+            if (auto result = observable.find("sigma_x");
+                result != observable.end()) {
+                const auto sigma_x = result->get<double>() * parsec;
+                observable["sigma_phys"] = sigma_x.value();
+                observable["sigma_x"] = cosmo.chi_of_x(sigma_x);
+            }
+        }
     }
     return p;
 }

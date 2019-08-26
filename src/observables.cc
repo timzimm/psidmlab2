@@ -12,9 +12,10 @@
 namespace Observable {
 
 DensityContrast::DensityContrast(const Parameters& p, const Cosmology&)
-    : sigma_x(p["Observables"]["sigma_x"].get<double>()),
+    : sigma_x(p["Observables"]["DensityContrast"]["sigma_x"].get<double>()),
       husimi(sigma_x > 0),
-      linear(p["Observables"]["linear_convolution"].get<bool>()),
+      linear(p["Observables"]["DensityContrast"]["linear_convolution"]
+                 .get<bool>()),
       N(p["Simulation"]["N"].get<int>()),
       dx(p["Simulation"]["L"].get<double>() / N),
       N_kernel(2 * floor(5 * sigma_x / dx) + 1),
@@ -48,9 +49,12 @@ ObservableFunctor::ReturnType DensityContrast::compute(const SimState& state) {
 
 PhaseSpaceDistribution::PhaseSpaceDistribution(const Parameters& p,
                                                const Cosmology&)
-    : sigma_x(std::sqrt(2) * p["Observables"]["sigma_x"].get<double>()),
+    : sigma_x(
+          std::sqrt(2) *
+          p["Observables"]["PhaseSpaceDistribution"]["sigma_x"].get<double>()),
       husimi(sigma_x > 0),
-      linear(p["Observables"]["linear_convolution"].get<bool>()),
+      linear(p["Observables"]["PhaseSpaceDistribution"]["linear_convolution"]
+                 .get<bool>()),
       N(p["Simulation"]["N"].get<int>()),
       dx(p["Simulation"]["L"].get<double>() / N),
       N_kernel(2 * floor(5 * sigma_x / dx) + 1),
