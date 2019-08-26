@@ -2,7 +2,7 @@
 #include "parameters.h"
 
 SimpleDriver::SimpleDriver(const Parameters& p)
-    : dt{p["Simulation"]["dtau"].get<double>()} {};
+    : dt{p["Simulation"]["driver"]["dtau"].get<double>()} {};
 
 void SimpleDriver::integrate(std::unique_ptr<Stepper>& stepper, SimState& state,
                              const double t_final) {

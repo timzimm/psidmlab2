@@ -30,6 +30,7 @@ add_executable(psidm
     src/schroedinger/kinetic.cc
     src/schroedinger/concrete_splittings.cc
     src/schroedinger/poisson_potential.cc
+    src/schroedinger/cap_poisson_potential.cc
 )
 
 target_compile_features(psidm PRIVATE cxx_std_17)
