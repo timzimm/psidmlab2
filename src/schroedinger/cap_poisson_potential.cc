@@ -27,8 +27,9 @@ CAPPoissonPotential::CAPPoissonPotential(const Parameters& p,
                       pow(cosh(1.0 / width * (CAP * dx + L / 2)), -2));
 }
 
+// Non linear phase method with phi_max = pi/2
 double CAPPoissonPotential::next_dt(const SimState& state) const {
-    return M_PI / (cosmo.a_of_tau(state.tau) * max(abs(state.V)));
+    return M_PI / (2 * cosmo.a_of_tau(state.tau) * max(abs(state.V)));
 }
 
 void CAPPoissonPotential::step(SimState& state, const double dt) {

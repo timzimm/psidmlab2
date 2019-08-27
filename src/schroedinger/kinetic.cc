@@ -21,6 +21,7 @@ Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
     k_squared = 4 * M_PI * M_PI / (L * L) * k_squared * k_squared;
 }
 
+// Limit max phase change to pi/2 per step
 double Kinetic::next_dt(const SimState& state) const {
     return L * L / (N * N * M_PI);
 }

@@ -13,8 +13,9 @@ PoissonPotential::PoissonPotential(const Parameters& p, const SimState& state,
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
                                 p)} {}
 
+// Non linear phase method with phi_max = pi/2
 double PoissonPotential::next_dt(const SimState& state) const {
-    return M_PI / (cosmo.a_of_tau(state.tau) * max(abs(state.V)));
+    return M_PI / (2 * cosmo.a_of_tau(state.tau) * max(abs(state.V)));
 }
 
 void PoissonPotential::step(SimState& state, const double dt) {
