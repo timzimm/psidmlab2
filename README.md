@@ -117,7 +117,7 @@ inside the container to configure and compile psiDMLab as follows:
 ~/psidm2/install$ singularity shell psidmlab
 ~/psidm2/install$ mkdir ../build; cd ..
 ~/psidm2$ cmake -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake \
-                -DCMAKE_BUILD_TYPE=Release .. -B build
+                -DCBLAS_INCLUDE_DIRS=${MKLROOT}/include -DCMAKE_BUILD_TYPE=Release .. -B build
 ~/psidm2$ cd build
 ~/psidm2/build$ make
 ```
