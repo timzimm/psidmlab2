@@ -1,5 +1,5 @@
-#ifndef __SCHROEDINGER_CAP_POISSON__
-#define __SCHROEDINGER_CAP_POISSON__
+#ifndef __SCHROEDINGER_CAP_POISSON_DELTA__
+#define __SCHROEDINGER_CAP_POISSON_DELTA__
 
 #include "driver.h"
 
@@ -11,7 +11,8 @@ namespace Schroedinger {
 //          i del_t psi = -1/2 del^2_x psi
 // assuming periodic boundary conditions.
 
-class CAPPoissonPotential : public DefaultDriver<CAPPoissonPotential> {
+class CAPPoissonPotentialDelta
+    : public DefaultDriver<CAPPoissonPotentialDelta> {
     const Cosmology& cosmo;                // Cosmological model for a(t)
     std::unique_ptr<PotentialMethod> pot;  // potential method
     const int N;                           // No. of spatial points
@@ -24,8 +25,8 @@ class CAPPoissonPotential : public DefaultDriver<CAPPoissonPotential> {
     blaze::DynamicVector<double, blaze::columnVector> attenuator;
 
    public:
-    CAPPoissonPotential(const Parameters& p, const SimState& state,
-                        const Cosmology& cosmo_);
+    CAPPoissonPotentialDelta(const Parameters& p, const SimState& state,
+                             const Cosmology& cosmo_);
     double next_dt(const SimState& state) const;
     void step(SimState& state, const double dt);
 };

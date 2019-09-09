@@ -12,7 +12,7 @@
 
 namespace Poisson {
 
-class FFT : public PotentialMethod::Registrar<FFT> {
+class FFT : public PotentialMethod {
     using RCV = blaze::DynamicVector<double>;
     using CCV = blaze::DynamicVector<std::complex<double>>;
     using RDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<double>>;
@@ -35,6 +35,7 @@ class FFT : public PotentialMethod::Registrar<FFT> {
     void solve(blaze::DynamicVector<double, blaze::columnVector>& V,
                const blaze::DynamicVector<double, blaze::columnVector>& source)
         override;
+    REGISTER(FFT)
 };
 
 }  // namespace Poisson

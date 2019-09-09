@@ -11,7 +11,8 @@ namespace Schroedinger {
 
 USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
                  const Cosmology& cosmo_)
-    : cosmo{cosmo_},
+    : DefaultDriver{p},
+      cosmo{cosmo_},
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
                                 p)},
       N{p["Simulation"]["N"].get<int>()},
@@ -19,7 +20,8 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
       a{cosmo.a_of_tau(-1)},
       k_squared(N),
       kick(N, state.M),
-      dt_last{-1} {
+      dt_last{-1},
+      stable{p["Simulation"]["integrator"]["stable"].get<bool>()} {
     // FFTW reorders frequencies. The upper half starts at the most negative
     // frequency and increases for increasing index.
     std::iota(k_squared.begin(), k_squared.end(), -N / 2);

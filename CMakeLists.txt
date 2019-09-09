@@ -18,7 +18,6 @@ add_executable(psidm
     src/state.cc 
     src/cosmology.cc
     src/ic.cc
-    src/driver.cc
     src/observables.cc
     src/convolution_functions.cc
     src/poisson/fft.cc
@@ -28,9 +27,10 @@ add_executable(psidm
     src/schroedinger/uso_dkd.cc
     src/schroedinger/pc_cayley.cc
     src/schroedinger/kinetic.cc
-    src/schroedinger/concrete_splittings.cc
     src/schroedinger/poisson_potential.cc
     src/schroedinger/cap_poisson_potential.cc
+    src/schroedinger/cap_poisson_potential_delta.cc
+    src/schroedinger/concrete_splittings.cc
 )
 
 target_compile_features(psidm PRIVATE cxx_std_17)

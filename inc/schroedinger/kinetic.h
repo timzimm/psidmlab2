@@ -1,7 +1,7 @@
 #ifndef __SCHROEDINGER_KINETIC__
 #define __SCHROEDINGER_KINETIC__
 
-#include "interfaces.h"
+#include "driver.h"
 
 class Cosmology;
 
@@ -11,7 +11,7 @@ namespace Schroedinger {
 //          i del_t psi = -1/2 del^2_x psi
 // assuming periodic boundary conditions.
 
-class Kinetic : public Stepper::Registrar<Kinetic> {
+class Kinetic : public DefaultDriver<Kinetic> {
     double dt_last;  // holds dt of last step call
     const int N;     // No. of spatial points
     const double L;  // size of domain

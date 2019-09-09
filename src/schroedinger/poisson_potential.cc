@@ -9,7 +9,8 @@ using namespace std::complex_literals;
 
 PoissonPotential::PoissonPotential(const Parameters& p, const SimState& state,
                                    const Cosmology& cosmo_)
-    : cosmo{cosmo_},
+    : DefaultDriver(p),
+      cosmo{cosmo_},
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
                                 p)} {}
 

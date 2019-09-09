@@ -1,4 +1,4 @@
-#include "schroedinger/cap_poisson_potential.h"
+#include "schroedinger/cap_poisson_potential_delta.h"
 #include "cosmology.h"
 #include "io.h"
 #include "parameters.h"
@@ -8,9 +8,9 @@ namespace Schroedinger {
 using namespace blaze;
 using namespace std::complex_literals;
 
-CAPPoissonPotential::CAPPoissonPotential(const Parameters& p,
-                                         const SimState& state,
-                                         const Cosmology& cosmo_)
+CAPPoissonPotentialDelta::CAPPoissonPotentialDelta(const Parameters& p,
+                                                   const SimState& state,
+                                                   const Cosmology& cosmo_)
     : DefaultDriver(p),
       cosmo{cosmo_},
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
@@ -29,11 +29,11 @@ CAPPoissonPotential::CAPPoissonPotential(const Parameters& p,
 }
 
 // Non linear phase method with phi_max = pi/2
-double CAPPoissonPotential::next_dt(const SimState& state) const {
+double CAPPoissonPotentialDelta::next_dt(const SimState& state) const {
     return M_PI / (2 * cosmo.a_of_tau(state.tau) * max(abs(state.V)));
 }
 
-void CAPPoissonPotential::step(SimState& state, const double dt) {
+void CAPPoissonPotentialDelta::step(SimState& state, const double dt) {
     state.transform(SimState::Representation::Position);
 
     if (dt_last - dt != 0) {
@@ -41,8 +41,9 @@ void CAPPoissonPotential::step(SimState& state, const double dt) {
         // cancellation of significant digits in the numerator
         attenuator = dt - dt * dt * CAP + 2.0 / 3 * dt * dt * dt * CAP * CAP;
     }
-    pot->solve(state.V, attenuator * (real(conj(state.psis) % state.psis) *
-                                      state.lambda));
+    pot->solve(
+        state.V,
+        attenuator * (real(conj(state.psis) % state.psis) * state.lambda) - dt);
 
     const double a = cosmo.a_of_tau(state.tau);
     const double a_next = cosmo.a_of_tau(state.tau + dt);

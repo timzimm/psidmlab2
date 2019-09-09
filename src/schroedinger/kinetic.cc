@@ -8,7 +8,8 @@ using namespace blaze;
 using namespace std::complex_literals;
 
 Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
-    : N{p["Simulation"]["N"].get<int>()},
+    : DefaultDriver(p),
+      N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
       dt_last{-1},
       k_squared(N),
