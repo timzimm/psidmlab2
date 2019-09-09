@@ -1,18 +1,16 @@
 #ifndef __SCHROEDINGER_PC_CAYLEY__
 #define __SCHROEDINGER_PC_CAYLEY__
 
-#include "cosmology.h"
-#include "interfaces.h"
+#include "driver.h"
 
 #include <blaze/math/CompressedMatrix.h>
 #include <blaze/math/SymmetricMatrix.h>
-#include <memory>
 
 // TODO Add integrator description
 
 namespace Schroedinger {
 
-class PCCayley : public Stepper::Registrar<PCCayley> {
+class PCCayley : public DefaultDriver<PCCayley> {
     // integer row vector
     using IRV = blaze::DynamicVector<int>;
     // complex row vector
@@ -43,6 +41,7 @@ class PCCayley : public Stepper::Registrar<PCCayley> {
              const Cosmology& cosmo_);
     void step(SimState& state, const double dt);
     double next_dt(const SimState& state) const;
+    REGISTER(PCCayley)
 };
 
 }  // namespace Schroedinger

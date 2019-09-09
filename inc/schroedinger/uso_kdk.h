@@ -1,7 +1,7 @@
 #ifndef __SCHROEDINGER_USO_KDK__
 #define __SCHROEDINGER_USO_KDK__
 
-#include "cosmology.h"
+#include "driver.h"
 #include "interfaces.h"
 
 #include <blaze/math/CompressedMatrix.h>
@@ -13,7 +13,7 @@
 
 namespace Schroedinger {
 
-class USO_KDK : public Stepper::Registrar<USO_KDK> {
+class USO_KDK : public DefaultDriver<USO_KDK> {
     // Real column vector
     using RCV = blaze::DynamicVector<double, blaze::columnVector>;
     // Complex dense matrix in column-major order
@@ -27,12 +27,16 @@ class USO_KDK : public Stepper::Registrar<USO_KDK> {
     RCV k_squared;
     CCM kick;
     double dt_last;
+    bool stable;
 
    public:
     USO_KDK(const Parameters& p, const SimState& state,
             const Cosmology& cosmo_);
     double next_dt(const SimState& state) const;
     void step(SimState& state, const double dt);
+
+    REGISTER(USO_KDK)
 };
 }  // namespace Schroedinger
+
 #endif

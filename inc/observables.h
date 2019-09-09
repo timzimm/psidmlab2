@@ -7,7 +7,7 @@
 
 namespace Observable {
 
-class DensityContrast : public ObservableFunctor::Registrar<DensityContrast> {
+class DensityContrast : public ObservableFunctor {
     const double sigma_x;       // spatial smoothing scale
     const bool husimi;          // compute husimi?
     const bool linear;          // do linear convolution?
@@ -21,10 +21,10 @@ class DensityContrast : public ObservableFunctor::Registrar<DensityContrast> {
    public:
     DensityContrast(const Parameters& p, const Cosmology&);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
+    REGISTER(DensityContrast)
 };
 
-class PhaseSpaceDistribution
-    : public ObservableFunctor::Registrar<PhaseSpaceDistribution> {
+class PhaseSpaceDistribution : public ObservableFunctor {
     // Abbreviations
     using CCM = blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>;
     using RCM = blaze::DynamicMatrix<double, blaze::columnMajor>;
@@ -53,24 +53,27 @@ class PhaseSpaceDistribution
     PhaseSpaceDistribution(const Parameters& p, const Cosmology&);
     ~PhaseSpaceDistribution();
     ObservableFunctor::ReturnType compute(const SimState& state) override;
+    REGISTER(PhaseSpaceDistribution)
 };
 
-class Potential : public ObservableFunctor::Registrar<Potential> {
+class Potential : public ObservableFunctor {
     std::unique_ptr<PotentialMethod> pot;  // potential method
     blaze::DynamicVector<double, blaze::columnVector> potential;
 
    public:
     Potential(const Parameters& p, const Cosmology&);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
+    REGISTER(Potential)
 };
 
-class WaveFunction : public ObservableFunctor::Registrar<WaveFunction> {
+class WaveFunction : public ObservableFunctor {
    public:
     WaveFunction(const Parameters& p, const Cosmology&);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
+    REGISTER(WaveFunction)
 };
 
-class Energy : public ObservableFunctor::Registrar<Energy> {
+class Energy : public ObservableFunctor {
     const Cosmology& cosmo;
     int N;
     double dx;
@@ -81,9 +84,10 @@ class Energy : public ObservableFunctor::Registrar<Energy> {
    public:
     Energy(const Parameters& p, const Cosmology& cosmo_);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
+    REGISTER(Energy)
 };
 
-class ParticleFlux : public ObservableFunctor::Registrar<ParticleFlux> {
+class ParticleFlux : public ObservableFunctor {
     int N;
     double dx;
     blaze::CompressedMatrix<double> grad;
@@ -92,6 +96,7 @@ class ParticleFlux : public ObservableFunctor::Registrar<ParticleFlux> {
    public:
     ParticleFlux(const Parameters& p, const Cosmology&);
     ObservableFunctor::ReturnType compute(const SimState& state) override;
+    REGISTER(ParticleFlux)
 };
 
 }  // namespace Observable

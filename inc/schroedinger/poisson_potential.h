@@ -1,9 +1,7 @@
 #ifndef __SCHROEDINGER_POISSON_POTENTIAL__
 #define __SCHROEDINGER_POISSON_POTENTIAL__
 
-#include "interfaces.h"
-
-class Cosmology;
+#include "driver.h"
 
 namespace Schroedinger {
 
@@ -11,7 +9,7 @@ namespace Schroedinger {
 //          i del_t psi = -1/2 del^2_x psi
 // assuming periodic boundary conditions.
 
-class PoissonPotential : public Stepper::Registrar<PoissonPotential> {
+class PoissonPotential : public DefaultDriver<PoissonPotential> {
     const Cosmology& cosmo;                // Cosmological model for a(t)
     std::unique_ptr<PotentialMethod> pot;  // potential method
 

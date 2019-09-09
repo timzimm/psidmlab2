@@ -34,7 +34,7 @@ struct SimState {
 void operator>>(const SimState& state, Parameters& p);
 
 inline decltype(auto) delta_from(const SimState& state) {
-    auto psi2 = real(conj(state.psis) % state.psis) - 1.0;
+    auto psi2 = real(conj(state.psis) % state.psis);
     return psi2 * state.lambda;
 }
 

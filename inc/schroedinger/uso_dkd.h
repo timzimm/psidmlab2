@@ -2,12 +2,10 @@
 #define __SCHROEDINGER_USO_DKD__
 
 #include <fftw3.h>
-#include <memory>
 
 #include "blaze/math/CompressedMatrix.h"
 #include "blaze/math/DiagonalMatrix.h"
-#include "cosmology.h"
-#include "interfaces.h"
+#include "driver.h"
 
 // Unitary split operator. Propagates psi according to
 // psi_(n+1) = exp(-i/2 * V) exp(-i * K) exp(-i/2 * V) psi_(n)
@@ -15,7 +13,7 @@
 
 namespace Schroedinger {
 
-class USO_DKD : public Stepper::Registrar<USO_DKD> {
+class USO_DKD : public DefaultDriver<USO_DKD> {
     // Real column vector
     using RCV = blaze::DynamicVector<double, blaze::columnVector>;
     // Complex dense matrix in column-major order
@@ -36,6 +34,7 @@ class USO_DKD : public Stepper::Registrar<USO_DKD> {
             const Cosmology& cosmo_);
     void step(SimState& state, const double dt);
     double next_dt(const SimState& state) const;
+    REGISTER(USO_DKD);
 };
 }  // namespace Schroedinger
 #endif

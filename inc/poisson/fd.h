@@ -10,7 +10,7 @@
 
 namespace Poisson {
 
-class FD : public PotentialMethod::Registrar<FD> {
+class FD : public PotentialMethod {
     using RCV = blaze::DynamicVector<double>;
     using RCM = blaze::DynamicMatrix<double, blaze::columnMajor>;
     double dx;
@@ -25,6 +25,7 @@ class FD : public PotentialMethod::Registrar<FD> {
     void solve(blaze::DynamicVector<double, blaze::columnVector>& V,
                const blaze::DynamicVector<double, blaze::columnVector>& source)
         override;
+    REGISTER(FD)
 };
 
 }  // namespace Poisson

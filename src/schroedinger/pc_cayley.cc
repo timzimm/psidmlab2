@@ -1,5 +1,6 @@
 #include "schroedinger/pc_cayley.h"
 #include "blaze_utils.h"
+#include "cosmology.h"
 #include "parameters.h"
 
 namespace Schroedinger {
@@ -9,7 +10,8 @@ using namespace std::complex_literals;
 
 PCCayley::PCCayley(const Parameters& p, const SimState& state,
                    const Cosmology& cosmo_)
-    : cosmo{cosmo_},
+    : DefaultDriver(p),
+      cosmo{cosmo_},
       N{p["Simulation"]["N"].get<size_t>()},
       M{p["Initial Conditions"]["M"].get<size_t>()},
       dx{p["Simulation"]["L"].get<double>() / N},

@@ -10,7 +10,8 @@ using namespace std::complex_literals;
 
 USO_DKD::USO_DKD(const Parameters& p, const SimState& state,
                  const Cosmology& cosmo_)
-    : cosmo{cosmo_},
+    : DefaultDriver(p),
+      cosmo{cosmo_},
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
                                 p)},
       N{p["Simulation"]["N"].get<int>()},

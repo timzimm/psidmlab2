@@ -49,9 +49,9 @@ int main(int argc, char** argv) {
 
     // This sets the propagation method, e.g. naive stepping. stability driven,
     // controlled by truncation error etc.
-    const auto driver_name =
-        param["Simulation"]["driver"]["name"].get<std::string>();
-    auto driver = Driver::make(driver_name, param);
+    /* const auto driver_name = */
+    /*     param["Simulation"]["driver"]["name"].get<std::string>(); */
+    /* auto driver = Driver::make(driver_name, param); */
 
     // Setup Analysis Functors
     using observable_ptr = std::unique_ptr<ObservableFunctor>;
@@ -131,7 +131,8 @@ int main(int argc, char** argv) {
     const auto start = high_resolution_clock::now();
     while (!checkpoints.empty()) {
         auto& [checkpoint, names, obs_ptrs] = checkpoints.top();
-        driver->integrate(stepper, state, checkpoint);
+        /* driver->integrate(stepper.get(), state, checkpoint); */
+        stepper->integrate(state, checkpoint);
         // Depending on the stepper a retransformation to real space might be
         // necessary. If not, transform acts as identity.
         state.transform(SimState::Representation::Position);

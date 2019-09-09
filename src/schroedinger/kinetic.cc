@@ -8,7 +8,8 @@ using namespace blaze;
 using namespace std::complex_literals;
 
 Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
-    : N{p["Simulation"]["N"].get<int>()},
+    : DefaultDriver(p),
+      N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
       dt_last{-1},
       k_squared(N),
@@ -21,6 +22,7 @@ Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
     k_squared = 4 * M_PI * M_PI / (L * L) * k_squared * k_squared;
 }
 
+// Limit max phase change to pi/2 per step
 double Kinetic::next_dt(const SimState& state) const {
     return L * L / (N * N * M_PI);
 }

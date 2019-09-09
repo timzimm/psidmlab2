@@ -8,13 +8,14 @@
 
 namespace Poisson {
 
-class Identity : public PotentialMethod::Registrar<Identity> {
+class Identity : public PotentialMethod {
    public:
     Identity(const Parameters& p);
     void solve(SimState& state) override;
     void solve(blaze::DynamicVector<double, blaze::columnVector>& V,
                const blaze::DynamicVector<double, blaze::columnVector>& source)
         override;
+    REGISTER(Identity);
 };
 
 }  // namespace Poisson
