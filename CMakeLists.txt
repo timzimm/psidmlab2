@@ -24,6 +24,7 @@ add_executable(psidm
     src/poisson/fd.cc
     src/poisson/identity.cc
     src/schroedinger/uso_kdk.cc
+    src/schroedinger/uso_kdk_itp.cc
     src/schroedinger/uso_dkd.cc
     src/schroedinger/pc_cayley.cc
     src/schroedinger/kinetic.cc
