@@ -27,7 +27,6 @@ class USO_KDK_ITP : public DefaultDriver<USO_KDK_ITP> {
     RCV k_squared;
     CCM kick;
     double dt_last;
-    bool stable;
 
    public:
     USO_KDK_ITP(const Parameters& p, const SimState& state,

@@ -20,8 +20,7 @@ USO_KDK_ITP::USO_KDK_ITP(const Parameters& p, const SimState& state,
       a{cosmo.a_of_tau(-1)},
       k_squared(N),
       kick(N, state.M),
-      dt_last{-1},
-      stable{p["Simulation"]["integrator"]["stable"].get<bool>()} {
+      dt_last{-1} {
     // FFTW reorders frequencies. The upper half starts at the most negative
     // frequency and increases for increasing index.
     std::iota(k_squared.begin(), k_squared.end(), -N / 2);
@@ -34,11 +33,9 @@ void USO_KDK_ITP::step(SimState& state, const double dt) {
     CCM& psis = state.psis;
     const double a_next = cosmo.a_of_tau(state.tau + dt);
 
-    const std::complex<double> idt = -1.0i * dt;
-
     // Set kick operator once for the entire time step
     if (dt - dt_last != 0) {
-        kick = expand(exp(-0.5 * 0.5i * k_squared * idt), state.M);
+        kick = expand(exp(-0.5 * 0.5 * k_squared * dt), state.M);
     }
 
     state.transform(SimState::Representation::Momentum);
@@ -49,12 +46,17 @@ void USO_KDK_ITP::step(SimState& state, const double dt) {
     pot->solve(state);
 
     // Set drift operator with intermediate potential
-    auto drift =
-        expand(exp(-1.0 * 0.5i * (a + a_next) * state.V * idt), state.M);
+    auto drift = expand(exp(-1.0 * 0.5 * (a + a_next) * state.V * dt), state.M);
     psis = drift % psis;
 
     state.transform(SimState::Representation::Momentum);
     psis = kick % psis;
+    state.transform(SimState::Representation::Position);
+
+    double norm2 =
+        L / N * sum(real(conj(state.psis) % state.psis) * state.lambda);
+
+    column(state.psis, 0) /= sqrt(norm2);
 
     state.tau += dt;
     a = a_next;
