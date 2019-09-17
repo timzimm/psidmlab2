@@ -25,8 +25,22 @@ int main(int argc, char** argv) {
     Parameters param;
     std::ifstream(argv[1]) >> param;
 
+    // Holds mathematical union of all explicitly stated time points
+    std::set<double> time_point_union;
+    for (auto& [name, parameters] : param["Observables"].items()) {
+        if (auto compute_at = parameters["compute_at"];
+            compute_at != Parameters::array() &&
+            compute_at != Parameters::array({-1})) {
+            // Extract time points at which the observable should be saved
+            auto timepoints = compute_at.get<std::vector<double>>();
+            time_point_union.insert(timepoints.begin(), timepoints.end());
+        }
+    }
+    param["Cosmology"]["save_at"] = time_point_union;
+    time_point_union.clear();
+
     // Setup a(tau) and tau(a)...
-    const Cosmology cosmo(param);
+    const Cosmology cosmo(param["Cosmology"]);
     // ... and transform length scales to code units
     param << cosmo;
 
@@ -47,12 +61,6 @@ int main(int argc, char** argv) {
         param["Simulation"]["stepper"]["name"].get<std::string>();
     auto stepper = Stepper::make(stepper_name, param, state, cosmo);
 
-    // This sets the propagation method, e.g. naive stepping. stability driven,
-    // controlled by truncation error etc.
-    /* const auto driver_name = */
-    /*     param["Simulation"]["driver"]["name"].get<std::string>(); */
-    /* auto driver = Driver::make(driver_name, param); */
-
     // Setup Analysis Functors
     using observable_ptr = std::unique_ptr<ObservableFunctor>;
     // A checkpoint consists of its time point , the names of computed
@@ -60,8 +68,6 @@ int main(int argc, char** argv) {
     using checkpoint_t = std::tuple<double, std::vector<std::string>,
                                     std::vector<observable_ptr*>>;
 
-    // Holds mathematical union of all explicitly stated time points
-    std::set<double> time_point_union;
     std::unordered_map<std::string,
                        std::pair<std::vector<double>, observable_ptr>>
         observables;

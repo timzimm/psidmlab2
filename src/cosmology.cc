@@ -17,21 +17,21 @@ using namespace boost::units::si::constants::codata;
 BOOST_UNITS_STATIC_CONSTANT(parsec, astronomical::parsec_base_unit::unit_type);
 
 Cosmology::Cosmology(const Parameters& p)
-    : model{static_cast<CosmoModel>(p["Cosmology"]["model"].get<int>())},
-      omega_m0{p["Cosmology"]["omega_m0"].get<double>()},
-      hubble{p["Cosmology"]["h"].get<double>()},
-      mu{p["Cosmology"]["mu"].get<double>()},
-      a_start{a_of_z(p["Cosmology"]["z_start"].get<double>())},
+    : model{static_cast<CosmoModel>(p["model"].get<int>())},
+      omega_m0{p["omega_m0"].get<double>()},
+      hubble{p["h"].get<double>()},
+      mu{p["mu"].get<double>()},
+      a_start{a_of_z(p["z_start"].get<double>())},
       a_end{a_start},
       delta_a{0},
-      A{p["Simulation"]["a_grid_N"].get<int>()},
+      A{p["a_grid_N"].get<int>()},
       a_grid{},
       tau_a_map{} {
     if (model != CosmoModel::Static) {
         // Here the save_at array in the config file holds redshift values. We
         // transform them to scalefactor values and take the largest of them
         // to determine a_end
-        auto save_at = p["Observables"]["save_at"].get<std::vector<double>>();
+        auto save_at = p["save_at"].get<std::vector<double>>();
         std::transform(save_at.begin(), save_at.end(), save_at.begin(), a_of_z);
         a_end = *std::max_element(save_at.begin(), save_at.end());
         delta_a = (a_end - a_start) / (A - 1);
