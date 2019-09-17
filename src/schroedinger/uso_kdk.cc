@@ -17,11 +17,9 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
                                 p)},
       N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
-      a{cosmo.a_of_tau(-1)},
       k_squared(N),
       kick(N, state.M),
-      dt_last{-1},
-      stable{p["Simulation"]["integrator"]["stable"].get<bool>()} {
+      dt_last{-1} {
     // FFTW reorders frequencies. The upper half starts at the most negative
     // frequency and increases for increasing index.
     std::iota(k_squared.begin(), k_squared.end(), -N / 2);
@@ -32,7 +30,7 @@ USO_KDK::USO_KDK(const Parameters& p, const SimState& state,
 
 void USO_KDK::step(SimState& state, const double dt) {
     CCM& psis = state.psis;
-    const double a_next = cosmo.a_of_tau(state.tau + dt);
+    const double a_half = cosmo.a_of_tau(state.tau + dt / 2);
 
     // Set kick operator once for the entire time step
     if (dt - dt_last != 0) {
@@ -47,21 +45,20 @@ void USO_KDK::step(SimState& state, const double dt) {
     pot->solve(state);
 
     // Set drift operator with intermediate potential
-    auto drift =
-        expand(exp(-1.0 * 0.5i * (a + a_next) * state.V * dt), state.M);
+    auto drift = expand(exp(-1.0i * a_half * state.V * dt), state.M);
     psis = drift % psis;
 
     state.transform(SimState::Representation::Momentum);
     psis = kick % psis;
 
     state.tau += dt;
-    a = a_next;
     dt_last = dt;
     state.n += 1;
 }
 
 double USO_KDK::next_dt(const SimState& state) const {
-    return std::min({L * L / (N * N * M_PI), M_PI / (a * max(abs(state.V)))});
+    return std::min({L * L / (N * N * M_PI),
+                     M_PI / (cosmo.a_of_tau(state.tau) * max(abs(state.V)))});
 }
 
 }  // namespace Schroedinger

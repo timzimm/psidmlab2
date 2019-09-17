@@ -23,11 +23,9 @@ class USO_KDK : public DefaultDriver<USO_KDK> {
     std::unique_ptr<PotentialMethod> pot;  // potential method
     const int N;                           // No. of spatial points
     const double L;                        // size of domain
-    double a;                              // scalefactor
     RCV k_squared;
     CCM kick;
     double dt_last;
-    bool stable;
 
    public:
     USO_KDK(const Parameters& p, const SimState& state,

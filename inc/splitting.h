@@ -1,11 +1,12 @@
 #ifndef __SPLITTING__
 #define __SPLITTING__
 
-#include "interfaces.h"
+/* #include "interfaces.h" */
+#include "driver.h"
 #include "parameters.h"
 
 template <typename FlowMapA, typename FlowMapB>
-class SRKN : public Stepper {
+class SRKN : public DefaultDriver<SRKN<FlowMapA, FlowMapB>> {
     // Subproblem Integrators (A, B possible nonlinear)
     FlowMapA phiA;  // integrator for del_t psi = A psi
     FlowMapB phiB;  // integrator for del_t psi = B psi
@@ -17,7 +18,8 @@ class SRKN : public Stepper {
 
    public:
     SRKN(const Parameters& p, const SimState& state, const Cosmology& cosmo_)
-        : phiA(p, state, cosmo_),
+        : DefaultDriver<SRKN<FlowMapA, FlowMapB>>(p),
+          phiA(p, state, cosmo_),
           phiB(p, state, cosmo_),
           order{p["Simulation"]["stepper"]["order"].get<int>()},
           stable{p["Simulation"]["driver"]["stable"].get<bool>()},
@@ -104,6 +106,7 @@ class SRKN : public Stepper {
         state.n = n + 1;
     }
 
+    /*
     void integrate(SimState& state, const double t_final) {
         if (stable) {
             for (double dt = next_dt(state); state.tau + dt < t_final;
@@ -155,6 +158,7 @@ class SRKN : public Stepper {
             step(state, t_final - state.tau);
         }
     }
+    */
     REGISTER(SRKN)
 };
 
