@@ -33,11 +33,12 @@ def energy(file, p=None):
     virial = energy_data[:,3]
 
     #Time average with adaptive dt
-    T_mean = np.cumsum(np.multiply(np.diff(tau), T[1:]))
-    virial_mean = np.cumsum(np.multiply(np.diff(tau), virial[1:]))
-    delta_virial = np.abs(np.divide((2*T_mean - virial_mean), np.cumsum(tau)[1:]))
+    T_mean = np.divide(np.cumsum(np.multiply(np.diff(tau), T[1:])),
+                       np.cumsum(tau)[1:])
+    virial_mean = np.divide(np.cumsum(np.multiply(np.diff(tau), virial[1:])),
+                            np.cumsum(tau)[1:])
 
-    return T, V, Etot, delta_virial, t
+    return T, V, Etot, T_mean, virial_mean, t
 
 if __name__ == "__main__":
     file = h5py.File(sys.argv[1], 'r')

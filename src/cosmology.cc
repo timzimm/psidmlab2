@@ -132,8 +132,9 @@ double Cosmology::chi_of_x(
     const quantity<energy> eV = e_over_m_e * m_e * volt;
     const quantity<unit<phasevolume, si::system>> mu_si =
         mu * hbar / (1e-22 * eV) * pow<2>(c);
-    const auto H0 = static_cast<quantity<frequency>>(hubble * kilo * meter /
-                                                     (second * mega * parsec));
+    const auto H0 = static_cast<quantity<frequency>>(
+        hubble * 100 * kilo * meter / (second * mega * parsec));
+    auto alpha = 1.0 / root<2>(1.5 * pow<2>(H0) * omega_m0);
 
     return 1.0 / root<2>(mu_si) * root<4>(1.5 * pow<2>(H0) * omega_m0) *
            static_cast<quantity<length>>(x);

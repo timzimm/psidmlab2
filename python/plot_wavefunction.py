@@ -22,14 +22,14 @@ def wavefunction(file, time, p=None):
     ds_names=list(psis.keys())
 
     if p["Cosmology"]["model"] == 0:
-        time_file = np.array([psis.attrs['tau'][0] for psi in psis.values()])
+        time_file = np.array([psi.attrs['tau'][0] for psi in psis.values()])
     else:
-        time_file = np.array([psis.attrs['z'][0] for psi in psis.values()])
+        time_file = np.array([psi.attrs['z'][0] for psi in psis.values()])
 
     psis = [np.array(psis[ds_names[np.argmin(np.abs(time_file - t))]]) for t
                        in time]
 
-    return np.abs(psis)**2, np.real(psi), np.imag(psi), np.angle(psi)
+    return np.array(psis)
 
 if __name__ == "__main__":
     file = h5py.File(sys.argv[1], 'r')
@@ -54,13 +54,13 @@ if __name__ == "__main__":
         axs[2].plot(impsi)
         axs[3].plot(phase)
 
-axs[0].set(ylabel=r"$|\psi|^2$")
-axs[1].set(ylabel=r"$Re(\psi)$")
-axs[2].set(ylabel=r"$Im(\psi)$")
-axs[3].set(ylabel=r"$\Phi(\psi)$")
+    axs[0].set(ylabel=r"$|\psi|^2$")
+    axs[1].set(ylabel=r"$Re(\psi)$")
+    axs[2].set(ylabel=r"$Im(\psi)$")
+    axs[3].set(ylabel=r"$\Phi(\psi)$")
 
-for ax in axs:
-    ax.grid()
+    for ax in axs:
+        ax.grid()
 
-plt.legend(*axs[0].get_legend_handles_labels(), loc=0)
-plt.show()
+    plt.legend(*axs[0].get_legend_handles_labels(), loc=0)
+    plt.show()

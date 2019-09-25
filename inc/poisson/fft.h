@@ -16,19 +16,18 @@ class FFT : public PotentialMethod {
     using RCV = blaze::DynamicVector<double>;
     using CCV = blaze::DynamicVector<std::complex<double>>;
     using RDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<double>>;
-    size_t N;
-    double L;
+    const size_t N;
+    const double L;
+    const double epsilon;
 
     CCV fft;
     RCV source;
-    RDM inv_k_sq;
+    RDM kernel;
 
     fftw_plan forwards;
     fftw_plan backwards;
 
    public:
-    constexpr static double epsilon = 1e-8;
-
     FFT(const Parameters& p);
     ~FFT();
     void solve(SimState& state) override;

@@ -6,11 +6,12 @@
 
 namespace Poisson {
 FFT::FFT(const Parameters& p)
-    : N(p["Simulation"]["N"].get<size_t>()),
-      L(p["Simulation"]["L"].get<double>()),
+    : N{p["Simulation"]["N"].get<size_t>()},
+      L{p["Simulation"]["L"].get<double>()},
+      epsilon{p["Simulation"]["epsilon"].get<double>()},
       fft(N / 2 + 1),
       source(N),
-      inv_k_sq(N / 2 + 1) {
+      kernel(N / 2 + 1) {
     RCV potential_dummy(N);
     forwards = fftw_plan_dft_r2c_1d(N, source.data(),
                                     reinterpret_cast<fftw_complex*>(fft.data()),
@@ -19,11 +20,11 @@ FFT::FFT(const Parameters& p)
         fftw_plan_dft_c2r_1d(N, reinterpret_cast<fftw_complex*>(fft.data()),
                              potential_dummy.data(), FFTW_ESTIMATE);
 
-    auto diag = blaze::diagonal(inv_k_sq);
+    auto diag = blaze::diagonal(kernel);
 
     // inverse square wavelength and normalization
     for (int k = 1; k < N / 2 + 1; ++k)
-        diag[k] = -L * L / (4 * M_PI * M_PI * N * k * k);
+        diag[k] = -1.0 / (4 * M_PI * M_PI * N * k * k / (L * L) + epsilon);
 
     // makes the DC constraint manifest
     diag[0] = 0;
@@ -45,10 +46,12 @@ void FFT::solve(blaze::DynamicVector<double, blaze::columnVector>& V,
     fftw_execute_dft_r2c(forwards, source_p, fft_p);
 
     // Compute fourier coefficients of the potential
-    fft = inv_k_sq * fft;
+    fft = kernel * fft;
 
     // Get potential by applying the IFFT
     fft_p = reinterpret_cast<fftw_complex*>(fft.data());
     fftw_execute_dft_c2r(backwards, fft_p, V.data());
+
+    V -= V[N - 1];
 }
 }  // namespace Poisson

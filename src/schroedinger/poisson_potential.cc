@@ -24,10 +24,8 @@ void PoissonPotential::step(SimState& state, const double dt) {
     // |psi|^2 is invariant. Thus we can use the input state to determine the
     // potential for the entire time step.
     pot->solve(state);
-    const double a = cosmo.a_of_tau(state.tau);
-    const double a_next = cosmo.a_of_tau(state.tau + dt);
-    auto drift =
-        expand(exp(-1.0i * 0.5 * (a + a_next) * state.V * dt), state.M);
+    const double a_half = cosmo.a_of_tau(state.tau + dt / 2);
+    auto drift = expand(exp(-1.0i * a_half * state.V * dt), state.M);
     state.psis = drift % state.psis;
 
     state.tau += dt;
