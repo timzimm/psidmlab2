@@ -9,15 +9,13 @@ From: ubuntu:18.04
     This is the x86_64 development and execution container for psiDMLab.
     It includes:
         cmake 3.14.4
-        hdf5 1.10
-        fftw 3.3.7
         Intel MKL 2019
-        gcc-9, g++-9, gfortran-9
         clang-8, clang++-8, lldb
-        python3
+    3rd party dependencies are installed via vcpkg
 
 %post
-    apt install -y wget gnupg software-properties-common build-essential git
+    apt install -y unzip tar curl \
+        wget gnupg software-properties-common build-essential git
 
     add-apt-repository universe
     add-apt-repository multiverse
@@ -38,42 +36,45 @@ From: ubuntu:18.04
          >> /etc/apt/sources.list.d/intel-mkl.list
 
     apt update
-
     # Compilers 
     apt-get install -y libllvm8 llvm-8 llvm-8-dev llvm-8-runtime clang-8 \
                        clang-tools-8 libclang-common-8-dev libclang-8-dev \
                        libclang1-8 libomp-8-dev lldb-8
-    apt install -y gcc-9 g++-9 gfortran-9
 
-    #Dependency libs
-    apt install -y libhdf5-100 libhdf5-dev
-    apt install -y libboost1.65-all-dev
-    apt install -y libfftw3-3 libfftw3-bin libfftw3-dev
     apt install -y intel-mkl-64bit-2019.4-070
 
-    #Python stuff for data analysis
-    apt install -y python3 python3-pip
-    pip3 install numpy h5py matplotlib
+    #Dependency libs via vcpkg
+    cd /opt
+    git clone https://github.com/Microsoft/vcpkg.git
+    cd vcpkg
+    ./bootstrap-vcpkg.sh
+    ./vcpkg integrate install
+    export MKLVARS_ARCHITECTURE=intel64
+    . /opt/intel/mkl/bin/mklvars.sh
+    
+    ./vcpkg install intel-mkl
+    ./vcpkg install boost-math
+    ./vcpkg install boost-variant 
+    ./vcpkg install boost-core 
+    ./vcpkg install boost-units 
+    ./vcpkg install fftw3
+    ./vcpkg install hdf5
+    ./vcpkg install --head blaze
+    ./vcpkg install nlohmann-json
 
     #cmake 3.14.4 from Kitware website
-    mkdir /opt/cmake
+    mkdir /opt/cmake 
     cd /opt/cmake
     wget https://github.com/Kitware/CMake/releases/download/v3.14.4/cmake-3.14.4-Linux-x86_64.sh
-    chmod +x cmake-3.14.4-Linux-x86_64.sh
+    chmod +x cmake-3.14.4-Linux-x86_64.sh 
     ./cmake-3.14.4-Linux-x86_64.sh --skip-license
     ln -s /opt/cmake/bin/* /usr/local/bin
 
-    #Build openblas 0.3.37 from source (packaged version is old)
-    # git clone https://github.com/xianyi/OpenBLAS.git
-    # cd OpenBLAS/
-    # make CC=gcc-9 FC=gfortran-9 -USE_OPENMP=1
-    # make install
-    # cd ..
-    # rm -rf OpenBLAS
-
 %environment
-    export LC_ALL=C
-    export CC=clang-8
-    export CXX=clang++-8
-    export MKLVARS_ARCHITECTURE=intel64
+    LC_ALL=C
+    CC=clang-8
+    CXX=clang++-8
+    MKLVARS_ARCHITECTURE=intel64
     . /opt/intel/mkl/bin/mklvars.sh
+    MKLROOT=/opt/intel/compilers_and_libraries_2019.4.243/linux/mkl
+    export LC CC CXX MKLVARS_ARCHITECTURE MKLROOT
