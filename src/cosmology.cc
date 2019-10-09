@@ -1,4 +1,5 @@
 #include "cosmology.h"
+#include "io.h"
 #include "logging.h"
 #include "parameters.h"
 
@@ -8,7 +9,7 @@
 #include <boost/units/systems/si/codata/universal_constants.hpp>
 #include <boost/units/systems/si/io.hpp>
 #include <boost/units/systems/si/prefixes.hpp>
-#include <iostream>
+#include <fstream>
 #include <tuple>
 
 using namespace boost::units;
@@ -21,18 +22,22 @@ Cosmology::Cosmology(const Parameters& p)
       omega_m0{p["omega_m0"].get<double>()},
       hubble{p["h"].get<double>()},
       mu{p["mu"].get<double>()},
-      a_start{a_of_z(p["z_start"].get<double>())},
-      a_end{a_start},
+      a_start{0},
+      a_end{0},
       delta_a{0},
-      A{p["a_grid_N"].get<int>()},
+      A{0},
       a_grid{},
       tau_a_map{} {
-    if (model != CosmoModel::Static) {
+    std::cout << INFOTAG("Initialize time lookup table") << std::endl;
+    if (model == CosmoModel::Dynamic) {
+        A = p["a_grid_N"].get<int>();
         // Here the save_at array in the config file holds redshift values. We
         // transform them to scalefactor values and take the largest of them
         // to determine a_end
         auto save_at = p["save_at"].get<std::vector<double>>();
         std::transform(save_at.begin(), save_at.end(), save_at.begin(), a_of_z);
+
+        a_start = a_of_z(p["z_start"].get<double>()),
         a_end = *std::max_element(save_at.begin(), save_at.end());
         delta_a = (a_end - a_start) / (A - 1);
 
@@ -42,7 +47,6 @@ Cosmology::Cosmology(const Parameters& p)
         // time. tau increases strictly monotone so our time parameter can
         // be interpreted as a proper time.
         a_grid.resize(A);
-        std::cout << INFOTAG("Initialize time lookup table") << std::endl;
         double tau = 0;
         double a = a_start;
         for (int j = 0; j < A; j++) {
@@ -51,11 +55,31 @@ Cosmology::Cosmology(const Parameters& p)
             a += delta_a;
             tau += dtau_da(a - 0.5 * delta_a) * delta_a;
         }
+    } else if (model == CosmoModel::Artificial) {
+        std::ifstream a_file{p["scalefactor_file"].get<std::string>()};
+        if (!a_file) {
+            std::cout << ERRORTAG("scalefactor file not found") << std::endl;
+            exit(1);
+        }
+
+        // Determine # rows in file
+        A = std::count(std::istreambuf_iterator<char>(a_file),
+                       std::istreambuf_iterator<char>(), '\n');
+        a_file.seekg(0);
+
+        std::vector<double> tau(A);
+        a_grid.resize(A);
+        fill_from_file(a_file, tau, a_grid);
+        for (int j = 0; j < A; ++j) {
+            tau_a_map[a_grid[j]] = tau[j];
+        }
+        a_start = a_grid[0];
+        a_end = a_grid[A - 1];
     }
 }
 
 double Cosmology::omega_m(double a) const {
-    if (model == CosmoModel::Static) return omega_m0;
+    if (model == CosmoModel::Artificial) return omega_m0;
     return omega_m0 / (omega_m0 + (1 - omega_m0) * a * a * a);
 }
 double Cosmology::Dplus(double a) const {
@@ -98,10 +122,9 @@ double Cosmology::tau_of_a(const double a) const {
            (lower_delta + upper_delta);
 }
 
+// Numericallly inverts the map tau(a)
 double Cosmology::a_of_tau(double tau) const {
     using namespace boost::math::tools;
-
-    if (model == CosmoModel::Static) return a_start;
 
     // Simulation start
     if (tau <= tau_a_map.at(a_grid[0])) return a_start;
@@ -134,10 +157,9 @@ double Cosmology::chi_of_x(
         mu * hbar / (1e-22 * eV) * pow<2>(c);
     const auto H0 = static_cast<quantity<frequency>>(
         hubble * 100 * kilo * meter / (second * mega * parsec));
-    auto alpha = 1.0 / root<2>(1.5 * pow<2>(H0) * omega_m0);
+    const auto alpha = 1.0 / root<2>(1.5 * pow<2>(H0) * omega_m0);
 
-    return 1.0 / root<2>(mu_si) * root<4>(1.5 * pow<2>(H0) * omega_m0) *
-           static_cast<quantity<length>>(x);
+    return 1.0 / root<2>(mu_si * alpha) * static_cast<quantity<length>>(x);
 }
 
 double Cosmology::x_of_chi(double chi) const {
@@ -147,11 +169,11 @@ double Cosmology::x_of_chi(double chi) const {
     const quantity<energy> eV = e_over_m_e * m_e * volt;
     const quantity<unit<phasevolume, si::system>> mu_si =
         mu * hbar / (1e-22 * eV) * pow<2>(c);
-    const auto H0 = static_cast<quantity<frequency>>(hubble * kilo * meter /
-                                                     (second * mega * parsec));
+    const auto H0 = static_cast<quantity<frequency>>(
+        hubble * 100 * kilo * meter / (second * mega * parsec));
+    const auto alpha = 1.0 / root<2>(1.5 * pow<2>(H0) * omega_m0);
 
-    return (root<2>(mu_si) / root<4>(1.5 * pow<2>(H0) * omega_m0) * chi) /
-           static_cast<quantity<length>>(1.0 * parsec);
+    return root<2>(mu_si * alpha) / static_cast<quantity<length>>(1.0 * parsec);
 }
 
 Parameters& operator<<(Parameters& p, const Cosmology& cosmo) {

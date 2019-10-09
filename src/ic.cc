@@ -1,6 +1,7 @@
 #include "ic.h"
 #include "cosmology.h"
 #include "interfaces.h"
+#include "io.h"
 #include "logging.h"
 #include "parameters.h"
 #include "state.h"
@@ -16,17 +17,6 @@
 #include <map>
 #include <numeric>
 #include <random>
-
-// Reads columns of stream s into the supplied vectors.
-// Passed in vectors already have to be large enough to hold the colums
-// of s.
-template <typename... Ts>
-void fill_from_file(std::istream& s, Ts&... vecs) {
-    const int N = std::max({std::size(vecs)...});
-    for (int i = 0; i < N; ++i) {
-        (s >> ... >> vecs[i]);
-    }
-}
 
 ICGenerator::ICGenerator(const Parameters& p)
     : type{static_cast<ICType>(p["Initial Conditions"]["ic_type"].get<int>())},

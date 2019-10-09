@@ -9,16 +9,22 @@
 #include <string>
 #include <vector>
 
-template <typename T>
-struct is_complex : public std::false_type {};
-template <typename T>
-struct is_complex<std::complex<T>> : public std::true_type {};
+// Reads columns of stream s into the supplied vectors.
+// Passed in vectors already have to be large enough to hold the colums
+// of s.
+template <typename... Ts>
+void fill_from_file(std::istream& s, Ts&... vecs) {
+    const int N = std::max({std::size(vecs)...});
+    for (int i = 0; i < N; ++i) {
+        (s >> ... >> vecs[i]);
+    }
+}
 
+// Type Traits
 template <typename T>
 struct is_string : public std::false_type {};
 template <>
 struct is_string<std::string> : public std::true_type {};
-
 template <typename T>
 using is_bool = std::is_same<typename std::remove_cv<T>::type, bool>;
 
@@ -158,7 +164,7 @@ class HDF5File {
         hid_t datatype;
         if constexpr (std::is_floating_point_v<T>)
             datatype = H5T_NATIVE_DOUBLE;
-        else if constexpr (is_complex<T>())
+        else if constexpr (blaze::IsComplexDouble_v<T>)
             datatype = complex_type;
         auto dataset =
             H5Dcreate(parent_group, ds_path.c_str(), datatype, dataspace,
@@ -223,7 +229,7 @@ class HDF5File {
         hid_t datatype;
         if constexpr (std::is_floating_point_v<T>)
             datatype = H5T_NATIVE_DOUBLE;
-        else if constexpr (is_complex<T>())
+        else if constexpr (blaze::IsComplexDouble_v<T>)
             datatype = complex_type;
 
         auto dataset =
@@ -277,7 +283,7 @@ class HDF5File {
         auto c_ptr = reinterpret_cast<const void*>(&value);
         if constexpr (std::is_floating_point_v<T>)
             attr_type = H5T_NATIVE_DOUBLE;
-        else if constexpr (is_complex<T>())
+        else if constexpr (blaze::IsComplexDouble_v<T>)
             attr_type = complex_type;
         else if constexpr (is_bool<T>::value) {
             attr_type = H5T_NATIVE_HBOOL;

@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
         const double a = cosmo.a_of_tau(checkpoint);
         const double z = Cosmology::z_of_a(a);
         std::cout << INFOTAG("Save observables @ tau/z = ")
-                  << ((cosmo == CosmoModel::Static) ? checkpoint : z)
+                  << ((cosmo == CosmoModel::Artificial) ? checkpoint : z)
                   << std::flush;
         for (int i = 0; i < obs_ptrs.size(); ++i) {
             auto& obs_ptr = obs_ptrs[i];

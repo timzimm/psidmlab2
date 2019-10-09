@@ -8,9 +8,9 @@
 #include "parameters_fwd.h"
 
 // cosmological model "tags"
-// Static <=> a = a_start = const; omega_m(a) = omega_m0
 // Dynamic <=> a = a(tau); omega_m(a) != const
-enum class CosmoModel { Static, Dynamic };
+// Artificial <=> tau = tau(a), a = a(tau) given by external file;
+enum class CosmoModel { Dynamic, Artificial };
 
 class Cosmology {
    private:
@@ -22,6 +22,7 @@ class Cosmology {
     double a_end;
     double delta_a;
     int A;
+
     std::vector<double> a_grid;
     std::unordered_map<double, double> tau_a_map;
 
