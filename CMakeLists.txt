@@ -29,6 +29,7 @@ add_executable(psidm
     src/schroedinger/pc_cayley.cc
     src/schroedinger/kinetic.cc
     src/schroedinger/poisson_potential.cc
+    src/schroedinger/poisson_external_potential.cc
     src/schroedinger/cap_poisson_potential.cc
     src/schroedinger/cap_poisson_potential_delta.cc
     src/schroedinger/concrete_splittings.cc

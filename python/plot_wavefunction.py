@@ -21,7 +21,7 @@ def wavefunction(file, time, p=None):
     psis = file["WaveFunction"]
     ds_names=list(psis.keys())
 
-    if p["Cosmology"]["model"] == 0:
+    if p["Cosmology"]["model"] == 1:
         time_file = np.array([psi.attrs['tau'][0] for psi in psis.values()])
     else:
         time_file = np.array([psi.attrs['z'][0] for psi in psis.values()])
@@ -29,7 +29,7 @@ def wavefunction(file, time, p=None):
     psis = [np.array(psis[ds_names[np.argmin(np.abs(time_file - t))]]) for t
                        in time]
 
-    return np.array(psis)
+    return psis
 
 if __name__ == "__main__":
     file = h5py.File(sys.argv[1], 'r')
@@ -38,21 +38,22 @@ if __name__ == "__main__":
     # Get simultion parameters and parse string as json
     param_string = file['/'].attrs['parameters'][0].decode("ascii")
     p = json.loads(param_string)
-    psi2, repsi, impsi, phase = wavefunction(file, time, p)
+    psis = wavefunction(file, time, p)
 
     fig, axs = plt.subplots(4, 1, sharex=True)
 
 
-    for i, t in zip(range(psi2.shape[0]), time):
+    for psi, t in zip(psis, time):
+        psi = np.ravel(psi)
         label = ""
-        if(p["Cosmology"]["model"] == 0):
-            label=r"$\tau = %.4f$" % t
         if(p["Cosmology"]["model"] == 1):
+            label=r"$\tau = %.4f$" % t
+        if(p["Cosmology"]["model"] == 0):
             label=r"$ z = %.4f$" % t
-        axs[0].plot(psi2, label=label)
-        axs[1].plot(repsi)
-        axs[2].plot(impsi)
-        axs[3].plot(phase)
+        axs[0].plot(np.abs(psi)**2, label=label)
+        axs[1].plot(np.real(psi))
+        axs[2].plot(np.imag(psi))
+        axs[3].plot(np.angle(psi))
 
     axs[0].set(ylabel=r"$|\psi|^2$")
     axs[1].set(ylabel=r"$Re(\psi)$")

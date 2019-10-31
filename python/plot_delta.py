@@ -22,7 +22,7 @@ def density_contrast(file, time, p=None):
     deltas = file["DensityContrast"]
     ds_names=list(deltas.keys())
 
-    if p["Cosmology"]["model"] == 0:
+    if p["Cosmology"]["model"] == 1:
         time_file = np.array([delta.attrs['tau'][0] for delta in deltas.values()])
     else:
         time_file = np.array([delta.attrs['z'][0] for delta in deltas.values()])

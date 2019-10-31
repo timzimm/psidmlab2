@@ -23,7 +23,7 @@ fig,ax = plt.subplots()
 
 dist = None
 
-if p["Cosmology"]["model"] == 0:
+if p["Cosmology"]["model"] == 1:
     dist = [phasedists[i] for i in phasedists if
                 np.isclose(phasedists[i].attrs['tau'][0], time)][0]
 else:
@@ -32,7 +32,7 @@ else:
 
 
 cm = sns.diverging_palette(240, 10, n=9, as_cmap=True)
-lvl = np.logspace(-2,0,6)
+lvl = np.logspace(-2,0,10)
 
 tau = dist.attrs["tau"][0]
 
@@ -47,8 +47,9 @@ u = np.linspace(-2*np.pi/L, 2*np.pi/L, N)[46*N//100:54*N//100]
 X, U = np.meshgrid(x,u)
 
 print("Creating pcolormesh...")
-cbar = ax.contourf(X, U, dist, levels=lvl,norm=LogNorm(),cmap=cm)
-# cbar = ax.contourf(X, U, np.clip(dist,0,0.001))
+dist = np.clip(dist,0.001,1)
+# cbar = ax.pcolormesh(X, U, dist, norm=LogNorm(), cmap="afmhot")
+cbar = ax.contourf(X, U, dist, norm=LogNorm(), cmap="afmhot")
 fig.colorbar(cbar, ax=ax)
 
 plt.title(r"Phasespace Distribution ($\sigma_x = %.3f$)" % sigma_x)

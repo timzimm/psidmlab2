@@ -26,7 +26,6 @@ class ICGenerator {
     double rel_threshold;
     bool compute_velocity;
     mutable std::ifstream ic_file;
-    mutable std::ifstream pot_file;
     std::unique_ptr<PotentialMethod> poisson;
 
     // init density contrast ...

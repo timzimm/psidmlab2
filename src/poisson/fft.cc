@@ -52,6 +52,7 @@ void FFT::solve(blaze::DynamicVector<double, blaze::columnVector>& V,
     fft_p = reinterpret_cast<fftw_complex*>(fft.data());
     fftw_execute_dft_c2r(backwards, fft_p, V.data());
 
-    V -= V[N - 1];
+    // V(0) = V(L) = 0 boundary condition
+    /* V -= V[N - 1]; */
 }
 }  // namespace Poisson

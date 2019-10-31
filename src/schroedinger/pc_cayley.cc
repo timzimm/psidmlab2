@@ -52,6 +52,7 @@ void PCCayley::step(SimState& state, const double dt) {
     const double a_next = cosmo.a_of_tau(state.tau + dt);
 
     state.transform(SimState::Representation::Position);
+    potential->solve(state);
     // Save the input state for the corrector step - no copy
     swap(psi_old, state.psis);
     swap(V_old, state.V);
@@ -84,8 +85,6 @@ void PCCayley::step(SimState& state, const double dt) {
     gctrf(dl, d, du, du2, ipiv);
     gctrs(dl, d, du, du2, ipiv, state.psis);
 
-    // At last we calculate the potential again such that state is @ t + dt
-    potential->solve(state);
     state.tau += dt;
     a = a_next;
     state.n += 1;

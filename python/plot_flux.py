@@ -21,7 +21,7 @@ def flux(file, time, p=None):
     fluxes = file["ParticleFlux"]
     ds_names=list(fluxes.keys())
 
-    if p["Cosmology"]["model"] == 0:
+    if p["Cosmology"]["model"] == 1:
         time_file = np.array([flux.attrs['tau'][0] for flux in fluxes.values()])
     else:
         time_file = np.array([flux.attrs['z'][0] for flux in fluxes.values()])

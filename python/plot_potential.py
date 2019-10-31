@@ -21,7 +21,7 @@ def potential(file, time, p=None):
     Us = file["Potential"]
     ds_names=list(Us.keys())
 
-    if p["Cosmology"]["model"] == 0:
+    if p["Cosmology"]["model"] == 1:
         time_file = np.array([U.attrs['tau'][0] for U in Us.values()])
     else:
         time_file = np.array([U.attrs['z'][0] for U in Us.values()])

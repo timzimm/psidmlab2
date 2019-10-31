@@ -30,24 +30,10 @@ ICGenerator::ICGenerator(const Parameters& p)
       rel_threshold{p["Initial Conditions"]["ev_threshold"].get<double>()},
       compute_velocity{p["Initial Conditions"]["compute_velocity"].get<bool>()},
       ic_file{p["Initial Conditions"]["source_file"].get<std::string>()},
-      pot_file{p["Initial Conditions"]["potential_file"].get<std::string>()},
       poisson{nullptr} {
     data_N = std::count(std::istreambuf_iterator<char>(ic_file),
                         std::istreambuf_iterator<char>(), '\n');
-    int pot_N;
-    if (pot_file) {
-        pot_file.seekg(0);
-
-        pot_N = std::count(std::istreambuf_iterator<char>(pot_file),
-                           std::istreambuf_iterator<char>(), '\n');
-
-        pot_file.seekg(0);
-    } else {
-        poisson = PotentialMethod::make(
-            p["Simulation"]["potential"].get<std::string>(), p);
-        pot_N = N;
-    }
-    if (compute_velocity && !poisson) {
+    if (compute_velocity) {
         poisson = PotentialMethod::make("Poisson::FFT", p);
     }
 
@@ -67,12 +53,7 @@ ICGenerator::ICGenerator(const Parameters& p)
                 exit(1);
             }
         default:
-            if (N != pot_N) {
-                std::cout << ERRORTAG("#lines in pot_file(" << pot_N
-                                                            << ") != N")
-                          << std::endl;
-                exit(1);
-            }
+            break;
     };
 
     ic_file.seekg(0);
@@ -128,17 +109,6 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
             // Madelung Representation.
             psi *= exp(std::complex<double>(0, 1) * phase);
         }
-    }
-
-    // Potential Initialization
-    if (pot_file) {
-        std::cout << INFOTAG("Load potential from file.") << std::flush;
-        fill_from_file(pot_file, state.V);
-        std::cout << " ... done" << std::endl;
-    } else {
-        std::cout << INFOTAG("Generate Potential from Poisson") << std::flush;
-        poisson->solve(state);
-        std::cout << " ... done" << std::endl;
     }
 }
 

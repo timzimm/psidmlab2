@@ -37,6 +37,7 @@ void USO_DKD::step(SimState& state, const double dt) {
 
     // Drift step
     state.transform(SimState::Representation::Position);
+    pot->solve(state);
     psis =
         expand(exp(-0.5i * 0.5 * (a + a_next) * state.V * dt), state.M) % psis;
 
@@ -54,7 +55,6 @@ void USO_DKD::step(SimState& state, const double dt) {
         expand(exp(-0.5i * 0.5 * (a + a_next) * state.V * dt), state.M) % psis;
 
     // state is now @ tau + dt
-    pot->solve(state);
     state.tau += dt;
     a = a_next;
     state.n += 1;

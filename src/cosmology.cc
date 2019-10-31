@@ -28,8 +28,9 @@ Cosmology::Cosmology(const Parameters& p)
       A{0},
       a_grid{},
       tau_a_map{} {
-    std::cout << INFOTAG("Initialize time lookup table") << std::endl;
     if (model == CosmoModel::Dynamic) {
+        std::cout << INFOTAG("Initialize time lookup table from cosmology")
+                  << std::endl;
         A = p["a_grid_N"].get<int>();
         // Here the save_at array in the config file holds redshift values. We
         // transform them to scalefactor values and take the largest of them
@@ -56,6 +57,8 @@ Cosmology::Cosmology(const Parameters& p)
             tau += dtau_da(a - 0.5 * delta_a) * delta_a;
         }
     } else if (model == CosmoModel::Artificial) {
+        std::cout << INFOTAG("Initialize time lookup table from file")
+                  << std::endl;
         std::ifstream a_file{p["scalefactor_file"].get<std::string>()};
         if (!a_file) {
             std::cout << ERRORTAG("scalefactor file not found") << std::endl;

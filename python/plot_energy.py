@@ -26,7 +26,7 @@ def energy(file, p=None):
         z.append(energy.attrs["z"][0])
         energy_data[i,:] = np.array(energy)
 
-    t = np.array(tau) if p["Cosmology"]["model"] == 0 else np.array(z)
+    t = np.array(tau) if p["Cosmology"]["model"] == 1 else np.array(z)
     T = energy_data[:,0]
     V = energy_data[:,1]
     Etot = energy_data[:,2]
@@ -34,9 +34,9 @@ def energy(file, p=None):
 
     #Time average with adaptive dt
     T_mean = np.divide(np.cumsum(np.multiply(np.diff(tau), T[1:])),
-                       np.cumsum(tau)[1:])
+                       tau[1:])
     virial_mean = np.divide(np.cumsum(np.multiply(np.diff(tau), virial[1:])),
-                            np.cumsum(tau)[1:])
+                            tau[1:])
 
     return T, V, Etot, T_mean, virial_mean, t
 
@@ -45,7 +45,8 @@ if __name__ == "__main__":
     param_string = file['/'].attrs['parameters'][0].decode("ascii")
     p = json.loads(param_string)
 
-    T, V, Etot, delta_virial, t = energy(file, p)
+    T, V, Etot, T_mean, virial_mean, t = energy(file, p)
+    delta_virial = np.abs(2*T_mean - virial_mean)
     fig,ax = plt.subplots(nrows=2, ncols=1, sharex=True)
 
     t_label = r"$\tau$" if p["Cosmology"]["model"] == 0 else r"$a$"

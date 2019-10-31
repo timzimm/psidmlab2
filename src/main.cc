@@ -137,7 +137,6 @@ int main(int argc, char** argv) {
     const auto start = high_resolution_clock::now();
     while (!checkpoints.empty()) {
         auto& [checkpoint, names, obs_ptrs] = checkpoints.top();
-        /* driver->integrate(stepper.get(), state, checkpoint); */
         stepper->integrate(state, checkpoint);
         // Depending on the stepper a retransformation to real space might be
         // necessary. If not, transform acts as identity.
