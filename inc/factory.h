@@ -5,6 +5,7 @@
 
 #include <boost/type_index.hpp>
 #include <exception>
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
