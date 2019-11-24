@@ -26,7 +26,7 @@ def wavefunction(file, time, p=None):
     else:
         time_file = np.array([psi.attrs['z'][0] for psi in psis.values()])
 
-    psis = [np.array(psis[ds_names[np.argmin(np.abs(time_file - t))]]) for t
+    psis = [np.ravel(psis[ds_names[np.argmin(np.abs(time_file - t))]]) for t
                        in time]
 
     return psis
@@ -39,12 +39,14 @@ if __name__ == "__main__":
     param_string = file['/'].attrs['parameters'][0].decode("ascii")
     p = json.loads(param_string)
     psis = wavefunction(file, time, p)
+    N = p["Simulation"]["N"]
+    L = p["Simulation"]["L"]
 
-    fig, axs = plt.subplots(4, 1, sharex=True)
+    fig, axs = plt.subplots(5, 1, sharex=True)
 
 
     for psi, t in zip(psis, time):
-        psi = np.ravel(psi)
+        # psi = np.ravel(psi)
         label = ""
         if(p["Cosmology"]["model"] == 1):
             label=r"$\tau = %.4f$" % t
@@ -54,11 +56,13 @@ if __name__ == "__main__":
         axs[1].plot(np.real(psi))
         axs[2].plot(np.imag(psi))
         axs[3].plot(np.angle(psi))
+        axs[4].plot(np.clip(np.gradient(np.angle(psi), L/N), -10, 10))
 
     axs[0].set(ylabel=r"$|\psi|^2$")
     axs[1].set(ylabel=r"$Re(\psi)$")
     axs[2].set(ylabel=r"$Im(\psi)$")
     axs[3].set(ylabel=r"$\Phi(\psi)$")
+    axs[4].set(ylabel=r"$\partial_x\Phi(\psi)$")
 
     for ax in axs:
         ax.grid()
