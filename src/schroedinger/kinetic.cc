@@ -16,9 +16,9 @@ Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
       kick(N, state.M) {
     // FFTW reorders frequencies. The upper half starts at the most negative
     // frequency and increases for increasing index.
+    //          f0 f1 ... fN/2-1, f-N/2 ... f-1
     std::iota(k_squared.begin(), k_squared.end(), -N / 2);
-    std::rotate(k_squared.begin(), k_squared.end() - (N + 1) / 2,
-                k_squared.end());
+    std::rotate(k_squared.begin(), k_squared.begin() + N / 2, k_squared.end());
     k_squared = 4 * M_PI * M_PI / (L * L) * k_squared * k_squared;
 }
 
