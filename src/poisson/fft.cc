@@ -8,7 +8,6 @@ namespace Poisson {
 FFT::FFT(const Parameters& p)
     : N{p["Simulation"]["N"].get<size_t>()},
       L{p["Simulation"]["L"].get<double>()},
-      epsilon{p["Simulation"]["epsilon"].get<double>()},
       fft(N / 2 + 1),
       source(N),
       kernel(N / 2 + 1) {
@@ -24,7 +23,7 @@ FFT::FFT(const Parameters& p)
 
     // inverse square wavelength and normalization
     for (int k = 1; k < N / 2 + 1; ++k)
-        diag[k] = -1.0 / (4 * M_PI * M_PI * N * k * k / (L * L) + epsilon);
+        diag[k] = -1.0 / (4 * M_PI * M_PI * N * k * k / (L * L));
 
     // makes the DC constraint manifest
     diag[0] = 0;

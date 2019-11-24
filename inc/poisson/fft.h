@@ -18,7 +18,6 @@ class FFT : public PotentialMethod {
     using RDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<double>>;
     const size_t N;
     const double L;
-    const double epsilon;
 
     CCV fft;
     RCV source;
