@@ -12,7 +12,7 @@ SimState::SimState(const Parameters& p)
       M_plan{0} {}
 
 void SimState::transform(const SimState::Representation target) {
-    // Idenity transform
+    // Identity transform
     if (target == representation) return;
 
     // Due to move semantics and other optimizations, the data adress of blaze's
