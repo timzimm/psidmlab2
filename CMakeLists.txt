@@ -21,18 +21,11 @@ add_executable(psidm
     src/observables.cc
     src/convolution_functions.cc
     src/poisson/fft.cc
-    src/poisson/fd.cc
-    src/poisson/identity.cc
-    src/schroedinger/uso_kdk.cc
-    src/schroedinger/uso_kdk_itp.cc
-    src/schroedinger/uso_dkd.cc
-    src/schroedinger/pc_cayley.cc
+    src/poisson/gp.cc
     src/schroedinger/kinetic.cc
-    src/schroedinger/poisson_potential.cc
-    src/schroedinger/poisson_external_potential.cc
-    src/schroedinger/cap_poisson_potential.cc
-    src/schroedinger/cap_poisson_potential_delta.cc
+    src/schroedinger/interaction_external_potential.cc
     src/schroedinger/concrete_splittings.cc
+    src/schroedinger/uso_kdk_itp.cc
 )
 
 target_compile_features(psidm PRIVATE cxx_std_17)
