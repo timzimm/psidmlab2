@@ -1,4 +1,4 @@
-#include "schroedinger/poisson_external_potential.h"
+#include "schroedinger/interaction_external_potential.h"
 #include "cosmology.h"
 #include "io.h"
 #include "parameters.h"
@@ -10,21 +10,21 @@ namespace Schroedinger {
 using namespace blaze;
 using namespace std::complex_literals;
 
-PoissonExternalPotential::PoissonExternalPotential(const Parameters& p,
-                                                   const SimState& state,
-                                                   const Cosmology& cosmo_)
+InteractionExternalPotential::InteractionExternalPotential(
+    const Parameters& p, const SimState& state, const Cosmology& cosmo_)
     : DefaultDriver(p),
       cosmo{cosmo_},
+      dt_last{-1},
+      N{p["Simulation"]["N"].get<int>()},
       pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
                                 p)},
-      pot_external(0) {
-    const int N = p["Simulation"]["N"].get<int>();
+      pot_external(0),
+      drift(N, state.M) {
     std::ifstream pot_file{
         p["Simulation"]["stepper"]["external_potential"].get<std::string>()};
-    if (!pot_file) {
-        std::cout << ERRORTAG("external potential file not found") << std::endl;
-        exit(1);
-    }
+
+    if (!pot_file) return;
+    std::cout << INFOTAG("External potential loaded") << std::endl;
 
     // Determine # rows in file
     double dataN = std::count(std::istreambuf_iterator<char>(pot_file),
@@ -39,22 +39,24 @@ PoissonExternalPotential::PoissonExternalPotential(const Parameters& p,
 }
 
 // Non linear phase method with phi_max = pi/2
-double PoissonExternalPotential::next_dt(const SimState& state) const {
-    return M_PI / (2 * cosmo.a_of_tau(state.tau) * max(abs(state.V)));
+double InteractionExternalPotential::next_dt(const SimState& state) const {
+    return M_PI /
+           (2 * cosmo.a_of_tau(state.tau) * max(abs(state.V + pot_external)));
 }
 
-void PoissonExternalPotential::step(SimState& state, const double dt) {
+void InteractionExternalPotential::step(SimState& state, const double dt) {
     state.transform(SimState::Representation::Position);
-    // |psi|^2 is invariant. Thus we can use the input state to determine the
-    // gravitational potential for the entire time step.
     pot->solve(state);
     const double a_half = cosmo.a_of_tau(state.tau + dt / 2);
-    auto drift = expand(
-        exp(-1.0i * (a_half * state.V * dt + pot_external * dt)), state.M);
+    if (dt - dt_last != 0) {
+        if (pot_external.size() == N) state.V += pot_external;
+        drift = expand(exp(-1.0i * a_half * state.V * dt), state.M);
+    }
     state.psis = drift % state.psis;
 
     state.tau += dt;
     state.n += 1;
+    dt_last = dt;
 }
 
 }  // namespace Schroedinger
