@@ -19,11 +19,11 @@ class USO_KDK_ITP : public DefaultDriver<USO_KDK_ITP> {
     // Complex dense matrix in column-major order
     using CCM = blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>;
 
-    const Cosmology& cosmo;                // Cosmological model for a(t)
-    std::unique_ptr<PotentialMethod> pot;  // potential method
-    const int N;                           // No. of spatial points
-    const double L;                        // size of domain
-    double a;                              // scalefactor
+    const Cosmology& cosmo;                     // Cosmological model for a(t)
+    std::unique_ptr<PotentialMethod> pot;       // potential method
+    blaze::DynamicVector<double> pot_external;  // external potential
+    const int N;                                // No. of spatial points
+    const double L;                             // size of domain
     RCV k_squared;
     CCM kick;
     double dt_last;
