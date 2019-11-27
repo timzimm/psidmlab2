@@ -41,9 +41,9 @@ if __name__ == "__main__":
     psis = wavefunction(file, time, p)
     N = p["Simulation"]["N"]
     L = p["Simulation"]["L"]
+    x = np.linspace(-L/2,L/2,N)
 
     fig, axs = plt.subplots(5, 1, sharex=True)
-
 
     for psi, t in zip(psis, time):
         # psi = np.ravel(psi)
@@ -52,11 +52,11 @@ if __name__ == "__main__":
             label=r"$\tau = %.4f$" % t
         if(p["Cosmology"]["model"] == 0):
             label=r"$ z = %.4f$" % t
-        axs[0].plot(np.abs(psi)**2, label=label)
-        axs[1].plot(np.real(psi))
-        axs[2].plot(np.imag(psi))
-        axs[3].plot(np.angle(psi))
-        axs[4].plot(np.clip(np.gradient(np.angle(psi), L/N), -10, 10))
+        axs[0].plot(x,np.abs(psi)**2, label=label)
+        axs[1].plot(x,np.real(psi))
+        axs[2].plot(x,np.imag(psi))
+        axs[3].plot(x,np.angle(psi))
+        axs[4].plot(x,np.clip(np.gradient(np.angle(psi), L/N), -10, 10))
 
     axs[0].set(ylabel=r"$|\psi|^2$")
     axs[1].set(ylabel=r"$Re(\psi)$")
