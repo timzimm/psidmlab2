@@ -20,22 +20,26 @@ InteractionExternalPotential::InteractionExternalPotential(
                                 p)},
       pot_external(0),
       drift(N, state.M) {
-    std::ifstream pot_file{
-        p["Simulation"]["stepper"]["external_potential"].get<std::string>()};
+    try {
+        std::ifstream pot_file{p["Simulation"]["stepper"]["external_potential"]
+                                   .get<std::string>()};
 
-    if (!pot_file) return;
-    std::cout << INFOTAG("External potential loaded") << std::endl;
+        if (!pot_file) return;
+        std::cout << INFOTAG("External potential loaded") << std::endl;
 
-    // Determine # rows in file
-    double dataN = std::count(std::istreambuf_iterator<char>(pot_file),
-                              std::istreambuf_iterator<char>(), '\n');
-    pot_file.seekg(0);
-    if (dataN != N) {
-        std::cout << ERRORTAG("N from external potential differs") << std::endl;
-        exit(1);
+        // Determine # rows in file
+        double dataN = std::count(std::istreambuf_iterator<char>(pot_file),
+                                  std::istreambuf_iterator<char>(), '\n');
+        pot_file.seekg(0);
+        if (dataN != N) {
+            std::cout << ERRORTAG("N from external potential differs")
+                      << std::endl;
+            exit(1);
+        }
+        pot_external.resize(N);
+        fill_from_file(pot_file, pot_external);
+    } catch (nlohmann::detail::type_error) {
     }
-    pot_external.resize(N);
-    fill_from_file(pot_file, pot_external);
 }
 
 // Non linear phase method with phi_max = pi/2
