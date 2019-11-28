@@ -474,3 +474,4 @@ install/Vagrantfile
 
 # Run folder
 run/
+run.nosync
