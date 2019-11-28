@@ -24,6 +24,7 @@ class USO_KDK_ITP : public DefaultDriver<USO_KDK_ITP> {
     blaze::DynamicVector<double> pot_external;  // external potential
     const int N;                                // No. of spatial points
     const double L;                             // size of domain
+    const double norm0;                         // normalisation of IC
     RCV k_squared;
     CCM kick;
     double dt_last;

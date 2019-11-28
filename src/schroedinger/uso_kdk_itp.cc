@@ -20,9 +20,12 @@ USO_KDK_ITP::USO_KDK_ITP(const Parameters& p, const SimState& state,
       pot_external(0),
       N{p["Simulation"]["N"].get<int>()},
       L{p["Simulation"]["L"].get<double>()},
+      norm0{sqrt(L / N *
+                 sum(real(conj(state.psis) % state.psis) * state.lambda))},
       k_squared(N),
       kick(N, state.M),
       dt_last{-1} {
+    // Compute initial normalisation
     // FFTW reorders frequencies. The upper half starts at the most negative
     // frequency and increases for increasing index.
     //          f0 f1 ... fN/2-1, f-N/2 ... f-1
@@ -78,7 +81,7 @@ void USO_KDK_ITP::step(SimState& state, const double dt) {
         L / N * sum(real(conj(state.psis) % state.psis) * state.lambda);
 
     // Renormalize to box size
-    column(state.psis, 0) /= sqrt(norm2 / L);
+    column(state.psis, 0) /= sqrt(norm2) / norm0;
 
     state.tau += dt;
     dt_last = dt;
