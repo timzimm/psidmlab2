@@ -34,7 +34,7 @@ ICGenerator::ICGenerator(const Parameters& p)
     data_N = std::count(std::istreambuf_iterator<char>(ic_file),
                         std::istreambuf_iterator<char>(), '\n');
     if (compute_velocity) {
-        poisson = PotentialMethod::make("Poisson::FFT", p);
+        poisson = Interaction::make("Poisson::FFT", p);
     }
 
     switch (type) {

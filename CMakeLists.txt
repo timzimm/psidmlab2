@@ -20,12 +20,12 @@ add_executable(psidm
     src/ic.cc
     src/observables.cc
     src/convolution_functions.cc
-    src/poisson/fft.cc
-    src/poisson/gp.cc
-    src/schroedinger/kinetic.cc
-    src/schroedinger/interaction_external_potential.cc
-    src/schroedinger/concrete_splittings.cc
-    src/schroedinger/uso_kdk_itp.cc
+    src/interaction/fft.cc
+    src/interaction/gp.cc
+    src/evolution/kinetic.cc
+    src/evolution/interaction_external_potential.cc
+    src/evolution/concrete_splittings.cc
+    src/evolution/uso_kdk_itp.cc
 )
 
 target_compile_features(psidm PRIVATE cxx_std_17)

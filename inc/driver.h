@@ -4,7 +4,7 @@
 #include "parameters.h"
 
 template <typename Derived>
-class DefaultDriver : public Stepper {
+class DefaultDriver : public TimeEvolution {
     bool stable;
     double dt;
 

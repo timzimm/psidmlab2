@@ -54,12 +54,12 @@ int main(int argc, char** argv) {
     state >> param;
 
     const auto potential = param["Simulation"]["potential"].get<std::string>();
-    auto pot = PotentialMethod::make(potential, param);
+    auto pot = Interaction::make(potential, param);
 
     // This defines the PDE to integrate as well as its discretization
     const auto stepper_name =
         param["Simulation"]["stepper"]["name"].get<std::string>();
-    auto stepper = Stepper::make(stepper_name, param, state, cosmo);
+    auto stepper = TimeEvolution::make(stepper_name, param, state, cosmo);
 
     // Setup Analysis Functors
     using observable_ptr = std::unique_ptr<ObservableFunctor>;

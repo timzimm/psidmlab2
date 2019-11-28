@@ -161,8 +161,8 @@ ObservableFunctor::ReturnType PhaseSpaceDistribution::compute(
 PhaseSpaceDistribution::~PhaseSpaceDistribution() { fftw_destroy_plan(c2c); }
 
 Potential::Potential(const Parameters& p, const Cosmology&)
-    : pot{PotentialMethod::make(p["Simulation"]["potential"].get<std::string>(),
-                                p)},
+    : pot{Interaction::make(p["Simulation"]["potential"].get<std::string>(),
+                            p)},
       potential(p["Simulation"]["N"].get<int>()){};
 
 inline ObservableFunctor::ReturnType Potential::compute(const SimState& state) {

@@ -9,7 +9,7 @@
 // Forward Declarations
 #include "parameters_fwd.h"
 struct SimState;
-class PotentialMethod;
+class Interaction;
 class Cosmology;
 
 enum class ICType { ExternalDelta, ExternalPsi, Powerspectrum, Experimental };
@@ -26,7 +26,7 @@ class ICGenerator {
     double rel_threshold;
     bool compute_velocity;
     mutable std::ifstream ic_file;
-    std::unique_ptr<PotentialMethod> poisson;
+    std::unique_ptr<Interaction> poisson;
 
     // init density contrast ...
     //

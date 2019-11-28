@@ -57,7 +57,7 @@ class PhaseSpaceDistribution : public ObservableFunctor {
 };
 
 class Potential : public ObservableFunctor {
-    std::unique_ptr<PotentialMethod> pot;  // potential method
+    std::unique_ptr<Interaction> pot;
     blaze::DynamicVector<double, blaze::columnVector> potential;
 
    public:

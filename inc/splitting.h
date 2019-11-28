@@ -1,7 +1,6 @@
 #ifndef __SPLITTING__
 #define __SPLITTING__
 
-/* #include "interfaces.h" */
 #include "driver.h"
 #include "parameters.h"
 
