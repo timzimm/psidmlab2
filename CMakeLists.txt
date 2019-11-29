@@ -20,7 +20,7 @@ add_executable(psidm
     src/ic.cc
     src/observables.cc
     src/convolution_functions.cc
-    src/interaction/fft.cc
+    src/interaction/poisson_fft.cc
     src/interaction/gp.cc
     src/evolution/kinetic.cc
     src/evolution/interaction_potential_trapezodial.cc

@@ -1,4 +1,4 @@
-#include "interaction/fft.h"
+#include "interaction/poisson_fft.h"
 #include "parameters.h"
 #include "state.h"
 

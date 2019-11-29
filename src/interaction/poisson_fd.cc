@@ -1,4 +1,4 @@
-#include "interaction/fd.h"
+#include "interaction/poisson_fd.h"
 #include "blaze_utils.h"
 #include "parameters.h"
 
