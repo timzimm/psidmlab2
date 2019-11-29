@@ -16,8 +16,8 @@ class CAPPoissonPotentialDelta
     const double dx;
     const double strength;
     double dt_last;
-    blaze::DynamicVector<double, blaze::columnVector> CAP;
-    blaze::DynamicVector<double, blaze::columnVector> attenuator;
+    blaze::DynamicVector<double> CAP;
+    blaze::DynamicVector<double> attenuator;
 
    public:
     CAPPoissonPotentialDelta(const Parameters& p, const SimState& state,

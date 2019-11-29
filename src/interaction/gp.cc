@@ -10,8 +10,8 @@ void GP::solve(SimState& state) {
     state.V = delta_from(state);
 }
 
-void GP::solve(blaze::DynamicVector<double, blaze::columnVector>& V,
-               const blaze::DynamicVector<double, blaze::columnVector>& s) {
+void GP::solve(blaze::DynamicVector<double>& V,
+               const blaze::DynamicVector<double>& s) {
     // TODO: Move from const is copy !!!
     V = std::move(s);
 }

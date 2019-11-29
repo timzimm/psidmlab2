@@ -37,14 +37,10 @@ void CAPPoissonPotentialDelta::step(SimState& state, const double dt) {
         // cancellation of significant digits in the numerator
         attenuator = dt - dt * dt * CAP + 2.0 / 3 * dt * dt * dt * CAP * CAP;
     }
-    pot->solve(
-        state.V,
-        attenuator * (real(conj(state.psis) % state.psis) * state.lambda) - dt);
+    pot->solve(state.V, attenuator * real(conj(state.psi) * state.psi) - dt);
 
-    const double a = cosmo.a_of_tau(state.tau);
-    const double a_next = cosmo.a_of_tau(state.tau + dt);
-    auto drift = expand(exp(-1.0i * a_half * state.V - CAP * dt), state.M);
-    state.psis = drift % state.psis;
+    auto drift = exp(-1.0i * a_half * state.V - CAP * dt);
+    state.psi *= drift;
 
     state.tau += dt;
     state.n += 1;

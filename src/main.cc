@@ -48,8 +48,8 @@ int main(int argc, char** argv) {
 
     ICGenerator ic(param);
     ic.generate(state, cosmo);
-    // Depending on the type of IC chosen, the No. of wavefunctions & No. of
-    // dofs (spatial points, fourier modes, basis functions etc.) might have
+    // Depending on the type of IC chosen & No. of dofs
+    // (spatial points, fourier modes, basis functions etc.) might have
     // changed. Hence, we inform the parameter file about this potential change.
     state >> param;
 

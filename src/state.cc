@@ -8,8 +8,7 @@ SimState::SimState(const Parameters& p)
       representation{Representation::Position},
       position_to_momentum{nullptr},
       momentum_to_position{nullptr},
-      N_plan{0},
-      M_plan{0} {}
+      N_plan{0} {}
 
 void SimState::transform(const SimState::Representation target) {
     // Identity transform
@@ -20,28 +19,24 @@ void SimState::transform(const SimState::Representation target) {
     // construction time and transformation time might differ. Thus, we
     // explicitly get a pointer to the current raw array and use FFTW advanced
     // interface to perform the transformation
-    auto in = reinterpret_cast<fftw_complex*>(psis.data());
+    auto in = reinterpret_cast<fftw_complex*>(psi.data());
 
     // Update transformation plans if necessary, e.g. if ICs with a different
     // number of wavefunctions or spatial points was generated
-    if (psis.columns() != M_plan || psis.rows() != N_plan) {
-        M = M_plan = psis.columns();
-        N_plan = psis.rows();
+    if (psi.size() != N_plan) {
+        N_plan = psi.size();
         fftw_destroy_plan(momentum_to_position);
-        int offset = psis.spacing();
 
         position_to_momentum =
-            fftw_plan_many_dft(1, &N_plan, M_plan, in, nullptr, 1, offset, in,
-                               nullptr, 1, offset, FFTW_FORWARD, FFTW_ESTIMATE);
-        momentum_to_position = fftw_plan_many_dft(
-            1, &N_plan, M_plan, in, nullptr, 1, offset, in, nullptr, 1, offset,
-            FFTW_BACKWARD, FFTW_ESTIMATE);
+            fftw_plan_dft_1d(N_plan, in, in, FFTW_FORWARD, FFTW_ESTIMATE);
+        momentum_to_position =
+            fftw_plan_dft_1d(N_plan, in, in, FFTW_BACKWARD, FFTW_ESTIMATE);
     }
 
     if (target == Representation::Momentum) {
         fftw_execute_dft(position_to_momentum, in, in);
         // FFTW transforms are denormalized
-        psis /= N_plan;
+        psi /= N_plan;
     } else {
         fftw_execute_dft(momentum_to_position, in, in);
     }
@@ -55,7 +50,6 @@ SimState::~SimState() {
 }
 
 void operator>>(const SimState& state, Parameters& p) {
-    p["Simulation"]["N"] = state.psis.rows();
-    p["Initial Conditions"]["M"] = state.psis.columns();
+    p["Simulation"]["N"] = state.psi.size();
 }
 

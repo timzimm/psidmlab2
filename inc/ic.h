@@ -12,7 +12,7 @@ struct SimState;
 class Interaction;
 class Cosmology;
 
-enum class ICType { ExternalDelta, ExternalPsi, Powerspectrum, Experimental };
+enum class ICType { ExternalDelta, ExternalPsi, Powerspectrum };
 
 class ICGenerator {
    private:
@@ -21,25 +21,19 @@ class ICGenerator {
     int data_N;
     double L;
     double dx;
-    int M;
     int seed;
     double rel_threshold;
     bool compute_velocity;
     mutable std::ifstream ic_file;
-    std::unique_ptr<Interaction> poisson;
+    std::unique_ptr<Interaction> pot;
 
-    // init density contrast ...
+    // init wavefunction ...
     //
     // by loading a file containing delta(x_i)
     void delta_from_file(SimState& state) const;
 
     // according to a matter power spectrum provided by file.
     void delta_from_power(SimState& state, const Cosmology& cosmo) const;
-
-    // by solving the associated operator eigenvalue problem
-    // for f(x,t) = rho(x) * delta(0) (cold initial conditions)
-    // rho is provided by a file. (Mixed State)
-    void delta_from_evp(SimState& state) const;
 
     // init wavefunction from file
     void psi_from_file(SimState& state) const;
@@ -48,7 +42,7 @@ class ICGenerator {
     ICGenerator(const Parameters& param);
     void generate(SimState& state, const Cosmology&) const;
 
-    // Required to deal with incomplete PotentialMethod type
+    // Required to deal with incomplete Interaction type
     ~ICGenerator();
 };
 #endif

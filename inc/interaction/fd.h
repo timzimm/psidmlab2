@@ -22,9 +22,8 @@ class FD : public Interaction {
    public:
     FD(const Parameters& p);
     void solve(SimState& state) override;
-    void solve(blaze::DynamicVector<double, blaze::columnVector>& V,
-               const blaze::DynamicVector<double, blaze::columnVector>& source)
-        override;
+    void solve(blaze::DynamicVector<double>& V,
+               const blaze::DynamicVector<double>& source) override;
     REGISTER(FD)
 };
 

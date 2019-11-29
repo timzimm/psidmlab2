@@ -28,9 +28,8 @@ class Interaction : public Factory<Interaction, const Parameters&> {
     virtual void solve(SimState& state) = 0;
     // Verbose interface with same functionality.
     // Output is written into vector V
-    virtual void solve(
-        blaze::DynamicVector<double, blaze::columnVector>& V,
-        const blaze::DynamicVector<double, blaze::columnVector>& source) = 0;
+    virtual void solve(blaze::DynamicVector<double>& V,
+                       const blaze::DynamicVector<double>& source) = 0;
     virtual ~Interaction() = default;
 };
 
@@ -63,7 +62,7 @@ class ObservableFunctor
         const blaze::DynamicMatrix<double, blaze::columnMajor>&,
         const blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>&,
         const blaze::DynamicVector<double>&,
-        const blaze::DynamicVector<double, blaze::columnVector>&>;
+        const blaze::DynamicVector<std::complex<double>>&>;
 
     virtual ReturnType compute(const SimState& state) = 0;
     virtual ~ObservableFunctor() = default;

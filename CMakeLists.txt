@@ -23,7 +23,7 @@ add_executable(psidm
     src/interaction/fft.cc
     src/interaction/gp.cc
     src/evolution/kinetic.cc
-    src/evolution/interaction_external_potential.cc
+    src/evolution/interaction_potential_trapezodial.cc
     src/evolution/concrete_splittings.cc
     src/evolution/uso_kdk_itp.cc
 )

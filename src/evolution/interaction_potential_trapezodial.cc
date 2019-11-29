@@ -1,4 +1,4 @@
-#include "evolution/interaction_external_potential.h"
+#include "evolution/interaction_potential_trapezodial.h"
 #include "cosmology.h"
 #include "io.h"
 #include "parameters.h"
@@ -10,7 +10,7 @@ namespace Schroedinger {
 using namespace blaze;
 using namespace std::complex_literals;
 
-InteractionExternalPotential::InteractionExternalPotential(
+InteractionPotentialTrapezodial::InteractionPotentialTrapezodial(
     const Parameters& p, const SimState& state, const Cosmology& cosmo_)
     : DefaultDriver(p),
       cosmo{cosmo_},
@@ -18,8 +18,7 @@ InteractionExternalPotential::InteractionExternalPotential(
       N{p["Simulation"]["N"].get<int>()},
       pot{Interaction::make(p["Simulation"]["potential"].get<std::string>(),
                             p)},
-      pot_external(0),
-      drift(N, state.M) {
+      pot_external(0) {
     try {
         std::ifstream pot_file{p["Simulation"]["stepper"]["external_potential"]
                                    .get<std::string>()};
@@ -43,20 +42,20 @@ InteractionExternalPotential::InteractionExternalPotential(
 }
 
 // Non linear phase method with phi_max = pi/2
-double InteractionExternalPotential::next_dt(const SimState& state) const {
+double InteractionPotentialTrapezodial::next_dt(const SimState& state) const {
     return M_PI /
            (2 * cosmo.a_of_tau(state.tau) * max(abs(state.V + pot_external)));
 }
 
-void InteractionExternalPotential::step(SimState& state, const double dt) {
+void InteractionPotentialTrapezodial::step(SimState& state, const double dt) {
     state.transform(SimState::Representation::Position);
     pot->solve(state);
     const double a_half = cosmo.a_of_tau(state.tau + dt / 2);
     if (dt - dt_last != 0) {
         if (pot_external.size() == N) state.V += pot_external;
-        drift = expand(exp(-1.0i * a_half * state.V * dt), state.M);
     }
-    state.psis = drift % state.psis;
+    auto drift = exp(-1.0i * a_half * state.V * dt);
+    state.psi *= drift;
 
     state.tau += dt;
     state.n += 1;

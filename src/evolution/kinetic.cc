@@ -13,7 +13,7 @@ Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
       L{p["Simulation"]["L"].get<double>()},
       dt_last{-1},
       k_squared(N),
-      kick(N, state.M) {
+      kick(N) {
     // FFTW reorders frequencies. The upper half starts at the most negative
     // frequency and increases for increasing index.
     //          f0 f1 ... fN/2-1, f-N/2 ... f-1
@@ -33,10 +33,10 @@ void Kinetic::step(SimState& state, const double dt) {
     // We only need to update the matrix exponential if an altered time step
     // size is required
     if (dt - dt_last != 0) {
-        kick = expand(exp(-0.5i * k_squared * dt), state.M);
+        kick = exp(-0.5i * k_squared * dt);
     }
 
-    state.psis = kick % state.psis;
+    state.psi *= kick;
 
     // State is now @ state.tau + dtau
     state.tau += dt;

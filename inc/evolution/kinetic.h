@@ -15,8 +15,8 @@ class Kinetic : public DefaultDriver<Kinetic> {
     double dt_last;
     const int N;
     const double L;
-    blaze::DynamicVector<double, blaze::columnVector> k_squared;
-    blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor> kick;
+    blaze::DynamicVector<double> k_squared;
+    blaze::DynamicVector<std::complex<double>> kick;
 
    public:
     Kinetic(const Parameters& p, const SimState& state,

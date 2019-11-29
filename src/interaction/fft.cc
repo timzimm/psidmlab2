@@ -2,31 +2,26 @@
 #include "parameters.h"
 #include "state.h"
 
-#include <cassert>
-
 namespace Poisson {
 FFT::FFT(const Parameters& p)
     : N{p["Simulation"]["N"].get<size_t>()},
       L{p["Simulation"]["L"].get<double>()},
       fft(N / 2 + 1),
-      source(N),
       kernel(N / 2 + 1) {
-    RCV potential_dummy(N);
-    forwards = fftw_plan_dft_r2c_1d(N, source.data(),
+    RCV source_dummy(N);
+    forwards = fftw_plan_dft_r2c_1d(N, source_dummy.data(),
                                     reinterpret_cast<fftw_complex*>(fft.data()),
                                     FFTW_ESTIMATE);
     backwards =
         fftw_plan_dft_c2r_1d(N, reinterpret_cast<fftw_complex*>(fft.data()),
-                             potential_dummy.data(), FFTW_ESTIMATE);
-
-    auto diag = blaze::diagonal(kernel);
+                             source_dummy.data(), FFTW_ESTIMATE);
 
     // inverse square wavelength and normalization
     for (int k = 1; k < N / 2 + 1; ++k)
-        diag[k] = -1.0 / (4 * M_PI * M_PI * N * k * k / (L * L));
+        kernel[k] = -1.0 / (4 * M_PI * M_PI * N * k * k / (L * L));
 
     // makes the DC constraint manifest
-    diag[0] = 0;
+    kernel[0] = 0;
 }
 
 FFT::~FFT() {
@@ -36,8 +31,8 @@ FFT::~FFT() {
 
 void FFT::solve(SimState& state) { solve(state.V, delta_from(state)); }
 
-void FFT::solve(blaze::DynamicVector<double, blaze::columnVector>& V,
-                const blaze::DynamicVector<double, blaze::columnVector>& s) {
+void FFT::solve(blaze::DynamicVector<double>& V,
+                const blaze::DynamicVector<double>& s) {
     auto fft_p = reinterpret_cast<fftw_complex*>(fft.data());
     auto source_p =
         const_cast<double*>(reinterpret_cast<const double*>(s.data()));

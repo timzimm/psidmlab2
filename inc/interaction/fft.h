@@ -15,13 +15,11 @@ namespace Poisson {
 class FFT : public Interaction {
     using RCV = blaze::DynamicVector<double>;
     using CCV = blaze::DynamicVector<std::complex<double>>;
-    using RDM = blaze::DiagonalMatrix<blaze::CompressedMatrix<double>>;
     const size_t N;
     const double L;
 
     CCV fft;
-    RCV source;
-    RDM kernel;
+    RCV kernel;
 
     fftw_plan forwards;
     fftw_plan backwards;
@@ -30,9 +28,8 @@ class FFT : public Interaction {
     FFT(const Parameters& p);
     ~FFT();
     void solve(SimState& state) override;
-    void solve(blaze::DynamicVector<double, blaze::columnVector>& V,
-               const blaze::DynamicVector<double, blaze::columnVector>& source)
-        override;
+    void solve(blaze::DynamicVector<double>& V,
+               const blaze::DynamicVector<double>& source) override;
     REGISTER(FFT)
 };
 

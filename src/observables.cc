@@ -91,32 +91,30 @@ void PhaseSpaceDistribution::wigner_distribution(const SimState& state) {
     auto negative_v_f = submatrix(wigner_f, 0, 0, N / 2, N);
     auto positive_v_f = submatrix(wigner_f, N - N / 2, 0, N - N / 2, N);
 
-    for (int m = 0; m < state.M; ++m) {
-        auto psi = column(state.psis, m);
-        for (int icol = 0; icol < N; ++icol) {
-            auto iaf_i = column(iaf, icol);
-            // Caution: Round ties to next even integer value
-            int ti = std::nearbyint(icol);
-            int taumax = std::min(
-                {ti, N - ti - 1, static_cast<int>(std::nearbyint(N / 2) - 1)});
-            int total = 2 * taumax + 1;
-            auto lag_plus = elements(
-                psi, [&](int tau) { return icol + (tau - taumax); }, total);
-            auto lag_minus = elements(
-                psi, [&](int tau) { return icol - (tau - taumax); }, total);
-            auto index = elements(
-                iaf_i, [&](int tau) { return (N + tau - taumax) % N; }, total);
-            index = lag_plus * conj(lag_minus);
+    auto& psi = state.psi;
+    for (int icol = 0; icol < N; ++icol) {
+        auto iaf_i = column(iaf, icol);
+        // Caution: Round ties to next even integer value
+        int ti = std::nearbyint(icol);
+        int taumax = std::min(
+            {ti, N - ti - 1, static_cast<int>(std::nearbyint(N / 2) - 1)});
+        int total = 2 * taumax + 1;
+        auto lag_plus = elements(
+            psi, [&](int tau) { return icol + (tau - taumax); }, total);
+        auto lag_minus = elements(
+            psi, [&](int tau) { return icol - (tau - taumax); }, total);
+        auto index = elements(
+            iaf_i, [&](int tau) { return (N + tau - taumax) % N; }, total);
+        index = lag_plus * conj(lag_minus);
 
-            if (int tau = std::nearbyint(N / 2); ti <= N - tau && ti >= tau + 1)
-                iaf(tau, icol) = 0.5 * (psi[ti + tau] * conj(psi[ti - tau]) +
-                                        psi[ti - tau] * conj(psi[ti + tau]));
-        }
-        fftw_execute(c2c);
-
-        negative_v_f += state.lambda[m] * real(negative_v_iaf);
-        positive_v_f += state.lambda[m] * real(positive_v_iaf);
+        if (int tau = std::nearbyint(N / 2); ti <= N - tau && ti >= tau + 1)
+            iaf(tau, icol) = 0.5 * (psi[ti + tau] * conj(psi[ti - tau]) +
+                                    psi[ti - tau] * conj(psi[ti + tau]));
     }
+    fftw_execute(c2c);
+
+    negative_v_f = real(negative_v_iaf);
+    positive_v_f = real(positive_v_iaf);
 }
 
 void PhaseSpaceDistribution::husimi_distribution(const SimState& state) {
@@ -127,16 +125,13 @@ void PhaseSpaceDistribution::husimi_distribution(const SimState& state) {
                               std::complex<double>(0, -1));
 
     // Construct mixed state distribution pure state by pure state
-    for (int m = 0; m < state.M; ++m) {
-        auto psi = column(state.psis, m);
-        auto modulated_psi = phase_T % expand(psi, N);
-        for (int k = 0; k < N; ++k) {
-            ws.signal_padded = column(modulated_psi, k);
-            discrete_convolution(ws);
-            row(husimi_f, k) +=
-                state.lambda[m] *
-                trans(real(conj(ws.signal_padded) * ws.signal_padded));
-        }
+    auto& psi = state.psi;
+    auto modulated_psi = phase_T % expand(psi, N);
+    for (int k = 0; k < N; ++k) {
+        ws.signal_padded = column(modulated_psi, k);
+        discrete_convolution(ws);
+        row(husimi_f, k) =
+            trans(real(conj(ws.signal_padded) * ws.signal_padded));
     }
 }
 
@@ -176,7 +171,7 @@ WaveFunction::WaveFunction(const Parameters& p, const Cosmology&){};
 
 inline ObservableFunctor::ReturnType WaveFunction::compute(
     const SimState& state) {
-    return state.psis;
+    return state.psi;
 }
 
 Energy::Energy(const Parameters& p, const Cosmology& cosmo_)
@@ -208,15 +203,13 @@ ObservableFunctor::ReturnType Energy::compute(const SimState& state) {
 
     // Kinetic Energy via trapezodial rule
     double& E_kinetic = energies[0];
-    auto psi = rows(state.psis, cyclic_extension, N + 4);
+    auto psi = elements(state.psi, cyclic_extension, N + 4);
     auto nabla_psi = grad * psi;
-    E_kinetic = 0.5 * dx / (a * a) *
-                sum(real(conj(nabla_psi) % nabla_psi) * state.lambda);
+    E_kinetic = 0.5 * dx / (a * a) * sum(real(conj(nabla_psi) * nabla_psi));
 
     // Potential Energy via trapezodial rule
     double& E_pot = energies[1];
-    E_pot = 0.5 * dx / a *
-            sum(state.V * (real(conj(state.psis) % state.psis) * state.lambda));
+    E_pot = 0.5 * dx / a * sum(state.V * (real(conj(state.psi) * state.psi)));
 
     // Total Energy
     double& E_tot = energies[2];
@@ -227,9 +220,7 @@ ObservableFunctor::ReturnType Energy::compute(const SimState& state) {
     double& x_grad_V = energies[3];
     auto V = elements(state.V, cyclic_extension, N + 4);
     auto nabla_V = grad * V;
-    x_grad_V =
-        dx / a *
-        sum(x * nabla_V * (real(conj(state.psis) % state.psis) * state.lambda));
+    x_grad_V = dx / a * sum(x * nabla_V * (real(conj(state.psi) * state.psi)));
 
     return energies;
 }
@@ -256,7 +247,7 @@ ObservableFunctor::ReturnType ParticleFlux::compute(const SimState& state) {
     using namespace blaze;
     auto cyclic_extension = [N = N](int i) { return (N - 2 + i) % N; };
 
-    auto psi = column(state.psis, 0);
+    auto& psi = state.psi;
     auto psi_ext = elements(psi, cyclic_extension, N + 4);
     auto nabla_psi = grad * psi_ext;
     flux = real(0.5 * std::complex<double>{0, 1} *

@@ -11,9 +11,6 @@ namespace Schroedinger {
 
 class USO_KDK_ITP : public DefaultDriver<USO_KDK_ITP> {
     // Real column vector
-    using RCV = blaze::DynamicVector<double, blaze::columnVector>;
-    // Complex dense matrix in column-major order
-    using CCM = blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>;
 
     const Cosmology& cosmo;
     std::unique_ptr<Interaction> pot;
@@ -21,8 +18,8 @@ class USO_KDK_ITP : public DefaultDriver<USO_KDK_ITP> {
     const int N;
     const double L;
     const double norm0;
-    RCV k_squared;
-    CCM kick;
+    blaze::DynamicVector<double> k_squared;
+    blaze::DynamicVector<std::complex<double>> kick;
     double dt_last;
 
    public:

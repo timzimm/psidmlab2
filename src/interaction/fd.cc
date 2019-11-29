@@ -19,9 +19,8 @@ FD::FD(const Parameters& p)
 
 void FD::solve(SimState& state) { solve(state.V, delta_from(state)); }
 
-void FD::solve(
-    blaze::DynamicVector<double, blaze::columnVector>& V,
-    const blaze::DynamicVector<double, blaze::columnVector>& source) {
+void FD::solve(blaze::DynamicVector<double>& V,
+               const blaze::DynamicVector<double>& source) {
     using namespace blaze;
     // Calculate source term as matrix
     RCM source_mat = expand(dx * dx * source, 1);

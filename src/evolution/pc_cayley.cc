@@ -3,6 +3,8 @@
 #include "cosmology.h"
 #include "parameters.h"
 
+#include <blaze/math/Column.h>
+
 namespace Schroedinger {
 
 using namespace blaze;
@@ -13,14 +15,13 @@ PCCayley::PCCayley(const Parameters& p, const SimState& state,
     : DefaultDriver(p),
       cosmo{cosmo_},
       N{p["Simulation"]["N"].get<size_t>()},
-      M{p["Initial Conditions"]["M"].get<size_t>()},
       dx{p["Simulation"]["L"].get<double>() / N},
       dt{p["Simulation"]["dtau"].get<double>()},
       a{cosmo.a_of_tau(-1)},
       potential{Interaction::make(
           p["Simulation"]["potential"].get<std::string>(), p)},
       K(N, N),
-      psi_old(N, M),
+      psi_old(N, 1),
       V_old{state.V},
       dl(N),
       d(N),
@@ -54,13 +55,13 @@ void PCCayley::step(SimState& state, const double dt) {
     state.transform(SimState::Representation::Position);
     potential->solve(state);
     // Save the input state for the corrector step - no copy
-    swap(psi_old, state.psis);
+    swap(column(psi_old, 0), state.psi);
     swap(V_old, state.V);
 
-    const auto a_V = a * expand(V_old, M);
+    const auto a_V = a * V_old;
 
     // PREDICTOR STEP
-    state.psis = psi_old - 0.5i * dt * (K * psi_old + a_V % psi_old);
+    state.psi = psi_old - 0.5i * dt * (K * psi_old + a_V * psi_old);
 
     // Left hand side matrix M+
     dl = du = -1.0i / (4 * dx * dx) * dt;
@@ -68,13 +69,13 @@ void PCCayley::step(SimState& state, const double dt) {
 
     // Solve cyclic tridiagonal matrix equation
     gctrf(dl, d, du, du2, ipiv);
-    gctrs(dl, d, du, du2, ipiv, state.psis);
+    gctrs(dl, d, du, du2, ipiv, expand(state.psi, 1));
 
     // CORRECTOR STEP
     potential->solve(state);
-    auto V_corr = 0.5 * (a_V + a_next * expand(state.V, M));
+    auto V_corr = 0.5 * (a_V + a_next * state.V);
 
-    state.psis = psi_old - 0.5i * dt * (K * psi_old + V_corr % psi_old);
+    state.psi = psi_old - 0.5i * dt * (K * psi_old + V_corr * psi_old);
 
     // Left hand side matrix M+
     // LU decomposition works in place. Thus, everything has to be
@@ -83,7 +84,7 @@ void PCCayley::step(SimState& state, const double dt) {
     d = -2.0 * dl + 0.5i * dt * 0.5 * (a * V_old + a_next * state.V) + 1.0,
 
     gctrf(dl, d, du, du2, ipiv);
-    gctrs(dl, d, du, du2, ipiv, state.psis);
+    gctrs(dl, d, du, du2, ipiv, state.psi);
 
     state.tau += dt;
     a = a_next;
