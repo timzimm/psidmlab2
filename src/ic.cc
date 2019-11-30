@@ -20,7 +20,6 @@ ICGenerator::ICGenerator(const Parameters& p)
       L{p["Simulation"]["L"].get<double>()},
       dx{L / N},
       seed{p["Initial Conditions"]["seed"].get<int>()},
-      rel_threshold{p["Initial Conditions"]["ev_threshold"].get<double>()},
       compute_velocity{p["Initial Conditions"]["compute_velocity"].get<bool>()},
       ic_file{p["Initial Conditions"]["source_file"].get<std::string>()},
       pot{nullptr} {

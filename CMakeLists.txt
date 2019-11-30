@@ -3,7 +3,7 @@ project(psiDM2 VERSION 0.1
     DESCRIPTION "DM simulation with QM techniques"
     LANGUAGES C CXX)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules/")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules/")
 
 find_package(hdf5 CONFIG REQUIRED)
 find_package(Boost REQUIRED)

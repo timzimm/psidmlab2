@@ -22,7 +22,6 @@ class ICGenerator {
     double L;
     double dx;
     int seed;
-    double rel_threshold;
     bool compute_velocity;
     mutable std::ifstream ic_file;
     std::unique_ptr<Interaction> pot;
