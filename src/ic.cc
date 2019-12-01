@@ -1,66 +1,64 @@
-#include "ic.h"
 #include "cosmology.h"
+#include "ic2.h"
 #include "interfaces.h"
 #include "io.h"
-#include "logging.h"
 #include "parameters.h"
 #include "state.h"
 
-#include <fftw3.h>
+/* #include <fftw3.h> */
 #include <algorithm>
-#include <cmath>
-#include <map>
+#include <fstream>
+/* #include <map> */
 #include <numeric>
-#include <random>
+/* #include <random> */
+#include <vector>
 
-ICGenerator::ICGenerator(const Parameters& p)
-    : type{static_cast<ICType>(p["Initial Conditions"]["ic_type"].get<int>())},
-      N{p["Simulation"]["N"].get<int>()},
-      data_N{0},
-      L{p["Simulation"]["L"].get<double>()},
-      dx{L / N},
-      seed{p["Initial Conditions"]["seed"].get<int>()},
-      compute_velocity{p["Initial Conditions"]["compute_velocity"].get<bool>()},
-      ic_file{p["Initial Conditions"]["source_file"].get<std::string>()},
-      pot{nullptr} {
-    data_N = std::count(std::istreambuf_iterator<char>(ic_file),
-                        std::istreambuf_iterator<char>(), '\n');
-    if (compute_velocity) {
-        pot = Interaction::make("Poisson::FFT", p);
-    }
+using namespace blaze;
+
+// init wavefunction ...
+// by loading a file containing delta(x_i)
+void delta_from_file(SimState&, std::ifstream&);
+// init wavefunction from file
+void psi_from_file(SimState&, std::ifstream&);
+// according to a matter power spectrum provided by file.
+void delta_from_power(SimState&, const Cosmology&, std::ifstream&);
+
+void generate(SimState& state, const Cosmology& cosmo, const Parameters& p) {
+    auto type =
+        static_cast<ICType>(p["Initial Conditions"]["ic_type"].get<int>());
+    std::ifstream ic_file{
+        p["Initial Conditions"]["source_file"].get<std::string>()};
 
     switch (type) {
-        case ICType::ExternalDelta... ICType::ExternalPsi:
-            if (data_N != N) {
+        case ICType::ExternalDelta... ICType::ExternalPsi: {
+            size_t data_N = std::count(std::istreambuf_iterator<char>(ic_file),
+                                       std::istreambuf_iterator<char>(), '\n');
+            if (data_N != state.N_total) {
                 std::cout << ERRORTAG("#lines in source_file(" << data_N
                                                                << ") != N")
                           << std::endl;
                 exit(1);
             }
+            ic_file.seekg(0);
+        }
         default:
             break;
     };
 
-    ic_file.seekg(0);
-}
-
-void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
-    using namespace blaze;
-    // delta initialization
     switch (type) {
         case ICType::ExternalDelta:
             std::cout << INFOTAG("Load delta0 from file") << std::flush;
-            delta_from_file(state);
+            delta_from_file(state, ic_file);
             std::cout << " ... done" << std::endl;
             break;
         case ICType::ExternalPsi:
             std::cout << INFOTAG("Load Psi0 from file") << std::flush;
-            psi_from_file(state);
+            psi_from_file(state, ic_file);
             std::cout << " ... done" << std::endl;
             break;
         case ICType::Powerspectrum:
             std::cout << INFOTAG("Generate delta0 from P(k)") << std::flush;
-            delta_from_power(state, cosmo);
+            delta_from_power(state, cosmo, ic_file);
             std::cout << " ... done" << std::endl;
             break;
     }
@@ -78,7 +76,10 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
         psi = sqrt(1.0 + delta);
 
         // Cosmological initial velocity field
+        const bool compute_velocity =
+            p["Initial Conditions"]["compute_velocity"].get<bool>();
         if (compute_velocity) {
+            auto pot = Interaction::make("Poisson::FFT", p);
             const double a_init = cosmo.a_of_tau(0);
             const double prefactor =
                 -std::sqrt(2.0 / 3 * a_init / cosmo.omega_m(a_init));
@@ -94,34 +95,30 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
     }
 }
 
-void ICGenerator::delta_from_file(SimState& state) const {
-    state.psi.resize(N);
-    state.V.resize(N);
-
+void delta_from_file(SimState& state, std::ifstream& ic_file) {
     // Store delta in V for convenience (real vector vs complex vector);
     auto& delta = state.V;
 
     fill_from_file(ic_file, delta);
 }
 
-void ICGenerator::psi_from_file(SimState& state) const {
-    state.psi.resize(N);
-    state.V.resize(N);
-
-    blaze::DynamicVector<double> re(N);
-    blaze::DynamicVector<double> im(N);
+void psi_from_file(SimState& state, std::ifstream& ic_file) {
+    DynamicVector<double> re(state.N_total);
+    DynamicVector<double> im(state.N_total);
 
     fill_from_file(ic_file, re, im);
     state.psi =
         map(re, im, [](double r, double i) { return std::complex(r, i); });
 }
 
-void ICGenerator::delta_from_power(SimState& state,
-                                   const Cosmology& cosmo) const {
-    using namespace blaze;
-    state.psi.resize(N);
-    state.V.resize(N);
-
+// TODO Implement d+1 dimensional version of cosmological IC
+void delta_from_power(SimState& state, const Cosmology& cosmo,
+                      std::ifstream& ic_file) {
+    exit(1);
+    /*
+    size_t data_N = std::count(std::istreambuf_iterator<char>(ic_file),
+                               std::istreambuf_iterator<char>(), '\n');
+    ic_file.seekg(0);
     std::vector<double> k_data(data_N);
     std::vector<double> powerspectrum(data_N);
     std::map<double, double> discrete_P;
@@ -179,6 +176,5 @@ void ICGenerator::delta_from_power(SimState& state,
     auto c2r = fftw_plan_dft_c2r_1d(N, in, state.V.data(), FFTW_ESTIMATE);
     fftw_execute(c2r);
     fftw_destroy_plan(c2r);
+    */
 }
-
-ICGenerator::~ICGenerator() = default;

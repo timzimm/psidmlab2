@@ -4,10 +4,10 @@
 #define INCLUDE_NLOHMANN_JSON_FWD_HPP_
 
 #include <cstdint>  // int64_t, uint64_t
-#include <map>      // map
-#include <memory>   // allocator
-#include <string>   // string
-#include <vector>   // vector
+#include <map>
+#include <memory>  // allocator
+#include <string>
+#include <vector>
 
 namespace nlohmann {
 template <typename T = void, typename SFINAE = void>

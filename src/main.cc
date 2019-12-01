@@ -46,8 +46,7 @@ int main(int argc, char** argv) {
 
     SimState state(param);
 
-    ICGenerator ic(param);
-    ic.generate(state, cosmo);
+    generate_ic(state, cosmo, param);
     // Depending on the type of IC chosen & No. of dofs
     // (spatial points, fourier modes, basis functions etc.) might have
     // changed. Hence, we inform the parameter file about this potential change.
