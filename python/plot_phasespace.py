@@ -6,51 +6,60 @@ import seaborn as sns
 from matplotlib.colors import LogNorm 
 import sys
 
-file = h5py.File(sys.argv[1], 'r')
-time = np.float64(sys.argv[2])
-print(time)
+def phasespace(file, time, p=None):
+    # Get simultion parameters and parse string as json
+    if p is None:
+        param_string = file['/'].attrs['parameters'][0].decode("ascii")
+        p = json.loads(param_string)
 
-param_string = file['/'].attrs['parameters'][0].decode("ascii")
-p = json.loads(param_string)
+    time_file=None
+    fs = file["PhaseSpaceDistribution"]
+    ds_names=list(fs.keys())
 
-L = int(p["Simulation"]["L"])
-N = int(p["Simulation"]["N"])
-sigma_x = float(p["Observables"]["PhaseSpaceDistribution"]["sigma_x"])
+    if p["Cosmology"]["model"] == 1:
+        time_file = np.array([f.attrs['tau'][0] for f in fs.values()])
+    else:
+        time_file = np.array([f.attrs['z'][0] for f in fs.values()])
 
-phasedists = file["PhaseSpaceDistribution"]
+    fs = [fs[ds_names[np.argmin(np.abs(time_file - t))]] for t
+                       in time]
 
-fig,ax = plt.subplots()
+    return fs
 
-dist = None
+if __name__ == "__main__":
+    file = h5py.File(sys.argv[1], 'r')
+    time = np.float64(sys.argv[2:])
+    print(time)
 
-if p["Cosmology"]["model"] == 1:
-    dist = [phasedists[i] for i in phasedists if
-                np.isclose(phasedists[i].attrs['tau'][0], time)][0]
-else:
-    dist = [phasedists[i] for i in phasedists if
-                np.isclose(phasedists[i].attrs['z'][0], time)][0]
+    param_string = file['/'].attrs['parameters'][0].decode("ascii")
+    p = json.loads(param_string)
 
+    L = int(p["Simulation"]["L"])
+    N = int(p["Simulation"]["N"])
+    sigma_x = float(p["Observables"]["PhaseSpaceDistribution"]["sigma_x"])
+    dists = np.array(phasespace(file, time, p))
 
-cm = sns.diverging_palette(240, 10, n=9, as_cmap=True)
-lvl = np.logspace(-2,0,10)
+    fig,ax = plt.subplots()
+    cm = sns.diverging_palette(240, 10, n=9, as_cmap=True)
 
-tau = dist.attrs["tau"][0]
+    for i in range(len(time)):
+        dist = dists[i,:,:]
+        dist /= np.max(dist)
 
-if bool(dist.attrs["transpose"][0]):
-    dist = np.transpose(np.array(dist))
+        patch = np.array(p["Observables"]["PhaseSpaceDistribution"]["patch"])
+        Lx = patch[0,1] - patch[0,0]
+        Lk = patch[1,1] - patch[1,0]
 
-dist = np.array(dist)[46*N//100:54*N//100]
-dist /= np.max(dist)
+        k = np.linspace(-Lk/2, Lk/2, dist.shape[0], endpoint=False)
+        x = np.linspace(-Lx/2, Lx/2, dist.shape[1], endpoint=False)
+        X, K = np.meshgrid(x,k)
+        dist = np.clip(dist,0.001,1)
+        dist[dist <= 0.001] = None
+        print(dist.shape)
+        cbar = ax.contourf(X, K, dist, 
+                           levels=np.logspace(-3,0,100), norm=LogNorm(), 
+                           cmap="afmhot")
+        fig.colorbar(cbar, ax=ax)
 
-x = np.linspace(0, L, N)
-u = np.linspace(-2*np.pi/L, 2*np.pi/L, N)[46*N//100:54*N//100]
-X, U = np.meshgrid(x,u)
-
-print("Creating pcolormesh...")
-dist = np.clip(dist,0.001,1)
-# cbar = ax.pcolormesh(X, U, dist, norm=LogNorm(), cmap="afmhot")
-cbar = ax.contourf(X, U, dist, norm=LogNorm(), cmap="afmhot")
-fig.colorbar(cbar, ax=ax)
-
-plt.title(r"Phasespace Distribution ($\sigma_x = %.3f$)" % sigma_x)
-plt.show()
+        plt.title(r"Phasespace Distribution ($\sigma_x = %.3f$)" % sigma_x)
+        plt.show()
