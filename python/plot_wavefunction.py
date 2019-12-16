@@ -46,7 +46,7 @@ if __name__ == "__main__":
     fig, axs = plt.subplots(5, 1, sharex=True)
 
     for psi, t in zip(psis, time):
-        # psi = np.ravel(psi)
+        psi = np.ravel(psi)
         label = ""
         if(p["Cosmology"]["model"] == 1):
             label=r"$\tau = %.4f$" % t
