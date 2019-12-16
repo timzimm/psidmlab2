@@ -12,7 +12,7 @@ struct SimState;
 class Interaction;
 class Cosmology;
 
-enum class ICType { ExternalDelta, ExternalPsi, Powerspectrum };
+enum class ICType { ExternalRealImag, ExternalModulusPhase, Powerspectrum };
 
 class ICGenerator {
    private:
@@ -27,21 +27,17 @@ class ICGenerator {
     std::unique_ptr<Interaction> pot;
 
     // init wavefunction ...
-    //
-    // by loading a file containing delta(x_i)
-    void delta_from_file(SimState& state) const;
-
     // according to a matter power spectrum provided by file.
     void delta_from_power(SimState& state, const Cosmology& cosmo) const;
 
     // init wavefunction from file
-    void psi_from_file(SimState& state) const;
+    void real_imag_from_file(SimState& state) const;
+    void modulus_phase_from_file(SimState& state) const;
 
    public:
     ICGenerator(const Parameters& param);
     void generate(SimState& state, const Cosmology&) const;
 
-    // Required to deal with incomplete Interaction type
     ~ICGenerator();
 };
 #endif

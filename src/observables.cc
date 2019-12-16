@@ -9,6 +9,8 @@
 #include <blaze/math/Submatrix.h>
 #include <algorithm>
 
+using namespace std::complex_literals;
+
 namespace Observable {
 
 DensityContrast::DensityContrast(const Parameters& p, const Cosmology&)
@@ -49,34 +51,71 @@ ObservableFunctor::ReturnType DensityContrast::compute(const SimState& state) {
 
 PhaseSpaceDistribution::PhaseSpaceDistribution(const Parameters& p,
                                                const Cosmology&)
-    : sigma_x(
-          std::sqrt(2) *
-          p["Observables"]["PhaseSpaceDistribution"]["sigma_x"].get<double>()),
+    : sigma_x(p["Observables"]["PhaseSpaceDistribution"]["sigma_x"]),
       husimi(sigma_x > 0),
-      linear(p["Observables"]["PhaseSpaceDistribution"]["linear_convolution"]
-                 .get<bool>()),
-      N(p["Simulation"]["N"].get<int>()),
-      dx(p["Simulation"]["L"].get<double>() / N),
-      N_kernel(2 * floor(5 * sigma_x / dx) + 1),
+      linear(p["Observables"]["PhaseSpaceDistribution"]["linear_convolution"]),
+      patch(p["Observables"]["PhaseSpaceDistribution"]["patch"]),
+      N(p["Simulation"]["N"]),
+      L(p["Simulation"]["L"]),
+      N_kernel(2 * floor(5 * sigma_x / (L / N)) + 1),
       t_prev(-1),
-      ws(husimi ? linear : 0, husimi ? N : 0, husimi ? N_kernel : 0),
-      wigner_f(husimi ? 0 : N, husimi ? 0 : N),
-      husimi_f(husimi ? N : 0, husimi ? N : 0),
-      idx(husimi ? N : 0),
-      iaf(husimi ? 0 : N, husimi ? 0 : N),
+      ws(0, 0, 0),
+      wigner_f(0, 0),
+      husimi_f(0, 0),
+      idx(0),
+      iaf(0, 0),
       c2c(nullptr) {
     if (husimi) {
-        std::iota(idx.begin(), idx.end(), 0);
+        const double dx = L / N;
+        const double dk = 2 * M_PI / L;
+
+        // 0-based indices
+        int idx_start = std::abs(-L / 2 - patch[0][0]) / dx;
+        int idx_end = std::abs(-L / 2 - patch[0][1]) / dx;
+        int idk_start = std::abs(-dk * N / 2 - patch[1][0]) / dk;
+        int idk_end = std::abs(-dk * N / 2 - patch[1][1]) / dk;
+
+        if (patch[0][0] >= patch[0][1] || patch[0][0] < -L / 2 ||
+            L / 2 < patch[0][1]) {
+            std::cout
+                << WARNINGTAG(
+                       "Wrong x interval in patch...Reset to entire domain")
+                << std::endl;
+            idx_start = 0;
+            idx_end = N;
+        }
+        if (patch[1][0] >= patch[1][1] || patch[1][0] < -dk * N / 2 ||
+            dk * (N - 1) / 2 < patch[1][1]) {
+            std::cout
+                << WARNINGTAG(
+                       "Wrong k interval in patch...Reset to entire domain")
+                << std::endl;
+            idk_start = 0;
+            idk_end = N;
+        }
+
+        const int Nx = idx_end - idx_start;
+        const int Nk = idk_end - idk_start;
+
+        idx.resize(Nx);
+        std::iota(idx.begin(), idx.end(), -N / 2 + idx_start);
+        idk.resize(Nk);
+        std::iota(idk.begin(), idk.end(), -N / 2 + idk_start);
+        husimi_f.resize(Nk, Nx);
+        ws = convolution_ws<std::complex<double>>(linear, Nx, N_kernel);
+
         auto& gaussian = ws.kernel_padded;
         std::iota(std::begin(gaussian), std::end(gaussian), -N_kernel / 2);
         gaussian =
-            exp(-0.5 * dx * dx * gaussian * gaussian / (sigma_x * sigma_x));
+            exp(-dx * dx * gaussian * gaussian / (4 * sigma_x * sigma_x));
         gaussian /= blaze::sum(gaussian);
     } else {
+        iaf.resize(N, N);
+        wigner_f.resize(N, N);
         auto iaf_ptr = reinterpret_cast<fftw_complex*>(iaf.data());
-        c2c = fftw_plan_many_dft(1, &N, N, iaf_ptr, nullptr, 1, iaf.spacing(),
-                                 iaf_ptr, nullptr, 1, iaf.spacing(),
-                                 FFTW_FORWARD, FFTW_ESTIMATE);
+        c2c.reset(fftw_plan_many_dft(
+            1, &N, N, iaf_ptr, nullptr, 1, iaf.spacing(), iaf_ptr, nullptr, 1,
+            iaf.spacing(), FFTW_FORWARD, FFTW_ESTIMATE));
     }
 }
 
@@ -111,7 +150,7 @@ void PhaseSpaceDistribution::wigner_distribution(const SimState& state) {
             iaf(tau, icol) = 0.5 * (psi[ti + tau] * conj(psi[ti - tau]) +
                                     psi[ti - tau] * conj(psi[ti + tau]));
     }
-    fftw_execute(c2c);
+    fftw_execute(c2c.get());
 
     negative_v_f = real(negative_v_iaf);
     positive_v_f = real(positive_v_iaf);
@@ -121,13 +160,14 @@ void PhaseSpaceDistribution::husimi_distribution(const SimState& state) {
     using namespace blaze;
 
     // Compute phase matrix only once
-    static auto phase_T = exp(idx * (-M_PI + 2 * M_PI / N * trans(idx)) *
-                              std::complex<double>(0, -1));
+    static auto phase_T = exp(-1.0i * (2.0 * M_PI / N) * idx * trans(idk));
 
     // Construct mixed state distribution pure state by pure state
     auto& psi = state.psi;
-    auto modulated_psi = phase_T % expand(psi, N);
-    for (int k = 0; k < N; ++k) {
+    auto modulated_psi =
+        phase_T %
+        expand(subvector(psi, N / 2 + idx[0], idx.size()), idk.size());
+    for (int k = 0; k < idk.size(); ++k) {
         ws.signal_padded = column(modulated_psi, k);
         discrete_convolution(ws);
         row(husimi_f, k) =
@@ -152,8 +192,6 @@ ObservableFunctor::ReturnType PhaseSpaceDistribution::compute(
     }
     return wigner_f;
 }
-
-PhaseSpaceDistribution::~PhaseSpaceDistribution() { fftw_destroy_plan(c2c); }
 
 Potential::Potential(const Parameters& p, const Cosmology&)
     : pot{Interaction::make(p["Simulation"]["potential"].get<std::string>(),
@@ -242,7 +280,6 @@ ParticleFlux::ParticleFlux(const Parameters& p, const Cosmology&)
     }
 };
 
-// Currently only M=1
 ObservableFunctor::ReturnType ParticleFlux::compute(const SimState& state) {
     using namespace blaze;
     auto cyclic_extension = [N = N](int i) { return (N - 2 + i) % N; };

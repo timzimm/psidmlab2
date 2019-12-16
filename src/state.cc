@@ -25,29 +25,24 @@ void SimState::transform(const SimState::Representation target) {
     // number of wavefunctions or spatial points was generated
     if (psi.size() != N_plan) {
         N_plan = psi.size();
-        fftw_destroy_plan(momentum_to_position);
+        momentum_to_position.reset();
 
-        position_to_momentum =
-            fftw_plan_dft_1d(N_plan, in, in, FFTW_FORWARD, FFTW_ESTIMATE);
-        momentum_to_position =
-            fftw_plan_dft_1d(N_plan, in, in, FFTW_BACKWARD, FFTW_ESTIMATE);
+        position_to_momentum.reset(
+            fftw_plan_dft_1d(N_plan, in, in, FFTW_FORWARD, FFTW_ESTIMATE));
+        momentum_to_position.reset(
+            fftw_plan_dft_1d(N_plan, in, in, FFTW_BACKWARD, FFTW_ESTIMATE));
     }
 
     if (target == Representation::Momentum) {
-        fftw_execute_dft(position_to_momentum, in, in);
+        fftw_execute_dft(position_to_momentum.get(), in, in);
         // FFTW transforms are denormalized
         psi /= N_plan;
     } else {
-        fftw_execute_dft(momentum_to_position, in, in);
+        fftw_execute_dft(momentum_to_position.get(), in, in);
     }
 
     representation = target;
 };
-
-SimState::~SimState() {
-    fftw_destroy_plan(position_to_momentum);
-    fftw_destroy_plan(momentum_to_position);
-}
 
 void operator>>(const SimState& state, Parameters& p) {
     p["Simulation"]["N"] = state.psi.size();

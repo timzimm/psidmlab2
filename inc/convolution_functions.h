@@ -1,9 +1,10 @@
 #ifndef __CONVOLUTION__
 #define __CONVOLUTION__
 
+#include "fftw.h"
+
 #include <blaze/math/DynamicVector.h>
 #include <blaze/util/TypeTraits.h>
-#include <fftw3.h>
 #include <complex>
 
 // Taken from from GSL. These routines compute the
@@ -21,27 +22,26 @@ int find_closest_factor(int n);
 // convolutions. Kernels are currently expected to be real and one-dimensional
 template <typename T, bool TF = false>
 struct convolution_ws {
-    const int N_signal;
-    const int N_kernel;
-    const int threshold;          // limit up to which the sum approach is used
-    bool kernel_up_to_date;       // if false kernel DFT is recomputed
-    const bool computeLinear;     // if false circular convolution is computed
-    const bool fast_convolution;  // see first member
-    int P;                        // Size of the padded arrays
+    int N_signal;
+    int N_kernel;
+    int threshold;           // limit up to which the sum approach is used
+    bool kernel_up_to_date;  // if false kernel DFT is recomputed
+    bool computeLinear;      // if false circular convolution is computed
+    bool fast_convolution;   // see first member
+    int P;                   // Size of the padded arrays
     blaze::DynamicVector<double, TF> kernel_padded;
     blaze::DynamicVector<T, TF> signal_padded;
     blaze::DynamicVector<std::complex<double>, TF>
         kernel_fft;  // holds kernel DFT
     blaze::DynamicVector<std::complex<double>, TF>
-        signal_fft;      // holds signal DFT
-    fftw_plan r2c;       // r2c plan
-    fftw_plan c2r;       // c2r plan
-    fftw_plan c2c_for;   // c2c fowards plan
-    fftw_plan c2c_back;  // c2c backwards plan
+        signal_fft;          // holds signal DFT
+    fftw_plan_ptr r2c;       // r2c plan
+    fftw_plan_ptr c2r;       // c2r plan
+    fftw_plan_ptr c2c_for;   // c2c fowards plan
+    fftw_plan_ptr c2c_back;  // c2c backwards plan
 
     convolution_ws(const bool computeLinear_, const int N_signal,
                    const int N_kernel);
-    ~convolution_ws();
 };
 
 template <typename T, bool TF>
@@ -76,25 +76,26 @@ convolution_ws<T, TF>::convolution_ws(const bool computeLinear_,
             signal_fft.resize(P / 2 + 1);
             auto out = signal_padded.data();
             // Real signal backwards
-            c2r = fftw_plan_dft_c2r_1d(P, in, out, FFTW_ESTIMATE);
+            c2r.reset(fftw_plan_dft_c2r_1d(P, in, out, FFTW_ESTIMATE));
 
             // Complex signal
         } else {
             signal_fft.resize(P);
             auto out = reinterpret_cast<fftw_complex*>(signal_padded.data());
             // Complex signal forwards/backwards
-            c2c_for = fftw_plan_dft_1d(P, out, in, FFTW_FORWARD, FFTW_ESTIMATE);
-            c2c_back =
-                fftw_plan_dft_1d(P, in, out, FFTW_BACKWARD, FFTW_ESTIMATE);
+            c2c_for.reset(
+                fftw_plan_dft_1d(P, out, in, FFTW_FORWARD, FFTW_ESTIMATE));
+            c2c_back.reset(
+                fftw_plan_dft_1d(P, in, out, FFTW_BACKWARD, FFTW_ESTIMATE));
         }
 
         // real kernel to complex DFT
         kernel_fft.reserve(P / 2 + 1);
         kernel_fft.resize(P / 2 + 1);
 
-        r2c = fftw_plan_dft_r2c_1d(
+        r2c.reset(fftw_plan_dft_r2c_1d(
             P, kernel_padded.data(),
-            reinterpret_cast<fftw_complex*>(kernel_fft.data()), FFTW_ESTIMATE);
+            reinterpret_cast<fftw_complex*>(kernel_fft.data()), FFTW_ESTIMATE));
 
     }
     // Sum based
@@ -104,14 +105,6 @@ convolution_ws<T, TF>::convolution_ws(const bool computeLinear_,
     // Allow for efficient resize
     signal_padded.reserve(P);
     kernel_padded.reserve(P);
-}
-
-template <typename T, bool TF>
-convolution_ws<T, TF>::~convolution_ws() {
-    fftw_destroy_plan(c2r);
-    fftw_destroy_plan(r2c);
-    fftw_destroy_plan(c2c_for);
-    fftw_destroy_plan(c2c_back);
 }
 
 // Applies discrete (linear/circular) convolution by calling one of the routines
@@ -189,7 +182,7 @@ void fast_convolution(convolution_ws<T, TF>& data) {
     if (!data.kernel_up_to_date) {
         auto in = data.kernel_padded.data();
         auto out = reinterpret_cast<fftw_complex*>(data.kernel_fft.data());
-        fftw_execute_dft_r2c(data.r2c, in, out);
+        fftw_execute_dft_r2c(data.r2c.get(), in, out);
         data.kernel_up_to_date = true;
     }
 
@@ -198,17 +191,17 @@ void fast_convolution(convolution_ws<T, TF>& data) {
 
     if constexpr (blaze::IsFloatingPoint_v<T>) {
         auto sig = data.signal_padded.data();
-        fftw_execute_dft_r2c(data.r2c, sig, sig_fft);
+        fftw_execute_dft_r2c(data.r2c.get(), sig, sig_fft);
     } else {
         auto sig = reinterpret_cast<fftw_complex*>(data.signal_padded.data());
-        fftw_execute_dft(data.c2c_for, sig, sig_fft);
+        fftw_execute_dft(data.c2c_for.get(), sig, sig_fft);
     }
 
     if constexpr (blaze::IsFloatingPoint_v<T>) {
         // Discrete convolution theorem + normalization
         data.signal_fft *= 1.0 / data.P * data.kernel_fft;
         auto sig = data.signal_padded.data();
-        fftw_execute_dft_c2r(data.c2r, sig_fft, sig);
+        fftw_execute_dft_c2r(data.c2r.get(), sig_fft, sig);
     } else {
         const int N = data.P;
         // Discrete convolution theorem + hermitian property + normalization
@@ -217,7 +210,7 @@ void fast_convolution(convolution_ws<T, TF>& data) {
             conj(reverse(subvector(data.kernel_fft, 1, N - (N / 2 + 1))));
         data.signal_fft *= 1.0 / data.P;
         auto sig = reinterpret_cast<fftw_complex*>(data.signal_padded.data());
-        fftw_execute_dft(data.c2c_back, sig_fft, sig);
+        fftw_execute_dft(data.c2c_back.get(), sig_fft, sig);
     }
 }
 

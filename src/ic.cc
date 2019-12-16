@@ -1,17 +1,19 @@
 #include "ic.h"
 #include "cosmology.h"
+#include "fftw.h"
 #include "interfaces.h"
 #include "io.h"
 #include "logging.h"
 #include "parameters.h"
 #include "state.h"
 
-#include <fftw3.h>
 #include <algorithm>
 #include <cmath>
 #include <map>
 #include <numeric>
 #include <random>
+
+using namespace blaze;
 
 ICGenerator::ICGenerator(const Parameters& p)
     : type{static_cast<ICType>(p["Initial Conditions"]["ic_type"].get<int>())},
@@ -30,7 +32,7 @@ ICGenerator::ICGenerator(const Parameters& p)
     }
 
     switch (type) {
-        case ICType::ExternalDelta... ICType::ExternalPsi:
+        case ICType::ExternalRealImag... ICType::ExternalModulusPhase:
             if (data_N != N) {
                 std::cout << ERRORTAG("#lines in source_file(" << data_N
                                                                << ") != N")
@@ -45,17 +47,17 @@ ICGenerator::ICGenerator(const Parameters& p)
 }
 
 void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
-    using namespace blaze;
-    // delta initialization
+    // modulus initialization
     switch (type) {
-        case ICType::ExternalDelta:
-            std::cout << INFOTAG("Load delta0 from file") << std::flush;
-            delta_from_file(state);
+        case ICType::ExternalRealImag:
+            std::cout << INFOTAG("Load Re(psi0) and Im(psi0) from file")
+                      << std::flush;
+            real_imag_from_file(state);
             std::cout << " ... done" << std::endl;
             break;
-        case ICType::ExternalPsi:
-            std::cout << INFOTAG("Load Psi0 from file") << std::flush;
-            psi_from_file(state);
+        case ICType::ExternalModulusPhase:
+            std::cout << INFOTAG("Load psi0 from file") << std::flush;
+            modulus_phase_from_file(state);
             std::cout << " ... done" << std::endl;
             break;
         case ICType::Powerspectrum:
@@ -66,7 +68,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
     }
 
     // Velocity Initialization
-    if (type != ICType::ExternalPsi) {
+    if (type == ICType::Powerspectrum) {
         // state.V holds delta at this point. But we will use it in an in-place
         // manner. Hence we define...
         const auto& delta = state.V;
@@ -94,22 +96,24 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
     }
 }
 
-void ICGenerator::delta_from_file(SimState& state) const {
+void ICGenerator::real_imag_from_file(SimState& state) const {
     state.psi.resize(N);
     state.V.resize(N);
 
-    // Store delta in V for convenience (real vector vs complex vector);
-    auto& delta = state.V;
+    DynamicVector<double> mod(N);
+    DynamicVector<double> phase(N);
 
-    fill_from_file(ic_file, delta);
+    fill_from_file(ic_file, mod, phase);
+    state.psi =
+        map(mod, phase, [](double m, double p) { return std::polar(m, p); });
 }
 
-void ICGenerator::psi_from_file(SimState& state) const {
+void ICGenerator::modulus_phase_from_file(SimState& state) const {
     state.psi.resize(N);
     state.V.resize(N);
 
-    blaze::DynamicVector<double> re(N);
-    blaze::DynamicVector<double> im(N);
+    DynamicVector<double> re(N);
+    DynamicVector<double> im(N);
 
     fill_from_file(ic_file, re, im);
     state.psi =
@@ -118,7 +122,6 @@ void ICGenerator::psi_from_file(SimState& state) const {
 
 void ICGenerator::delta_from_power(SimState& state,
                                    const Cosmology& cosmo) const {
-    using namespace blaze;
     state.psi.resize(N);
     state.V.resize(N);
 
@@ -176,9 +179,10 @@ void ICGenerator::delta_from_power(SimState& state,
 
     auto in = reinterpret_cast<fftw_complex*>(delta_k.data());
     // Store delta in V for convenience (real vector vs complex vector);
-    auto c2r = fftw_plan_dft_c2r_1d(N, in, state.V.data(), FFTW_ESTIMATE);
-    fftw_execute(c2r);
-    fftw_destroy_plan(c2r);
+    fftw_plan_ptr c2r(
+        fftw_plan_dft_c2r_1d(N, in, state.V.data(), FFTW_ESTIMATE));
+    fftw_execute(c2r.get());
+    fftw_destroy_plan(c2r.get());
 }
 
 ICGenerator::~ICGenerator() = default;

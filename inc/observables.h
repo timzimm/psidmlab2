@@ -2,7 +2,7 @@
 #define __OBSERVABLES__
 
 #include "convolution_functions.h"
-#include "fftw3.h"
+#include "fftw.h"
 #include "interfaces.h"
 
 namespace Observable {
@@ -25,25 +25,25 @@ class DensityContrast : public ObservableFunctor {
 };
 
 class PhaseSpaceDistribution : public ObservableFunctor {
-    // Abbreviations
-    using CCM = blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>;
-    using RCM = blaze::DynamicMatrix<double, blaze::columnMajor>;
-    using RRM = blaze::DynamicMatrix<double>;
-    using RRV = blaze::DynamicVector<double>;
+    using interval_t = std::array<double, 2ul>;
+    using patch_t = std::array<interval_t, 2ul>;
 
-    double sigma_x;  // spatial smoothing scale
-    bool husimi;     // compute husimi?
-    bool linear;     // do linear convolution?
-    int N;           // number of spatial gridpoints
-    double dx;       // spatial resolution
-    int N_kernel;    // symmetric 5-sigma_x interval in points
-    double t_prev;   // timestamp of last cached observable
+    const double sigma_x;  // spatial smoothing scale
+    const bool husimi;     // compute husimi?
+    const bool linear;     // do linear convolution?
+    const patch_t patch;
+    int N;               // number of spatial gridpoints
+    const double L;      // spatial resolution
+    const int N_kernel;  // symmetric 5-sigma_x interval in points
+    double t_prev;       // timestamp of last cached observable
     convolution_ws<std::complex<double>> ws;
-    RCM wigner_f;  // cached wigner
-    RRM husimi_f;  // cached husimi
-    RRV idx;
-    CCM iaf;        // instantaneous autocorrelation function
-    fftw_plan c2c;  // IAF -> wigner transform (complex)
+    blaze::DynamicMatrix<double, blaze::columnMajor> wigner_f;  // cached wigner
+    blaze::DynamicMatrix<double> husimi_f;                      // cached husimi
+    blaze::DynamicVector<double> idx;
+    blaze::DynamicVector<double> idk;
+    blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>
+        iaf;            // instantaneous autocorrelation function
+    fftw_plan_ptr c2c;  // IAF -> wigner transform (complex)
 
     void wigner_distribution(const SimState& state);
 
@@ -51,7 +51,6 @@ class PhaseSpaceDistribution : public ObservableFunctor {
 
    public:
     PhaseSpaceDistribution(const Parameters& p, const Cosmology&);
-    ~PhaseSpaceDistribution();
     ObservableFunctor::ReturnType compute(const SimState& state) override;
     REGISTER(PhaseSpaceDistribution)
 };

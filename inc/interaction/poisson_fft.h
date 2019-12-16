@@ -1,7 +1,7 @@
 #ifndef __POISSON_FFT__
 #define __POISSON_FFT__
 
-#include "fftw3.h"
+#include "fftw.h"
 #include "interfaces.h"
 
 #include <blaze/math/CompressedMatrix.h>
@@ -21,12 +21,11 @@ class FFT : public Interaction {
     CCV fft;
     RCV kernel;
 
-    fftw_plan forwards;
-    fftw_plan backwards;
+    fftw_plan_ptr forwards;
+    fftw_plan_ptr backwards;
 
    public:
     FFT(const Parameters& p);
-    ~FFT();
     void solve(SimState& state) override;
     void solve(blaze::DynamicVector<double>& V,
                const blaze::DynamicVector<double>& source) override;
