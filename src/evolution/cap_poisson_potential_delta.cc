@@ -19,9 +19,14 @@ CAPPoissonPotentialDelta::CAPPoissonPotentialDelta(const Parameters& p,
       L{p["Simulation"]["L"].get<double>()},
       dx{L / N},
       strength{p["Simulation"]["stepper"]["strength"].get<double>()},
+      width{p["Simulation"]["stepper"]["width"].get<double>()},
       dt_last{-1},
       CAP(N, strength),
-      attenuator(N) {}
+      attenuator(N) {
+    std::iota(CAP.begin(), CAP.end(), -N / 2);
+    CAP = strength * (pow(cosh(1.0 / width * (CAP * dx - L / 2)), -2) +
+                      pow(cosh(1.0 / width * (CAP * dx + L / 2)), -2));
+}
 
 // Non linear phase method with phi_max = pi/2
 double CAPPoissonPotentialDelta::next_dt(const SimState& state) const {

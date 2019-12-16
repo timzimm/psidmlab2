@@ -14,6 +14,7 @@ class CAPPoissonPotential : public DefaultDriver<CAPPoissonPotential> {
     const double L;
     const double dx;
     const double strength;
+    const double width;
     double dt_last;
     blaze::DynamicVector<double, blaze::columnVector> CAP;
     blaze::DynamicVector<double, blaze::columnVector> attenuator;

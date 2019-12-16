@@ -24,6 +24,7 @@ add_executable(psidm
     src/interaction/gp.cc
     src/evolution/kinetic.cc
     src/evolution/interaction_potential_trapezodial.cc
+    src/evolution/cap_poisson_potential_delta.cc
     src/evolution/concrete_splittings.cc
     src/evolution/uso_kdk_itp.cc
 )

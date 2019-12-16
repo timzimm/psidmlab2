@@ -15,6 +15,7 @@ class CAPPoissonPotentialDelta
     const double L;
     const double dx;
     const double strength;
+    const double width;
     double dt_last;
     blaze::DynamicVector<double> CAP;
     blaze::DynamicVector<double> attenuator;
