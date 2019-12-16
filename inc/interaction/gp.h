@@ -1,7 +1,6 @@
 #ifndef __POISSON_FFT__
 #define __POISSON_FFT__
 
-#include "fftw3.h"
 #include "interfaces.h"
 
 // Gross Pitaevskii type non-linearity of the form |psi|^2*psi

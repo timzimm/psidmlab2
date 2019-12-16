@@ -1,7 +1,6 @@
 #ifndef __POISSON_FD__
 #define __POISSON_FD__
 
-#include "fftw3.h"
 #include "interfaces.h"
 
 namespace Poisson {
