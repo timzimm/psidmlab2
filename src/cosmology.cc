@@ -1,4 +1,5 @@
 #include "cosmology.h"
+#include "gsl_integration.h"
 #include "io.h"
 #include "logging.h"
 #include "parameters.h"
@@ -10,7 +11,6 @@
 #include <boost/units/systems/si/io.hpp>
 #include <boost/units/systems/si/prefixes.hpp>
 #include <fstream>
-#include <tuple>
 
 using namespace boost::units;
 using namespace boost::units::si;
@@ -19,9 +19,9 @@ BOOST_UNITS_STATIC_CONSTANT(parsec, astronomical::parsec_base_unit::unit_type);
 
 Cosmology::Cosmology(const Parameters& p)
     : model{static_cast<CosmoModel>(p["model"].get<int>())},
-      omega_m0{p["omega_m0"].get<double>()},
-      hubble{p["h"].get<double>()},
-      mu{p["mu"].get<double>()},
+      omega_m0{p["omega_m0"]},
+      hubble{p["h"]},
+      mu{p["mu"]},
       a_start{0},
       a_end{0},
       delta_a{0},
@@ -85,11 +85,6 @@ double Cosmology::omega_m(double a) const {
     if (model == CosmoModel::Artificial) return omega_m0;
     return omega_m0 / (omega_m0 + (1 - omega_m0) * a * a * a);
 }
-double Cosmology::Dplus(double a) const {
-    double om = omega_m(a);
-    return 5.0 * a / 2 * om /
-           (pow(om, 4.0 / 7) - (1 - om) + (1 + 0.5 * om) * (1 + (1 - om) / 70));
-}
 
 double Cosmology::E(const double a) const {
     return sqrt(omega_m0 / (a * a * a) + (1 - omega_m0));
@@ -146,6 +141,20 @@ double Cosmology::a_of_tau(double tau) const {
     auto root =
         bracket_and_solve_root(tau_offset, a_guess, factor, is_rising, tol, it);
     return root.second;
+}
+
+double Cosmology::D(double a) const {
+    auto f = make_gsl_function(
+        [&](double aa) { return 1.0 / (std::pow(aa * E(aa), 3)); });
+
+    const size_t n = 100;
+    const double eps = 1e-7;
+    double res, err;
+    auto ws = gsl_integration_workspace_alloc(n);
+    gsl_integration_qag(f, 0, a, 0.0, eps, n, GSL_INTEG_GAUSS21, ws, &res,
+                        &err);
+    gsl_integration_workspace_free(ws);
+    return 5.0 / 2 * omega_m0 * E(a) * res;
 }
 
 bool Cosmology::operator==(const CosmoModel& m) const { return model == m; }

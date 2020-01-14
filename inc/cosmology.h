@@ -34,9 +34,6 @@ class Cosmology {
     // Time dependent matter density parameter as a function of scalefactor
     double omega_m(double a) const;
 
-    // Linear growth factor
-    double Dplus(double a) const;
-
     // Super conformal time as function of sclaefactor
     double tau_of_a(const double a) const;
 
@@ -45,6 +42,9 @@ class Cosmology {
 
     // EqualityComparable to the models defined above
     bool operator==(const CosmoModel& model) const;
+
+    // Growth function D(a) after Dodelson
+    double D(double a) const;
 
     // Conversion functions
     double chi_of_x(const boost::units::quantity<
