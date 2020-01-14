@@ -454,6 +454,7 @@ tex/Reports
 
 #junk folders
 script/
+scratch/
 debug/
 
 #dat files
@@ -472,6 +473,6 @@ compile_commands.json
 install/.vagrant
 install/Vagrantfile
 
-# Run folder
-run/
+# Run folder and symlink
+run
 run.nosync
