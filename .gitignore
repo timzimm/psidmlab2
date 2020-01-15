@@ -4,31 +4,7 @@
 .LSOverride
 
 ### Python ###
-# Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
-*$py.class
-
-# Distribution / packaging
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Translations
-*.mo
-*.pot
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -36,14 +12,12 @@ wheels/
 # pyenv
 .python-version
 
-# dotenv
-.env
-
 # virtualenv
+.env
+env/
 .venv
 venv/
 ENV/
-
 
 ### Vim ###
 # swap
@@ -69,18 +43,13 @@ tags
 *.obj
 *.elf
 
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Libraries
+# Static Libraries
 *.lib
 *.a
 *.la
 *.lo
 
-# Shared objects (inc. Windows DLLs)
+# Shared Libraries 
 *.dll
 *.so
 *.so.*
@@ -108,7 +77,6 @@ contrib/
 run
 run.nosync
 
-*.dat
 *.h5
 *.txt
 
