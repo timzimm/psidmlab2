@@ -22,6 +22,7 @@ class Cosmology {
     double a_end;
     double delta_a;
     int A;
+    double delta_DC;
 
     std::vector<double> a_grid;
     std::unordered_map<double, double> tau_a_map;
@@ -32,29 +33,34 @@ class Cosmology {
    public:
     Cosmology(const Parameters& p);
     // Time dependent matter density parameter as a function of scalefactor
-    double omega_m(double a) const;
+    double omega_m(const double a) const;
 
     // Super conformal time as function of sclaefactor
     double tau_of_a(const double a) const;
 
     // Inverse of the above
-    double a_of_tau(double tau) const;
+    double a_of_tau(const double tau) const;
+
+    // Box scale factor for non-zero DC modes
+    double abox_of_tau(const double tau) const;
+
+    // Setter for DC mode of delta used by abox_of_tau conversion
+    void set_DC(const double dc);
 
     // EqualityComparable to the models defined above
     bool operator==(const CosmoModel& model) const;
 
-    // Growth function D(a) after Dodelson
-    double D(double a) const;
+    // Linear growth function D(a) after Dodelson
+    double D(const double a) const;
 
-    // Conversion functions
-    double chi_of_x(const boost::units::quantity<
-                    boost::units::astronomical::parsec_base_unit::unit_type>
-                        x) const;
-    double x_of_chi(double chi) const;
+    // Linear growth rate f(a) = a/D * dD/da
+    double f(const double a) const;
+
+    // Hubble parameter
+    double h() const;
 
     static double z_of_a(const double a) { return 1.0 / a - 1; };
     static double a_of_z(const double z) { return 1.0 / (z + 1); };
 };
-Parameters& operator<<(Parameters& p, const Cosmology& cosmo);
 
 #endif
