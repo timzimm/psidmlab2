@@ -1,5 +1,6 @@
 add_executable(psidm 
     main.cc 
+    domain.cc
     state.cc 
     cosmology.cc
     ic.cc
@@ -53,4 +54,5 @@ target_link_libraries(psidm
             hdf5::hdf5-static 
             hdf5::hdf5_hl-static
             nlohmann_json::nlohmann_json
+            GSL::gsl
 )

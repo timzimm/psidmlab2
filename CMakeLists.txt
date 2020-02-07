@@ -6,11 +6,12 @@ project(psiDM2 VERSION 0.1
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules/")
 
 # External dependencies
-find_package(hdf5 CONFIG REQUIRED)
+find_package(hdf5 REQUIRED)
 find_package(Boost REQUIRED)
-find_package(FFTW3 CONFIG REQUIRED)
-find_package(blaze CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
+find_package(FFTW3 REQUIRED)
+find_package(blaze REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(GSL REQUIRED)
 find_package(CBLAS)
 find_package(OpenMP)
 
@@ -43,5 +44,5 @@ set(BLAZE_DEFINITIONS BLAZE_BLAS_MODE
 # TODO: Generator expression for build type selection
 add_compile_definitions(${BLAZE_DEFINITIONS})
 
-add_subdirectory(test)
 add_subdirectory(src)
+add_subdirectory(test)
