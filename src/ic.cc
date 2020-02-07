@@ -7,14 +7,16 @@
 #include "parameters.h"
 #include "state.h"
 
-#include <gsl/gsl_sf_bessel.h>
-#include <gsl/gsl_sf_expint.h>
-#include <gsl/gsl_sf_trig.h>
 #include <algorithm>
 #include <boost/math/interpolators/cubic_b_spline.hpp>
 #include <fstream>
 #include <numeric>
+#include <random>
 #include <vector>
+// Special Functions for integration
+#include <gsl/gsl_sf_bessel.h>
+#include <gsl/gsl_sf_expint.h>
+#include <gsl/gsl_sf_trig.h>
 
 using namespace blaze;
 using namespace boost::math;
@@ -377,7 +379,7 @@ auto convolved_powerspectrum(const int dim, const double R, const Functor& xi) {
     return P;
 }
 
-void generate(SimState& state, const Cosmology& cosmo, const Parameters& p) {
+void generate_ic(SimState& state, const Cosmology& cosmo, const Parameters& p) {
     auto type = static_cast<ICType>(p["Initial Conditions"]["ic_type"]);
     std::ifstream ic_file{
         p["Initial Conditions"]["source_file"].get<std::string>()};
@@ -412,11 +414,14 @@ void generate(SimState& state, const Cosmology& cosmo, const Parameters& p) {
             break;
         case ICType::Powerspectrum:
             std::cout << INFOTAG("Generate delta0 from P(k)") << std::flush;
+            // TODO: Don't return delta in state.V
             delta_from_power(state, cosmo, ic_file);
             std::cout << " ... done" << std::endl;
             break;
     }
 
+    // If psi comes from a file its velocity is already set. For powerspectra
+    // initializing the velocity is a additional (potentially unwanted) step
     // Velocity Initialization
     if (type == ICType::Powerspectrum) {
         // state.V holds delta at this point.
@@ -425,9 +430,9 @@ void generate(SimState& state, const Cosmology& cosmo, const Parameters& p) {
         state.psi = sqrt(1.0 + state.V);
 
         if (p["Initial Conditions"]["compute_velocity"].get<bool>()) {
-            set_phase(state, cosmo, p);
             std::cout << INFOTAG("Initial Velocity Field from Poisson ")
                       << std::endl;
+            set_phase(state, cosmo, p);
         }
     }
 }
@@ -459,6 +464,7 @@ void psi_polar_from_file(DynamicVector<std::complex<double>>& psi,
     });
 }
 
+// TODO: k/h, kh, k, what the hell?
 void delta_from_power(SimState& state, const Cosmology& cosmo,
                       std::ifstream& k_Pk) {
     const size_t N = std::count(std::istreambuf_iterator<char>(k_Pk),
@@ -494,10 +500,10 @@ void delta_from_power(SimState& state, const Cosmology& cosmo,
 
     auto P_dim = reduced_powerspectrum(box.dims, P_3d);
 
-    const auto& dxs = box.dxs;
-    const double L =
-        sqrt(std::inner_product(dxs.begin(), dxs.end(), dxs.begin(), 0.0));
-    auto xi = correlation_function(box.dims, L, P_dim);
+    const auto& Ls_pc = box.box_lengths_pc;
+    const double L = sqrt(
+        std::inner_product(Ls_pc.begin(), Ls_pc.end(), Ls_pc.begin(), 0.0));
+    auto xi = correlation_function(box.dims, L / 1e6, P_dim);
 
     auto P = convolved_powerspectrum(box.dims, L, xi);
 
@@ -528,22 +534,22 @@ void delta_from_power(SimState& state, const Cosmology& cosmo,
 
     // Finally, since P(k) expects k to be in h * Mpc^(-1), we multiply by the
     // correct increment
-    kx *= 2 * M_PI / box.box_lengths_pc[0] * 1e6;
-    ky *= 2 * M_PI / box.box_lengths_pc[1] * 1e6;
-    kz *= 2 * M_PI / box.box_lengths_pc[2] * 1e6;
+    kx *= 2 * M_PI / Ls_pc[0] * 1e6;
+    ky *= 2 * M_PI / Ls_pc[1] * 1e6;
+    kz *= 2 * M_PI / Ls_pc[2] * 1e6;
 
     // The entire k-grid can than be represented as sum of Kronecker
-    // products. No nested loops, no index nightmare.
-    UniformVector<double> ex(Nx / 2 + 1, 1);
-    UniformVector<double> ey(Ny, 1);
-    UniformVector<double> ez(Nz, 1);
+    // products.
+    auto ex = uniform(Nx / 2 + 1, 1.0);
+    auto ey = uniform(Ny, 1.0);
+    auto ez = uniform(Ny, 1.0);
 
     auto k_mag =
         sqrt(kron(kron(ez, ey), kx * kx) + kron(kron(ez, ky * ky), ex) +
              kron(kron(kz * kz, ey), ex));
 
     // Independent number generators for modulus and phase.
-    std::random_device rd{};
+    std::random_device rd;
     auto u1 =
         std::bind(std::uniform_real_distribution<>{0, 1}, std::mt19937(rd()));
     auto u2 =
@@ -553,11 +559,11 @@ void delta_from_power(SimState& state, const Cosmology& cosmo,
     const double a_init = cosmo.a_of_tau(0);
     const double D_init_0 = cosmo.D(a_init) / cosmo.D(1);
 
-    // Compute the n-dim box volume in Mpc h^-1
-    double V = 1;
-    for (auto L : box.box_lengths_pc) {
-        V *= L / 1e6;
-    }
+    // Compute the n-dim box volume in Mpc
+    double V =
+        std::accumulate(Ls_pc.begin(), Ls_pc.end(), 1, std::multiplies<>());
+    V /= 1e6;
+
     auto sigma = [&](double k) {
         return sqrt(D_init_0 * D_init_0 * V * P(k) / 2);
     };
