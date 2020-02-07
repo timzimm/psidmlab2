@@ -1,9 +1,7 @@
 #ifndef __DOMAIN__
 #define __DOMAIN__
-#include "logging.h"
 #include "parameters_fwd.h"
 
-#include <array>
 #include <vector>
 
 struct Domain {

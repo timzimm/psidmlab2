@@ -1,6 +1,8 @@
 #include "domain.h"
+#include "logging.h"
 #include "parameters.h"
 
+#include <array>
 #include <boost/units/base_units/astronomical/parsec.hpp>
 #include <boost/units/cmath.hpp>
 #include <boost/units/systems/si/codata/electron_constants.hpp>
@@ -23,10 +25,20 @@ Domain::Domain(const Parameters& p)
       N_total{0} {
     using interval_t = std::array<double, 2ul>;
     std::vector<interval_t> box;
+    for (auto N : Ns) {
+        if (N <= 0) {
+            std::cout << ERRORTAG("Ill-defined dofs") << std::endl;
+            exit(1);
+        }
+    }
     for (const auto& interval : p["Domain Properties"]["limits"]) {
         box.emplace_back(interval);
-        box_lengths.emplace_back(abs(box.back()[1] - box.back()[0]));
-        box_lengths_pc.emplace_back(abs(box.back()[1] - box.back()[0]));
+        if (box.back()[1] - box.back()[0] <= 0) {
+            std::cout << ERRORTAG("Ill-defined limits") << std::endl;
+            exit(1);
+        }
+        box_lengths.emplace_back(box.back()[1] - box.back()[0]);
+        box_lengths_pc.emplace_back(box.back()[1] - box.back()[0]);
     }
     if (box.size() != dims) {
         std::cout << ERRORTAG("Ill-defined box") << std::endl;
@@ -51,17 +63,16 @@ Domain::Domain(const Parameters& p)
 
     // Unit Conversion
     if (p["Domain Properties"]["physical_units"].get<bool>()) {
-        auto chi_of_x =
-            [&](const quantity<astronomical::parsec_base_unit::unit_type> x) {
-                return 1.0 / root<2>(mu_si * timescale) *
-                       static_cast<quantity<length>>(x);
-            };
+        auto chi_of_x = [&](const double x_val) {
+            return 1.0 / root<2>(mu_si * timescale) *
+                   static_cast<quantity<length>>(x_val * parsec);
+        };
         std::transform(box_lengths_pc.begin(), box_lengths_pc.end(),
                        box_lengths.begin(), chi_of_x);
     } else {
-        auto x_of_chi = [&](const double x) {
+        auto x_of_chi = [&](const double chi) {
             return root<2>(mu_si * timescale) /
-                   static_cast<quantity<length>>(1.0 * parsec) * x;
+                   static_cast<quantity<length>>(1.0 * parsec) * chi;
         };
         std::transform(box_lengths.begin(), box_lengths.end(),
                        box_lengths_pc.begin(), x_of_chi);
