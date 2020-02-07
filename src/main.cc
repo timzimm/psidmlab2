@@ -1,4 +1,5 @@
 #include "cosmology.h"
+#include "domain.h"
 #include "ic.h"
 #include "interfaces.h"
 #include "io.h"
@@ -41,16 +42,11 @@ int main(int argc, char** argv) {
 
     // Setup a(tau) and tau(a)...
     const Cosmology cosmo(param["Cosmology"]);
-    // ... and transform length scales to code units
-    param << cosmo;
 
-    SimState state(param);
+    Domain box(param);
+    SimState state(box);
 
     generate_ic(state, cosmo, param);
-    // Depending on the type of IC chosen & No. of dofs
-    // (spatial points, fourier modes, basis functions etc.) might have
-    // changed. Hence, we inform the parameter file about this potential change.
-    state >> param;
 
     const auto potential = param["Simulation"]["potential"].get<std::string>();
     auto pot = Interaction::make(potential, param);
@@ -127,8 +123,7 @@ int main(int argc, char** argv) {
     };
 
     // Everything is set up...
-    // Dump parameters (modulo the i/o checkpoints since this can be a long
-    // list)
+    // Dump parameters w/o the i/o checkpoints since this can be a long list
     std::cout << INFOTAG("Parameter dump:") << std::endl;
     std::cout << std::setw(4) << param << std::endl;
     file.add_scalar_attribute("/", "parameters", param.dump());
@@ -138,7 +133,7 @@ int main(int argc, char** argv) {
         auto& [checkpoint, names, obs_ptrs] = checkpoints.top();
         stepper->integrate(state, checkpoint);
         // Depending on the stepper a retransformation to real space might be
-        // necessary. If not, transform acts as identity.
+        // necessary.
         state.transform(SimState::Representation::Position);
         pot->solve(state);
 
