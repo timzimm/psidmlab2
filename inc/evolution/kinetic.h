@@ -13,10 +13,12 @@ namespace Schroedinger {
 
 class Kinetic : public DefaultDriver<Kinetic> {
     double dt_last;
-    const int N;
-    const double L;
-    blaze::DynamicVector<double> k_squared;
-    blaze::DynamicVector<std::complex<double>> kick;
+    // Wavenumbers per dimension. This is used to represent the k-grid without
+    // allocating memory of O(Nx*Ny*Nz). In 2,3D the required memory is neglible
+    // compared to sizeof(state). In 1D it is of the same size, tough.
+    blaze::DynamicVector<double> kx;
+    blaze::DynamicVector<double> ky;
+    blaze::DynamicVector<double> kz;
 
    public:
     Kinetic(const Parameters& p, const SimState& state,
