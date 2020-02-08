@@ -11,7 +11,6 @@ SimState::SimState(const Domain& d)
       momentum_to_position{nullptr} {
     auto in = reinterpret_cast<fftw_complex*>(psi.data());
 
-    // dimension agnostic transformation (config file determines dimension)
     position_to_momentum.reset(fftw_plan_dft(box.Ns.size(), box.Ns.data(), in,
                                              in, FFTW_FORWARD, FFTW_ESTIMATE));
     momentum_to_position.reset(fftw_plan_dft(box.Ns.size(), box.Ns.data(), in,
