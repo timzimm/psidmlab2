@@ -74,6 +74,7 @@ scratch/
 debug/
 build/
 contrib/
+.clangd/
 run
 run.nosync
 
