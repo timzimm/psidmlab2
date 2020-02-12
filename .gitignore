@@ -73,7 +73,7 @@ tags
 scratch/
 debug/
 build/
-contrib/
+tools/
 .clangd/
 run
 run.nosync
