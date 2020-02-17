@@ -175,6 +175,8 @@ function(Blaze_Config)
                 Try C++11 or Boost.")
          endif ()
       elseif(Blaze_Config_THREADING  STREQUAL "off")
+        target_compile_definitions(blaze::blaze 
+            INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0) 
          msg("Multithreading for Blaze is turned off.")
       elseif("${Blaze_Config_THREADING}"  STREQUAL "")
          msg_db("Multithreading not configured. Using Blaze's defaults.")

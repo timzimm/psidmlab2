@@ -23,7 +23,7 @@ Blaze_Config(
     BLAS_MM                 ON
     BLAS_INCLUDE            <mkl_cblas.h>
     LAPACK                  ON
-    THREADING               OpenMP
+    THREADING               off
     CACHE_SIZE              auto
     VECTORIZATION           ON
     TRANSPOSE_FLAG          columnVector
@@ -73,12 +73,9 @@ target_link_options(psidm
             -fsanitize=address>
 )
 
-target_include_directories(psidm 
-    PUBLIC  inc
-)
+target_include_directories(psidm PRIVATE inc)
 
 target_link_libraries(psidm 
-    PRIVATE ${BLAS_LIBRARIES}
             Boost::boost
             blaze::blaze
             hdf5::hdf5-static 
