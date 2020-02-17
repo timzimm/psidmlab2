@@ -25,7 +25,6 @@ set_property(TARGET blaze::blaze
 include(blaze_config)
 Blaze_Config(
     BLAS                    ON
-    BLAS_64BIT              ON
     BLAS_PARALLEL           ON
     BLAS_MV                 ON
     BLAS_MM                 ON
