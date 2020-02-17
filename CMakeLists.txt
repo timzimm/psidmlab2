@@ -10,10 +10,18 @@ find_package(Boost REQUIRED)
 find_package(hdf5 CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
-# Blaze configuration of the default version provided by vcpkg. This adds
-# compile definitions to blaze::blaze in order to override the defaults set in
-# blaze/config/*.h. It is a modifaction of Blaze_Import shipped with blaze.
 find_package(blaze CONFIG REQUIRED)
+
+# Get rid of any predefined OpenMP dependencies. Default blaze is now serial.
+set_property(TARGET blaze::blaze 
+    PROPERTY INTERFACE_LINK_LIBRARIES "")
+set_property(TARGET blaze::blaze 
+    PROPERTY INTERFACE_COMPILE_OPTIONS "")
+
+# Blaze configuration. 
+# This adds compile definitions to blaze::blaze in order to override the 
+# defaults set in blaze/config/*.h. 
+# It is a modifaction of Blaze_Import shipped with blaze.
 include(blaze_config)
 Blaze_Config(
     BLAS                    ON
@@ -23,7 +31,7 @@ Blaze_Config(
     BLAS_MM                 ON
     BLAS_INCLUDE            <mkl_cblas.h>
     LAPACK                  ON
-    THREADING               off
+    THREADING               OpenMP
     CACHE_SIZE              auto
     VECTORIZATION           ON
     TRANSPOSE_FLAG          columnVector

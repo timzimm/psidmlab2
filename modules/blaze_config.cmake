@@ -141,45 +141,58 @@ function(Blaze_Config)
    #   Shared Memory Parallelization
    #=============================================================
 
-      if(Blaze_Config_THREADING  STREQUAL "HPX")
-         find_package(HPX REQUIRED)
-         target_compile_definitions(blaze::blaze INTERFACE BLAZE_USE_HPX_THREADS)
-         target_include_directories(blaze::blaze INTERFACE ${HPX_INCLUDE_DIRS})
-         target_link_libraries(blaze::blaze INTERFACE ${HPX_LIBRARIES})
-         msg("Configured HPX for multithreading.")
+      if(Blaze_Config_THREADING  STREQUAL "off")
+          target_compile_definitions(blaze::blaze 
+             INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0) 
+          msg("Multithreading for Blaze is turned off.")
+      elseif(Blaze_Config_THREADING  STREQUAL "HPX")
+          find_package(HPX REQUIRED)
+          target_compile_definitions(blaze::blaze 
+              INTERFACE BLAZE_USE_HPX_THREADS)
+          target_include_directories(blaze::blaze INTERFACE ${HPX_INCLUDE_DIRS})
+          target_link_libraries(blaze::blaze INTERFACE ${HPX_LIBRARIES})
+          target_compile_definitions(blaze::blaze 
+              INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=1) 
+          msg("Configured HPX for multithreading.")
       elseif(Blaze_Config_THREADING  STREQUAL "C++11")
-         find_package(Threads REQUIRED)
-         target_compile_definitions(blaze::blaze INTERFACE BLAZE_USE_CPP_THREADS)
-         target_link_libraries(blaze::blaze INTERFACE ${CMAKE_THREAD_LIBS_INIT})
-         msg("Configured C++11 for multithreading.")
+          find_package(Threads REQUIRED)
+          target_compile_definitions(blaze::blaze 
+              INTERFACE BLAZE_USE_CPP_THREADS)
+          target_link_libraries(blaze::blaze INTERFACE ${CMAKE_THREAD_LIBS_INIT})
+          target_compile_definitions(blaze::blaze 
+              INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=1) 
+          msg("Configured C++11 for multithreading.")
       elseif(Blaze_Config_THREADING  STREQUAL "BOOST")
-         find_package(Boost REQUIRED COMPONENTS thread)
-         target_compile_definitions(blaze::blaze INTERFACE BLAZE_USE_BOOST_THREADS)
-         target_include_directories(blaze::blaze INTERFACE ${Boost_INCLUDE_DIRS})
-         # Needed for Visual Studio 2015
-         target_compile_definitions(blaze::blaze INTERFACE BOOST_ALL_DYN_LINK ) 
-         target_link_libraries(blaze::blaze INTERFACE ${Boost_LIBRARIES})
-         msg("Configured BOOST for multithreading.")
+          find_package(Boost REQUIRED COMPONENTS thread)
+          target_compile_definitions(blaze::blaze 
+              INTERFACE BLAZE_USE_BOOST_THREADS)
+          target_include_directories(blaze::blaze 
+              INTERFACE ${Boost_INCLUDE_DIRS})
+          # Needed for Visual Studio 2015
+          target_compile_definitions(blaze::blaze INTERFACE BOOST_ALL_DYN_LINK ) 
+          target_link_libraries(blaze::blaze INTERFACE ${Boost_LIBRARIES})
+          target_compile_definitions(blaze::blaze 
+              INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=1) 
+          msg("Configured BOOST for multithreading.")
       elseif(Blaze_Config_THREADING  STREQUAL "OpenMP")
-         find_package(OpenMP)
-         if (OPENMP_FOUND)
-            target_compile_options(blaze::blaze INTERFACE ${OpenMP_CXX_FLAGS})
-            if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-               # Needed for GNU and Clang
-               target_link_libraries(blaze::blaze INTERFACE ${OpenMP_CXX_FLAGS}) 
-            endif ()
-         msg("Configured OpenMP for multithreading.")
-         else ()
-            message(WARNING 
-                "OpenMP not found. Blaze is running on a single thread. 
-                Try C++11 or Boost.")
-         endif ()
-      elseif(Blaze_Config_THREADING  STREQUAL "off")
-        target_compile_definitions(blaze::blaze 
-            INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0) 
-         msg("Multithreading for Blaze is turned off.")
+          find_package(OpenMP)
+          if (OPENMP_FOUND)
+              target_compile_options(blaze::blaze INTERFACE ${OpenMP_CXX_FLAGS})
+              if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+                  # Needed for GNU and Clang
+                  target_link_libraries(blaze::blaze 
+                      INTERFACE ${OpenMP_CXX_FLAGS}) 
+              endif ()
+              target_compile_definitions(blaze::blaze 
+                  INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=1) 
+              msg("Configured OpenMP for multithreading.")
+          else ()
+              message(WARNING 
+                  "OpenMP not found. Blaze is running on a single thread. 
+                  Try C++11 or Boost.")
+          endif ()
       elseif("${Blaze_Config_THREADING}"  STREQUAL "")
-         msg_db("Multithreading not configured. Using Blaze's defaults.")
+              msg_db("Multithreading not configured. Using Blaze's defaults.")
       endif()
 
    #===============================================================
