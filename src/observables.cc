@@ -193,16 +193,10 @@ ObservableFunctor::ReturnType PhaseSpaceDistribution::compute(
     return wigner_f;
 }
 
-Potential::Potential(const Parameters& p, const Cosmology&)
-    : pot{Interaction::make(p["Simulation"]["potential"].get<std::string>(),
-                            p)},
-      potential(p["Simulation"]["N"].get<int>()){};
+Potential::Potential(const Parameters& p, const Cosmology&){};
 
 inline ObservableFunctor::ReturnType Potential::compute(const SimState& state) {
-    // Depending on the integrator, state.V might be in an intermediate step and
-    // only state.psis is correct. Thus, we recalculate the potential.
-    pot->solve(potential, delta_from(state));
-    return potential;
+    return state.V;
 }
 
 WaveFunction::WaveFunction(const Parameters& p, const Cosmology&){};
