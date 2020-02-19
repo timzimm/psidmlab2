@@ -27,7 +27,8 @@ class Interaction : public Factory<Interaction, const Parameters&> {
     // given the wavefunction state.psi compute state.V
     virtual void solve(SimState& state) = 0;
     // Verbose interface with same functionality.
-    // Output is written into vector V
+    // Output is written into vector V. If V.data() == source.data()
+    // the computation is in-place.
     virtual void solve(blaze::DynamicVector<double>& V,
                        const blaze::DynamicVector<double>& source) = 0;
     virtual ~Interaction() = default;

@@ -71,7 +71,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
     if (type == ICType::Powerspectrum) {
         // state.V holds delta at this point. But we will use it in an in-place
         // manner. Hence we define...
-        const auto& delta = state.V;
+        auto& delta = state.V;
         auto& phase = state.V;
         auto& psi = state.psi;
 
