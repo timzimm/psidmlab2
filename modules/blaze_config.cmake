@@ -175,22 +175,21 @@ function(Blaze_Config)
               INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=1) 
           msg("Configured BOOST for multithreading.")
       elseif(Blaze_Config_THREADING  STREQUAL "OpenMP")
-          find_package(OpenMP)
-          if (OPENMP_FOUND)
-              target_compile_options(blaze::blaze INTERFACE ${OpenMP_CXX_FLAGS})
-              if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-                  # Needed for GNU and Clang
-                  target_link_libraries(blaze::blaze 
-                      INTERFACE ${OpenMP_CXX_FLAGS}) 
-              endif ()
-              target_compile_definitions(blaze::blaze 
-                  INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=1) 
-              msg("Configured OpenMP for multithreading.")
-          else ()
-              message(WARNING 
-                  "OpenMP not found. Blaze is running on a single thread. 
-                  Try C++11 or Boost.")
-          endif ()
+          find_package(OpenMP REQUIRED)
+          target_link_libraries(blaze::blaze INTERFACE OpenMP::OpenMP_CXX) 
+          # if (OPENMP_FOUND)
+          #    WE NEED TO SEPERATE ARGUMENTS TO AVOID QUOTES!!!
+          #     # separate_arguments(OpenMP_CXX_OPTIONS NATIVE_COMMAND 
+          #     #     "${OpenMP_CXX_FLAGS}")
+          #     target_compile_options(blaze::blaze INTERFACE ${OpenMP_CXX_FLAGS})
+          #     if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+          #         # Needed for GNU and Clang
+          #         target_link_libraries(blaze::blaze 
+          #             INTERFACE ${OpenMP_CXX_FLAGS}) 
+          #     endif ()
+          target_compile_definitions(blaze::blaze 
+              INTERFACE  BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=1) 
+          msg("Configured OpenMP for multithreading.")
       elseif("${Blaze_Config_THREADING}"  STREQUAL "")
               msg_db("Multithreading not configured. Using Blaze's defaults.")
       endif()
@@ -201,12 +200,17 @@ function(Blaze_Config)
 
       if(Blaze_Config_BLAS)
          target_compile_definitions( blaze::blaze INTERFACE BLAZE_BLAS_MODE=1 )
-         find_package(BLAS REQUIRED)
-         target_link_libraries(blaze::blaze 
-             INTERFACE $<BUILD_INTERFACE:${BLAS_LIBRARIES}>)
-         target_compile_options(blaze::blaze 
-             INTERFACE $<BUILD_INTERFACE:${BLAS_LINKER_FLAGS}>)
-         msg("Configuring BLAS : ON")
+         find_package(MKL QUIET)
+         if(MKL_Shared_FOUND)
+             target_link_libraries(blaze::blaze INTERFACE MKL::Shared)
+         else()
+             find_package(BLAS REQUIRED)
+             target_link_libraries(blaze::blaze 
+                 INTERFACE $<BUILD_INTERFACE:${BLAS_LIBRARIES}>)
+             target_compile_options(blaze::blaze 
+                 INTERFACE $<BUILD_INTERFACE:${BLAS_LINKER_FLAGS}>)
+             msg("Configuring BLAS : ON")
+         endif()
       elseif("${Blaze_Config_BLAS}" STREQUAL "")
          msg_db("Using default configuration for BLAS.")
       else()
@@ -275,12 +279,17 @@ function(Blaze_Config)
    #=====================================================================
 
       if(${Blaze_Config_LAPACK})
-         find_package(LAPACK REQUIRED)
-         target_link_libraries(blaze::blaze 
-             INTERFACE $<BUILD_INTERFACE:${LAPACK_LIBRARIES}>)
-         target_compile_options(blaze::blaze 
-             INTERFACE $<BUILD_INTERFACE:${LAPACK_LINKER_FLAGS}>)
-         msg("Configuring LAPACK : ON")
+         find_package(MKL QUIET)
+         if(MKL_Shared_FOUND)
+             target_link_libraries(blaze::blaze INTERFACE MKL::Shared)
+         else()
+             find_package(LAPACK REQUIRED)
+             target_link_libraries(blaze::blaze 
+                 INTERFACE $<BUILD_INTERFACE:${LAPACK_LIBRARIES}>)
+             target_compile_options(blaze::blaze 
+                 INTERFACE $<BUILD_INTERFACE:${LAPACK_LINKER_FLAGS}>)
+             msg("Configuring LAPACK : ON")
+         endif()
       elseif("${Blaze_Config_LAPACK}" STREQUAL "")
          msg_db("Using default configuration for LAPACK.")
       else()
@@ -292,7 +301,8 @@ function(Blaze_Config)
    #=================================================================
 
       if(Blaze_Config_VECTORIZATION)
-         target_compile_definitions( blaze::blaze INTERFACE BLAZE_USE_VECTORIZATION=1 )
+         target_compile_definitions( blaze::blaze 
+             INTERFACE BLAZE_USE_VECTORIZATION=1 )
          msg("Configuring Vectorization : ON")
       elseif("${Blaze_Config_VECTORIZATION}" STREQUAL "")
          msg_db("Using default configuration for Vectorization.")

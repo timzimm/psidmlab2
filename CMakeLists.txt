@@ -5,12 +5,16 @@ project(psiDM2 VERSION 0.1
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules/")
 
-# We rely on config packages provided by vcpkg. That's why we skip MODULE mode.
 find_package(Boost REQUIRED)
 find_package(hdf5 CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
-
 find_package(blaze CONFIG REQUIRED)
+# MKL ships with FFTW3 wrappers. In this case we can omit the external FFTW
+# dependency. Note that MKL does not provide all the functionality of FFTW.
+# See https://software.intel.com/en-us/mkl-developer-reference-c-using-fftw3-wrappers
+if(NOT DEFINED ENV{MKLROOT})
+    find_package(FFTW3 CONFIG REQUIRED)
+endif()
 
 # Get rid of any predefined OpenMP dependencies. Default blaze is now serial.
 set_property(TARGET blaze::blaze 
@@ -36,12 +40,6 @@ Blaze_Config(
     TRANSPOSE_FLAG          columnVector
     STORAGE_ORDER           rowMajor
 )
-# MKL ships with FFTW3 wrappers. In this case we can omit the external FFTW
-# dependency. Note that MKL does not provide all the functionality of FFTW.
-# See https://software.intel.com/en-us/mkl-developer-reference-c-using-fftw3-wrappers
-if(NOT DEFINED ENV{MKLROOT})
-    find_package(FFTW3 CONFIG REQUIRED)
-endif()
 
 add_executable(psidm 
     src/main.cc 
@@ -60,11 +58,12 @@ add_executable(psidm
 target_compile_features(psidm PRIVATE cxx_std_17)
 
 # don't use -isystem, just -I
-set_target_properties(psidm PROPERTIES NO_SYSTEM_FROM_IMPORTED TRUE)
+set_target_properties(psidm PROPERTIES 
+    NO_SYSTEM_FROM_IMPORTED TRUE
+)
 
 target_compile_options(psidm
-    PRIVATE -Wno-unused-command-line-argument
-            $<$<CONFIG:Release>:
+    PRIVATE $<$<CONFIG:Release>:
             -fno-omit-frame-pointer
             -ffast-math
             -march=native>
