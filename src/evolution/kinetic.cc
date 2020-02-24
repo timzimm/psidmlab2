@@ -21,9 +21,7 @@ Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
     // time. If we still want to get around a raw loop it seems best to do an
     // allocation for the rotated dimension. In higher dimensions only one axis
     // is rotated meaning we can use linspace for all other axes.
-    auto next_even = [](int i) {
-        return static_cast<int>(std::round(i / 2.0) * 2.0);
-    };
+    auto next_even = [](int i) { return (i % 2) ? i + 1 : i; };
     std::iota(kx2.begin(), kx2.end(), -next_even(N) / 2 + 1);
     std::rotate(kx2.begin(), kx2.begin() + next_even(N) / 2 - 1, kx2.end());
     kx2 = 4 * M_PI * M_PI / (L * L) * kx2 * kx2;
