@@ -16,8 +16,8 @@ InteractionPotentialTrapezodial::InteractionPotentialTrapezodial(
       cosmo{cosmo_},
       dt_last{-1},
       N{p["Simulation"]["N"].get<int>()},
-      pot{Interaction::make(p["Simulation"]["potential"].get<std::string>(),
-                            p)},
+      pot{Interaction::make(p["Simulation"]["potential"].get<std::string>(), p,
+                            state)},
       pot_external(0) {
     try {
         std::ifstream pot_file{p["Simulation"]["stepper"]["external_potential"]

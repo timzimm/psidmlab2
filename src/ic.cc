@@ -4,7 +4,6 @@
 #include "interfaces.h"
 #include "io.h"
 #include "logging.h"
-#include "parameters.h"
 #include "state.h"
 
 #include <algorithm>
@@ -24,12 +23,9 @@ ICGenerator::ICGenerator(const Parameters& p)
       seed{p["Initial Conditions"]["seed"].get<int>()},
       compute_velocity{p["Initial Conditions"]["compute_velocity"].get<bool>()},
       ic_file{p["Initial Conditions"]["source_file"].get<std::string>()},
-      pot{nullptr} {
+      param{p} {
     data_N = std::count(std::istreambuf_iterator<char>(ic_file),
                         std::istreambuf_iterator<char>(), '\n');
-    if (compute_velocity) {
-        pot = Interaction::make("Poisson::FFT", p);
-    }
 
     switch (type) {
         case ICType::ExternalRealImag... ICType::ExternalModulusPhase:
@@ -69,14 +65,14 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
 
     // Velocity Initialization
     if (type == ICType::Powerspectrum) {
-        // state.V holds delta at this point. But we will use it in an in-place
-        // manner. Hence we define...
+        // state.V holds delta at this point. But we will use it in an
+        // in-place manner. Hence we define...
         auto& delta = state.V;
         auto& phase = state.V;
         auto& psi = state.psi;
 
-        // Set psis modulus before we override delta. For cold conditions that's
-        // all that is left to do.
+        // Set psis modulus before we override delta. For cold conditions
+        // that's all that is left to do.
         psi = sqrt(1.0 + delta);
 
         // Cosmological initial velocity field
@@ -88,6 +84,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
             std::cout << INFOTAG("Initial Velocity Field from Poisson @ a = ")
                       << a_init << std::endl;
 
+            auto pot = Interaction::make("Poisson::FFT", param, state);
             pot->solve(phase, prefactor * delta);
 
             // Madelung Representation.
@@ -134,8 +131,9 @@ void ICGenerator::delta_from_power(SimState& state,
                    std::inserter(discrete_P, discrete_P.end()),
                    std::make_pair<const double&, const double&>);
 
-    // Linear interpolant for non-uniform data. boost::barycentric_interpolation
-    // yields nonsense and B-Splines require uniform data.
+    // Linear interpolant for non-uniform data.
+    // boost::barycentric_interpolation yields nonsense and B-Splines
+    // require uniform data.
 
     auto P = [&](double k) {
         auto k1_i = discrete_P.lower_bound(k);
@@ -172,7 +170,8 @@ void ICGenerator::delta_from_power(SimState& state,
     };
 
     delta_k = map(delta_k, k, [&](std::complex<double> d, double k) {
-        // Exact inversion yields transformation formulas for modulus and phase.
+        // Exact inversion yields transformation formulas for modulus and
+        // phase.
         return std::polar(sigma(k) * sqrt(-2 * log(uniform_rayleigh())),
                           2 * M_PI * uniform_phase());
     });

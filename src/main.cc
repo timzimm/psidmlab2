@@ -48,13 +48,10 @@ int main(int argc, char **argv) {
 
     ICGenerator ic(param);
     ic.generate(state, cosmo);
-    // Depending on the type of IC chosen & No. of dofs
-    // (spatial points, fourier modes, basis functions etc.) might have
-    // changed. Hence, we inform the parameter file about this potential change.
     state >> param;
 
     const auto potential = param["Simulation"]["potential"].get<std::string>();
-    auto pot = Interaction::make(potential, param);
+    auto pot = Interaction::make(potential, param, state);
 
     // This defines the PDE to integrate as well as its discretization
     const auto stepper_name =
