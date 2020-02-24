@@ -1,4 +1,5 @@
 #include "interaction/poisson_fft.h"
+#include <cstddef>
 #include "fftw.h"
 #include "fftw3.h"
 #include "parameters.h"
@@ -7,7 +8,9 @@
 namespace Poisson {
 FFT::FFT(const Parameters &p, const SimState &state)
     : N{p["Simulation"]["N"].get<size_t>()},
-      L{p["Simulation"]["L"].get<double>()} {
+      L{p["Simulation"]["L"].get<double>()},
+      fwd(nullptr),
+      bwd(nullptr) {
     // By default, we assume in-place transforms
     auto in_c = reinterpret_cast<const double *>(state.V.data());
     auto out_c = reinterpret_cast<const fftw_complex *>(state.V.data());
@@ -16,8 +19,8 @@ FFT::FFT(const Parameters &p, const SimState &state)
     real_ptr = const_cast<double *>(in_c);
     auto out = const_cast<fftw_complex *>(out_c);
 
-    fftw_plan_ptr fwd(fftw_plan_dft_r2c_1d(N, real_ptr, out, FFTW_ESTIMATE));
-    fftw_plan_ptr bwd(fftw_plan_dft_c2r_1d(N, out, real_ptr, FFTW_ESTIMATE));
+    fwd.reset(fftw_plan_dft_r2c_1d(N, real_ptr, out, FFTW_ESTIMATE));
+    bwd.reset(fftw_plan_dft_c2r_1d(N, out, real_ptr, FFTW_ESTIMATE));
 
     // Nothing to do. For 2D, 3D add fully populated k-grids + rotation
 }
@@ -38,7 +41,6 @@ void FFT::solve(blaze::DynamicVector<double> &V,
     auto kx = blaze::linspace(NN / 2, 2 * M_PI / L, M_PI / (L / NN));
     std::cout << kx << std::endl;
     auto Ghalf = -1.0 / (kx * kx);
-    exit(0);
     // In k-space the complex data is structured as
     //        [ Re(k1), Im(k1), Re(k2), Im(k2), ... ]
     // That is why we have to repeat all values of Ghalf once.
