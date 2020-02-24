@@ -33,8 +33,12 @@ void FFT::solve(blaze::DynamicVector<double> &V,
                 const blaze::DynamicVector<double> &source) {
     // Compute Greens kernel in k-space (no memory allocation!)
     // We omit k = 0
-    auto kx = blaze::linspace(N / 2, 2 * M_PI / L, M_PI / (L / N));
+    auto next_smallest_even = [](int i) { return (i % 2) ? i - 1 : i; };
+    const int NN = next_smallest_even(N);
+    auto kx = blaze::linspace(NN / 2, 2 * M_PI / L, M_PI / (L / NN));
+    std::cout << kx << std::endl;
     auto Ghalf = -1.0 / (kx * kx);
+    exit(0);
     // In k-space the complex data is structured as
     //        [ Re(k1), Im(k1), Re(k2), Im(k2), ... ]
     // That is why we have to repeat all values of Ghalf once.
