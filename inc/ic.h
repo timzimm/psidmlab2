@@ -1,5 +1,6 @@
 #ifndef __IC__
 #define __IC__
+#include "parameters.h"
 
 #include <cassert>
 #include <fstream>
@@ -7,7 +8,6 @@
 #include <string>
 
 // Forward Declarations
-#include "parameters_fwd.h"
 struct SimState;
 class Interaction;
 class Cosmology;
@@ -24,7 +24,7 @@ class ICGenerator {
     int seed;
     bool compute_velocity;
     mutable std::ifstream ic_file;
-    std::unique_ptr<Interaction> pot;
+    Parameters param;  // This is awfull!
 
     // init wavefunction ...
     // according to a matter power spectrum provided by file.

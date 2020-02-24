@@ -1,21 +1,36 @@
 #include "interaction/poisson_fft.h"
+#include <cstddef>
 #include "fftw.h"
+#include "fftw3.h"
 #include "parameters.h"
 #include "state.h"
 
 #include <cassert>
 
 namespace Poisson {
-FFT::FFT(const Parameters &p)
+FFT::FFT(const Parameters &p, const SimState &state)
     : N{p["Simulation"]["N"].get<size_t>()},
-      L{p["Simulation"]["L"].get<double>()} {
-    // Nothing to do here. For 2D, 3D add fully populated k-grids + rotation
+      L{p["Simulation"]["L"].get<double>()},
+      fwd(nullptr),
+      bwd(nullptr) {
+    // By default, we assume in-place transforms
+    auto in_c = reinterpret_cast<const double *>(state.V.data());
+    auto out_c = reinterpret_cast<const fftw_complex *>(state.V.data());
+
+    // FFTW does not know about constness
+    real_ptr = const_cast<double *>(in_c);
+    auto out = const_cast<fftw_complex *>(out_c);
+
+    fwd.reset(fftw_plan_dft_r2c_1d(N, real_ptr, out, FFTW_ESTIMATE));
+    bwd.reset(fftw_plan_dft_c2r_1d(N, out, real_ptr, FFTW_ESTIMATE));
+
+    // Nothing to do. For 2D, 3D add fully populated k-grids + rotation
 }
 
 void FFT::solve(SimState &state) {
     // Compute source of Poisson equation
     state.V = delta_from(state);
-    // In place computation
+    // In place computation, i.e. (i) and (ii) discussed below are FALSE
     solve(state.V, state.V);
 }
 
@@ -30,12 +45,13 @@ void FFT::solve(blaze::DynamicVector<double> &V,
     // Note that an odd N only adds one negative frequency ( -(N-1)/2 ) but
     // does not affect the positive half space. This is why we only consider
     // the next smallest even integer which has the exact same positive half
-    // space as the true N if it is odd.
+    // space as the true N if it is odd. We omit k = 0
     auto next_smallest_even = [](int i) { return (i % 2) ? i - 1 : i; };
     const int NN = next_smallest_even(N);
-    auto kx = blaze::linspace(NN / 2 + 1, 0.0, M_PI / (L / NN));
+    auto kx = blaze::linspace(NN / 2, 2 * M_PI / L, M_PI / (L / NN));
     auto Ghalf = -1.0 / (kx * kx);
-    // In k-space the complex data is structured as Re(1) Im(1) Re(2) Im(2)...
+    // In k-space the complex data is structured as
+    //        [ Re(k1), Im(k1), Re(k2), Im(k2), ... ]
     // That is why we have to repeat all values of Ghalf once.
     auto G = kron(Ghalf, blaze::uniform(2, 1.0));
 
@@ -48,21 +64,38 @@ void FFT::solve(blaze::DynamicVector<double> &V,
     auto s_k_ptr = reinterpret_cast<fftw_complex *>(V.data());
     auto V_ptr = V.data();
 
-    // This might be an in-place transform (if s.data() == V.data())
-    fftw_plan_ptr fwd(fftw_plan_dft_r2c_1d(N, s_ptr, s_k_ptr, FFTW_ESTIMATE));
-    // This is always an in-place transform
-    fftw_plan_ptr bwd(fftw_plan_dft_c2r_1d(N, s_k_ptr, V_ptr, FFTW_ESTIMATE));
-
-    fftw_execute(fwd.get());
+    // We only need to replan the forward FFT if
+    // (i) V.data() != source.data() (transform is out-of-place) OR
+    // (ii) V.data() has different alignment than state.V
+    // This saves us the planing time which might be significant for small
+    // problems
+    if (s_ptr != V_ptr ||
+        fftw_alignment_of(s_ptr) != fftw_alignment_of(real_ptr)) {
+        fftw_plan_ptr fwd_new(
+            fftw_plan_dft_r2c_1d(N, s_ptr, s_k_ptr, FFTW_ESTIMATE));
+        fftw_execute(fwd_new.get());
+    } else {
+        // New array execute functions. See:
+        // http://www.fftw.org/fftw3_doc/New_002darray-Execute-Functions.html
+        fftw_execute_dft_r2c(fwd.get(), s_ptr, s_k_ptr);
+    }
 
     // Solve and normalize in k-space
-    V *= 1.0 / N * G;
+    subvector(V, 2, V.size() - 2) *= 1.0 / N * G;
     // Assume DC mode vanishes (even if it does not!) and singularity is
     // irrelevenat
     V[0] = 0;
     V[1] = 0;
 
-    fftw_execute(bwd.get());
+    // Backward FFT is always an in-place transform, so only (ii) needs to be
+    // checked
+    if (fftw_alignment_of(V_ptr) != fftw_alignment_of(real_ptr)) {
+        fftw_plan_ptr bwd_new(
+            fftw_plan_dft_c2r_1d(N, s_k_ptr, V_ptr, FFTW_ESTIMATE));
+        fftw_execute(bwd_new.get());
+    } else {
+        fftw_execute_dft_c2r(bwd.get(), s_k_ptr, V_ptr);
+    }
     // Strip of padding
     V.resize(N);
 }

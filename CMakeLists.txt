@@ -26,15 +26,27 @@ set_property(TARGET blaze::blaze
 # This adds compile definitions to blaze::blaze in order to override the 
 # defaults set in blaze/config/*.h. 
 # It is a modifaction of Blaze_Import shipped with blaze.
+if(NOT DEFINED ENV{MKLROOT})
+    set(CBLAS_HEADER <cblas.h>)
+else()
+    set(CBLAS_HEADER <mkl_cblas.h>)
+endif()
+if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
+    set(SMP_BACKEND OpenMP)
+else()
+    set(SMP_BACKEND off)
+endif()
+
+
 include(blaze_config)
 Blaze_Config(
     BLAS                    ON
     BLAS_PARALLEL           ON
     BLAS_MV                 ON
     BLAS_MM                 ON
-    BLAS_INCLUDE            <mkl_cblas.h>
+    BLAS_INCLUDE            ${CBLAS_HEADER}
     LAPACK                  ON
-    THREADING               OpenMP
+    THREADING               ${SMP_BACKEND}
     CACHE_SIZE              auto
     VECTORIZATION           ON
     TRANSPOSE_FLAG          columnVector

@@ -21,7 +21,8 @@ class Cosmology;
 // U[psi] = g|psi|^2(x)                         (GPE)
 // U[psi] = V(x) with d^2_x V(x) = |psi|^2 - 1  (SPE)
 // U[psi] = G * (|psi|^2 - 1)                   (nonlocal NLSE)
-class Interaction : public Factory<Interaction, const Parameters&> {
+class Interaction
+    : public Factory<Interaction, const Parameters&, const SimState&> {
    public:
     using InterfaceType = Interaction;
     // given the wavefunction state.psi compute state.V
