@@ -3,6 +3,8 @@
 #include "parameters.h"
 #include "state.h"
 
+#include <cassert>
+
 namespace Poisson {
 FFT::FFT(const Parameters &p)
     : N{p["Simulation"]["N"].get<size_t>()},
@@ -19,16 +21,27 @@ void FFT::solve(SimState &state) {
 
 void FFT::solve(blaze::DynamicVector<double> &V,
                 const blaze::DynamicVector<double> &source) {
+    assert(V.size() == source.size());
+    // We only solve for N-point potentials. If a different N is required,
+    // construct new instance of FFT.
+    assert(V.size() == N);
+
     // Compute Greens kernel in k-space (no memory allocation!)
-    auto kx = blaze::linspace(N / 2 + 1, 0.0, M_PI / (L / N));
+    // Note that an odd N only adds one negative frequency ( -(N-1)/2 ) but
+    // does not affect the positive half space. This is why we only consider
+    // the next smallest even integer which has the exact same positive half
+    // space as the true N if it is odd.
+    auto next_smallest_even = [](int i) { return (i % 2) ? i - 1 : i; };
+    const int NN = next_smallest_even(N);
+    auto kx = blaze::linspace(NN / 2 + 1, 0.0, M_PI / (L / NN));
     auto Ghalf = -1.0 / (kx * kx);
     // In k-space the complex data is structured as Re(1) Im(1) Re(2) Im(2)...
     // That is why we have to repeat all values of Ghalf once.
     auto G = kron(Ghalf, blaze::uniform(2, 1.0));
 
-    // Since we perform the FFT without additional memory, we need padding in
-    // the target vector. If s.data() == V.data() the procedure is truely in
-    // place.
+    // Since we perform the FFT without additional memory, we need padding
+    // in the target vector. If s.data() == V.data() the procedure is truely
+    // in place.
     V.resize(2 * (N / 2 + 1));
     // FFTW doesn't know about constness
     auto s_ptr = const_cast<double *>(source.data());
