@@ -30,6 +30,7 @@ void FFT::solve(SimState &state) {
 
 void FFT::solve(blaze::DynamicVector<double> &V,
                 const blaze::DynamicVector<double> &source) {
+    // Pre conditions
     assert(V.size() == source.size());
     // We only solve for N-point potentials. If a different N is required,
     // construct new instance of FFT.
@@ -40,8 +41,7 @@ void FFT::solve(blaze::DynamicVector<double> &V,
     // does not affect the positive half space. This is why we only consider
     // the next smallest even integer which has the exact same positive half
     // space as the true N if it is odd. We omit k = 0
-    auto next_smallest_even = [](int i) { return (i % 2) ? i - 1 : i; };
-    const int NN = next_smallest_even(N);
+    const int NN = (N % 2) ? N - 1 : N;
     auto kx = blaze::linspace(NN / 2, 2 * M_PI / L, M_PI / (L / NN));
     auto Ghalf = -1.0 / (kx * kx);
     // In k-space the complex data is structured as
@@ -68,12 +68,10 @@ void FFT::solve(blaze::DynamicVector<double> &V,
         auto fwd_new = make_fftw_plan_dft_r2c(N, s_ptr, s_k_ptr, FFTW_ESTIMATE);
         fftw_execute(fwd_new.get());
     } else {
-        // New array execute functions. See:
-        // http://www.fftw.org/fftw3_doc/New_002darray-Execute-Functions.html
         fftw_execute_dft_r2c(fwd.get(), s_ptr, s_k_ptr);
     }
 
-    // Solve and normalize in k-space
+    // Solve and normalize in k-space (for k > 0)
     subvector(V, 2, V.size() - 2) *= 1.0 / N * G;
     // Assume DC mode vanishes (even if it does not!) and singularity is
     // irrelevenat
