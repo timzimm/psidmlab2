@@ -14,12 +14,13 @@
 int main(int argc, char **argv) {
     using namespace std::chrono;
 
-#ifdef PSIMDLAB_SMP
+#ifdef PSIDMLAB_SMP
     if (!fftw_init_threads()) {
         std::cerr << ERRORTAG("Could not initialize FFTW threading")
                   << std::endl;
         exit(1);
     }
+    std::cout << INFOTAG("Threading active") << std::endl;
 #endif
 
     // We need a json file. Otherwise, we give up...
