@@ -95,6 +95,10 @@ target_link_options(psidm
             -fsanitize=address>
 )
 
+if(${PSIDMLAB_SMP})
+    target_compile_definitions(psidm PRIVATE PSIDMLAB_SMP) 
+endif()
+
 target_include_directories(psidm PRIVATE inc)
 
 target_link_libraries(psidm 
