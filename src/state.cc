@@ -1,5 +1,6 @@
 #include "state.h"
 #include "cosmology.h"
+#include "fftw3.h"
 #include "parameters.h"
 
 SimState::SimState(const Parameters& p)
@@ -30,9 +31,9 @@ void SimState::transform(const SimState::Representation target) {
         psi_ptr = in_real;
 
         position_to_momentum =
-            make_fftw_plan_dft(N_plan, in, in, FFTW_FORWARD, FFTW_ESTIMATE);
+            make_fftw_plan_dft(N_plan, in, in, FFTW_FORWARD, FFTW_MEASURE);
         momentum_to_position =
-            make_fftw_plan_dft(N_plan, in, in, FFTW_BACKWARD, FFTW_ESTIMATE);
+            make_fftw_plan_dft(N_plan, in, in, FFTW_BACKWARD, FFTW_MEASURE);
     }
 
     // In particular if we have NOT (i) and NOT (ii) (because the raw arrays are
