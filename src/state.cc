@@ -8,31 +8,37 @@ SimState::SimState(const Parameters& p)
       representation{Representation::Position},
       position_to_momentum{nullptr},
       momentum_to_position{nullptr},
-      N_plan{0} {}
+      N_plan{0},
+      psi_ptr{nullptr} {}
 
 void SimState::transform(const SimState::Representation target) {
     // Identity transform
     if (target == representation) return;
 
-    // Due to move semantics and other optimizations, the data adress of blaze's
-    // matrices might change in the process. That means that adresses at plan
-    // construction time and transformation time might differ. Thus, we
-    // explicitly get a pointer to the current raw array and use FFTW advanced
-    // interface to perform the transformation
     auto in = reinterpret_cast<fftw_complex*>(psi.data());
+    auto in_real = reinterpret_cast<double*>(in);
 
-    // Update transformation plans if necessary, e.g. if ICs with a different
-    // number of wavefunctions or spatial points was generated
-    if (psi.size() != N_plan) {
+    // Update transformation plans if necessary, i.e.
+    //
+    // (i) ICs with a different number of spatial points were generated OR
+    // (ii) raw pointer changed AND alignment changed
+    //
+    if (psi.size() != N_plan ||
+        (psi_ptr != in_real &&
+         fftw_alignment_of(psi_ptr) != fftw_alignment_of(in_real))) {
         N_plan = psi.size();
-        momentum_to_position.reset();
+        psi_ptr = in_real;
 
-        position_to_momentum.reset(
-            fftw_plan_dft_1d(N_plan, in, in, FFTW_FORWARD, FFTW_ESTIMATE));
-        momentum_to_position.reset(
-            fftw_plan_dft_1d(N_plan, in, in, FFTW_BACKWARD, FFTW_ESTIMATE));
+        position_to_momentum =
+            make_fftw_plan_dft(N_plan, in, in, FFTW_FORWARD, FFTW_ESTIMATE);
+        momentum_to_position =
+            make_fftw_plan_dft(N_plan, in, in, FFTW_BACKWARD, FFTW_ESTIMATE);
     }
 
+    // In particular if we have NOT (i) and NOT (ii) (because the raw arrays are
+    // the same or because the raw arrays are different but have the same
+    // alignment ) we can reuse the preexisting plan with the new-array
+    // interface
     if (target == Representation::Momentum) {
         fftw_execute_dft(position_to_momentum.get(), in, in);
         // FFTW transforms are denormalized
