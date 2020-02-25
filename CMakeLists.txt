@@ -5,10 +5,14 @@ project(psiDM2 VERSION 0.1
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules/")
 
+# Command line options
+option(PSIDMLAB_SMP "Enable OpenMP for Blaze and FFTW3")
+
 find_package(Boost REQUIRED)
 find_package(hdf5 CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(blaze CONFIG REQUIRED)
+
 # MKL ships with FFTW3 wrappers. In this case we can omit the external FFTW
 # dependency. Note that MKL does not provide all the functionality of FFTW.
 # See https://software.intel.com/en-us/mkl-developer-reference-c-using-fftw3-wrappers
@@ -31,12 +35,11 @@ if(NOT DEFINED ENV{MKLROOT})
 else()
     set(CBLAS_HEADER <mkl_cblas.h>)
 endif()
-if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
+if(${CMAKE_BUILD_TYPE} STREQUAL "Release" AND ${PSIDMLAB_SMP})
     set(SMP_BACKEND OpenMP)
 else()
     set(SMP_BACKEND off)
 endif()
-
 
 include(blaze_config)
 Blaze_Config(
@@ -56,6 +59,7 @@ Blaze_Config(
 add_executable(psidm 
     src/main.cc 
     src/state.cc 
+    src/fftw.cc 
     src/cosmology.cc
     src/ic.cc
     src/observables.cc

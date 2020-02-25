@@ -2,6 +2,7 @@
 #define __FFTW__
 
 #include <fftw3.h>
+#include <complex>
 #include <memory>
 
 struct fftw_plan_deleter {
@@ -10,5 +11,19 @@ struct fftw_plan_deleter {
 
 using fftw_plan_ptr =
     std::unique_ptr<std::remove_pointer_t<fftw_plan>, fftw_plan_deleter>;
+
+// Simple wrappers for all apearing FFT types.
+
+// Complex-to-Complex FFT
+fftw_plan_ptr make_fftw_plan_dft(int N, const fftw_complex* vin,
+                                 const fftw_complex* vout, int dir,
+                                 unsigned flags);
+// Real-to-Complex FFT
+fftw_plan_ptr make_fftw_plan_dft_r2c(int N, const double* vin,
+                                     const fftw_complex* vout, unsigned flags);
+
+// Complex-to-Real FFT
+fftw_plan_ptr make_fftw_plan_dft_c2r(int N, const fftw_complex* vin,
+                                     const double* vout, unsigned flags);
 
 #endif
