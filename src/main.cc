@@ -14,6 +14,14 @@
 int main(int argc, char **argv) {
     using namespace std::chrono;
 
+#ifdef PSIMDLAB_SMP
+    if (!fftw_init_threads()) {
+        std::cerr << ERRORTAG("Could not initialize FFTW threading")
+                  << std::endl;
+        exit(1);
+    }
+#endif
+
     // We need a json file. Otherwise, we give up...
     if (argc != 2) {
         std::cerr << ERRORTAG("Usage: ./sim /path/to/config_file.json")
