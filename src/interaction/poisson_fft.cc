@@ -1,7 +1,4 @@
 #include "interaction/poisson_fft.h"
-#include <cstddef>
-#include "fftw.h"
-#include "fftw3.h"
 #include "parameters.h"
 #include "state.h"
 
@@ -16,13 +13,10 @@ FFT::FFT(const Parameters &p, const SimState &state)
     // By default, we assume in-place transforms
     auto in_c = reinterpret_cast<const double *>(state.V.data());
     auto out_c = reinterpret_cast<const fftw_complex *>(state.V.data());
+    fwd = make_fftw_plan_dft_r2c(N, in_c, out_c, FFTW_ESTIMATE);
+    bwd = make_fftw_plan_dft_c2r(N, out_c, in_c, FFTW_ESTIMATE);
 
-    // FFTW does not know about constness
     real_ptr = const_cast<double *>(in_c);
-    auto out = const_cast<fftw_complex *>(out_c);
-
-    fwd.reset(fftw_plan_dft_r2c_1d(N, real_ptr, out, FFTW_ESTIMATE));
-    bwd.reset(fftw_plan_dft_c2r_1d(N, out, real_ptr, FFTW_ESTIMATE));
 
     // Nothing to do. For 2D, 3D add fully populated k-grids + rotation
 }
@@ -59,7 +53,7 @@ void FFT::solve(blaze::DynamicVector<double> &V,
     // in the target vector. If s.data() == V.data() the procedure is truely
     // in place.
     V.resize(2 * (N / 2 + 1));
-    // FFTW doesn't know about constness
+
     auto s_ptr = const_cast<double *>(source.data());
     auto s_k_ptr = reinterpret_cast<fftw_complex *>(V.data());
     auto V_ptr = V.data();
@@ -71,8 +65,7 @@ void FFT::solve(blaze::DynamicVector<double> &V,
     // problems
     if (s_ptr != V_ptr ||
         fftw_alignment_of(s_ptr) != fftw_alignment_of(real_ptr)) {
-        fftw_plan_ptr fwd_new(
-            fftw_plan_dft_r2c_1d(N, s_ptr, s_k_ptr, FFTW_ESTIMATE));
+        auto fwd_new = make_fftw_plan_dft_r2c(N, s_ptr, s_k_ptr, FFTW_ESTIMATE);
         fftw_execute(fwd_new.get());
     } else {
         // New array execute functions. See:
@@ -90,8 +83,7 @@ void FFT::solve(blaze::DynamicVector<double> &V,
     // Backward FFT is always an in-place transform, so only (ii) needs to be
     // checked
     if (fftw_alignment_of(V_ptr) != fftw_alignment_of(real_ptr)) {
-        fftw_plan_ptr bwd_new(
-            fftw_plan_dft_c2r_1d(N, s_k_ptr, V_ptr, FFTW_ESTIMATE));
+        auto bwd_new = make_fftw_plan_dft_c2r(N, s_k_ptr, V_ptr, FFTW_ESTIMATE);
         fftw_execute(bwd_new.get());
     } else {
         fftw_execute_dft_c2r(bwd.get(), s_k_ptr, V_ptr);

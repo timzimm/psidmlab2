@@ -3,7 +3,6 @@
 
 #include "fftw.h"
 #include "interfaces.h"
-#include "state.h"
 
 // Solves Poisson Equation by taking a discrete Fourier transformation of the
 // source, transforming its coefficient and taking its inverse FT.
