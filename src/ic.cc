@@ -97,24 +97,17 @@ void ICGenerator::real_imag_from_file(SimState& state) const {
     state.psi.resize(N);
     state.V.resize(N);
 
-    DynamicVector<double> mod(N);
-    DynamicVector<double> phase(N);
-
-    fill_from_file(ic_file, mod, phase);
-    state.psi =
-        map(mod, phase, [](double m, double p) { return std::polar(m, p); });
+    fill_from_file(ic_file, state.psi);
 }
 
 void ICGenerator::modulus_phase_from_file(SimState& state) const {
     state.psi.resize(N);
     state.V.resize(N);
 
-    DynamicVector<double> re(N);
-    DynamicVector<double> im(N);
-
-    fill_from_file(ic_file, re, im);
-    state.psi =
-        map(re, im, [](double r, double i) { return std::complex(r, i); });
+    fill_from_file(ic_file, state.psi);
+    state.psi = map(state.psi, [](std::complex<double> p) {
+        return std::polar(p.real(), p.imag());
+    });
 }
 
 void ICGenerator::delta_from_power(SimState& state,
