@@ -4,6 +4,8 @@
 #include "state.h"
 
 #include <boost/variant.hpp>
+#include <memory>
+#include <unordered_map>
 
 // This header defines all interfaces of
 //
@@ -59,14 +61,23 @@ class ObservableFunctor
     : public Factory<ObservableFunctor, const Parameters&, const Cosmology&> {
    public:
     using InterfaceType = ObservableFunctor;
-    using ReturnType = boost::variant<
-        const blaze::DynamicMatrix<double>&,
-        const blaze::DynamicMatrix<double, blaze::columnMajor>&,
-        const blaze::DynamicMatrix<std::complex<double>, blaze::columnMajor>&,
-        const blaze::DynamicVector<double>&,
-        const blaze::DynamicVector<std::complex<double>>&>;
+    using ReturnType =
+        boost::variant<const blaze::DynamicMatrix<double>&,
+                       const blaze::DynamicMatrix<double, blaze::columnMajor>&,
+                       const blaze::DynamicVector<double>&,
+                       const blaze::DynamicVector<std::complex<double>>&>;
 
-    virtual ReturnType compute(const SimState& state) = 0;
+    // Computes the observable based on SimState state and potentially other
+    // observables obs if the observables is a derived quantity (like
+    // entropy is dependent on the phasespace distribution). The idea is
+    // that each observable only returns references to their internal data
+    // via compute(). Observables, on the other hand, can share preexsiting
+    // results avoiding recomputation if they have a handle to all available
+    // ObservableFunctors (obs).
+    virtual ReturnType compute(
+        const SimState& state,
+        const std::unordered_map<std::string,
+                                 std::unique_ptr<ObservableFunctor>>& obs) = 0;
     virtual ~ObservableFunctor() = default;
 };
 #endif

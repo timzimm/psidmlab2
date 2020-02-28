@@ -1,5 +1,6 @@
 #include "observables.h"
 #include "cosmology.h"
+#include "interfaces.h"
 #include "parameters.h"
 #include "state.h"
 
@@ -8,6 +9,7 @@
 #include <blaze/math/Rows.h>
 #include <blaze/math/Submatrix.h>
 #include <algorithm>
+#include <boost/variant.hpp>
 
 using namespace std::complex_literals;
 
@@ -33,7 +35,10 @@ DensityContrast::DensityContrast(const Parameters& p, const Cosmology&)
     }
 }
 
-ObservableFunctor::ReturnType DensityContrast::compute(const SimState& state) {
+ObservableFunctor::ReturnType DensityContrast::compute(
+    const SimState& state,
+    const std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+        obs) {
     if (t_prev < state.tau) {
         t_prev = state.tau;
         if (husimi) {
@@ -162,7 +167,6 @@ void PhaseSpaceDistribution::husimi_distribution(const SimState& state) {
     // Compute phase matrix only once
     static auto phase_T = exp(-1.0i * (2.0 * M_PI / N) * idx * trans(idk));
 
-    // Construct mixed state distribution pure state by pure state
     auto& psi = state.psi;
     auto modulated_psi =
         phase_T %
@@ -176,7 +180,9 @@ void PhaseSpaceDistribution::husimi_distribution(const SimState& state) {
 }
 
 ObservableFunctor::ReturnType PhaseSpaceDistribution::compute(
-    const SimState& state) {
+    const SimState& state,
+    const std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+        obs) {
     if (husimi) {
         if (t_prev < state.tau) {
             t_prev = state.tau;
@@ -195,24 +201,29 @@ ObservableFunctor::ReturnType PhaseSpaceDistribution::compute(
 
 Potential::Potential(const Parameters& p, const Cosmology&){};
 
-inline ObservableFunctor::ReturnType Potential::compute(const SimState& state) {
+ObservableFunctor::ReturnType Potential::compute(
+    const SimState& state,
+    const std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+        obs) {
     return state.V;
 }
 
 WaveFunction::WaveFunction(const Parameters& p, const Cosmology&){};
 
-inline ObservableFunctor::ReturnType WaveFunction::compute(
-    const SimState& state) {
+ObservableFunctor::ReturnType WaveFunction::compute(
+    const SimState& state,
+    const std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+        obs) {
     return state.psi;
 }
 
 Energy::Energy(const Parameters& p, const Cosmology& cosmo_)
     : cosmo(cosmo_),
       N(p["Simulation"]["N"].get<int>()),
-      dx(p["Simulation"]["L"].get<double>() / N),
+      L(p["Simulation"]["L"].get<double>()),
+      dx(L / N),
       grad(N, N + 4),
-      energies(4, 0),
-      x(N) {
+      energies(4, 0) {
     grad.reserve(4 * N);
 
     // 5 point stencil for first derivative
@@ -223,11 +234,12 @@ Energy::Energy(const Parameters& p, const Cosmology& cosmo_)
         grad.append(i, i + 4, -1.0 / (12 * dx));
         grad.finalize(i);
     }
-    std::iota(x.begin(), x.end(), 0);
-    x *= dx;
 };
 
-ObservableFunctor::ReturnType Energy::compute(const SimState& state) {
+ObservableFunctor::ReturnType Energy::compute(
+    const SimState& state,
+    const std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+        obs) {
     using namespace blaze;
     auto cyclic_extension = [N = N](int i) { return (N - 2 + i) % N; };
 
@@ -252,39 +264,50 @@ ObservableFunctor::ReturnType Energy::compute(const SimState& state) {
     double& x_grad_V = energies[3];
     auto V = elements(state.V, cyclic_extension, N + 4);
     auto nabla_V = grad * V;
+    auto x = linspace(N, -L / 2, L / 2 - dx);
     x_grad_V = dx / a * sum(x * nabla_V * (real(conj(state.psi) * state.psi)));
 
     return energies;
 }
 
-ParticleFlux::ParticleFlux(const Parameters& p, const Cosmology&)
-    : N(p["Simulation"]["N"].get<int>()),
+Entropy::Entropy(const Parameters& p_, const Cosmology& cosmo_)
+    : p(p_),
+      cosmo(cosmo_),
+      N(p["Simulation"]["N"].get<int>()),
       dx(p["Simulation"]["L"].get<double>() / N),
-      grad(N, N + 4),
-      flux(N) {
-    grad.reserve(4 * N);
+      dk(M_PI / dx),
+      t_prev(-1),
+      S(1),
+      phasespace(nullptr) {}
 
-    // 5 point stencil for first derivative
-    for (int i = 0; i < N; ++i) {
-        grad.append(i, i, 1.0 / (12 * dx));
-        grad.append(i, i + 1, -2.0 / (3 * dx));
-        grad.append(i, i + 3, 2.0 / (3 * dx));
-        grad.append(i, i + 4, -1.0 / (12 * dx));
-        grad.finalize(i);
+ObservableFunctor::ReturnType Entropy::compute(
+    const SimState& state,
+    const std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+        obs) {
+    // rho could be either husimi (row-major) or wigner (column-major).
+    auto boltzmann_entropy = [&](const auto& rho) {
+        // both x and k are periodic so trapezodial integration is very
+        // accurate.
+        return blaze::real(-dx * dk * blaze::sum(rho * blaze::log(rho)));
+    };
+    if (t_prev < state.tau) {
+        t_prev = state.tau;
+        // rho already known?
+        if (phasespace == nullptr) {
+            // Check if there exists a PhaseSpaceDistribution observable
+            std::string name = "Observable::PhaseSpaceDistribution";
+            auto result = obs.find(name);
+            if (result == obs.end()) {
+                phasespace = ObservableFunctor::make(name, p, cosmo);
+            } else {
+                auto rho = result->second->compute(state, obs);
+                S[0] = boost::apply_visitor(boltzmann_entropy, rho);
+            }
+        }
+        auto rho = phasespace->compute(state, obs);
+        S[0] = boost::apply_visitor(boltzmann_entropy, rho);
     }
-};
-
-ObservableFunctor::ReturnType ParticleFlux::compute(const SimState& state) {
-    using namespace blaze;
-    auto cyclic_extension = [N = N](int i) { return (N - 2 + i) % N; };
-
-    auto& psi = state.psi;
-    auto psi_ext = elements(psi, cyclic_extension, N + 4);
-    auto nabla_psi = grad * psi_ext;
-    flux = real(0.5 * std::complex<double>{0, 1} *
-                (psi * conj(nabla_psi) - conj(psi) * nabla_psi));
-
-    return flux;
+    return S;
 }
 
 }  // namespace Observable

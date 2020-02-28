@@ -2,8 +2,10 @@
 #define __OBSERVABLES__
 
 #include "convolution_functions.h"
+#include "cosmology.h"
 #include "fftw.h"
 #include "interfaces.h"
+#include "parameters.h"
 
 namespace Observable {
 
@@ -20,7 +22,10 @@ class DensityContrast : public ObservableFunctor {
 
    public:
     DensityContrast(const Parameters& p, const Cosmology&);
-    ObservableFunctor::ReturnType compute(const SimState& state) override;
+    ObservableFunctor::ReturnType compute(
+        const SimState& state,
+        const std::unordered_map<
+            std::string, std::unique_ptr<ObservableFunctor>>& obs) override;
     REGISTER(DensityContrast)
 };
 
@@ -51,48 +56,67 @@ class PhaseSpaceDistribution : public ObservableFunctor {
 
    public:
     PhaseSpaceDistribution(const Parameters& p, const Cosmology&);
-    ObservableFunctor::ReturnType compute(const SimState& state) override;
+    ObservableFunctor::ReturnType compute(
+        const SimState& state,
+        const std::unordered_map<
+            std::string, std::unique_ptr<ObservableFunctor>>& obs) override;
     REGISTER(PhaseSpaceDistribution)
 };
 
 class Potential : public ObservableFunctor {
    public:
     Potential(const Parameters& p, const Cosmology&);
-    ObservableFunctor::ReturnType compute(const SimState& state) override;
+    ObservableFunctor::ReturnType compute(
+        const SimState& state,
+        const std::unordered_map<
+            std::string, std::unique_ptr<ObservableFunctor>>& obs) override;
     REGISTER(Potential)
 };
 
 class WaveFunction : public ObservableFunctor {
    public:
     WaveFunction(const Parameters& p, const Cosmology&);
-    ObservableFunctor::ReturnType compute(const SimState& state) override;
+    ObservableFunctor::ReturnType compute(
+        const SimState& state,
+        const std::unordered_map<
+            std::string, std::unique_ptr<ObservableFunctor>>& obs) override;
     REGISTER(WaveFunction)
 };
 
 class Energy : public ObservableFunctor {
     const Cosmology& cosmo;
-    int N;
-    double dx;
+    const int N;
+    const double L;
+    const double dx;
     blaze::CompressedMatrix<double> grad;
     blaze::DynamicVector<double> energies;
-    blaze::DynamicVector<double, blaze::columnVector> x;
 
    public:
     Energy(const Parameters& p, const Cosmology& cosmo_);
-    ObservableFunctor::ReturnType compute(const SimState& state) override;
+    ObservableFunctor::ReturnType compute(
+        const SimState& state,
+        const std::unordered_map<
+            std::string, std::unique_ptr<ObservableFunctor>>& obs) override;
     REGISTER(Energy)
 };
 
-class ParticleFlux : public ObservableFunctor {
-    int N;
-    double dx;
-    blaze::CompressedMatrix<double> grad;
-    blaze::DynamicVector<double> flux;
+class Entropy : public ObservableFunctor {
+    const Parameters p;
+    const Cosmology cosmo;
+    const int N;
+    const double dx;
+    const double dk;
+    double t_prev;
+    blaze::DynamicVector<double> S;
+    std::unique_ptr<ObservableFunctor> phasespace;
 
    public:
-    ParticleFlux(const Parameters& p, const Cosmology&);
-    ObservableFunctor::ReturnType compute(const SimState& state) override;
-    REGISTER(ParticleFlux)
+    Entropy(const Parameters& p, const Cosmology&);
+    ObservableFunctor::ReturnType compute(
+        const SimState& state,
+        const std::unordered_map<
+            std::string, std::unique_ptr<ObservableFunctor>>& obs) override;
+    REGISTER(Entropy)
 };
 
 }  // namespace Observable

@@ -9,6 +9,7 @@
 #include <fstream>  //loading the json file
 #include <queue>    //priority queue to select to next checkpoint
 #include <set>      //building the union of all checkpoints
+#include <unordered_map>
 #include <vector>
 
 int main(int argc, char **argv) {
@@ -68,19 +69,35 @@ int main(int argc, char **argv) {
     auto stepper = TimeEvolution::make(stepper_name, param, state, cosmo);
 
     // Setup Analysis Functors
-    using observable_ptr = std::unique_ptr<ObservableFunctor>;
-    // A checkpoint consists of its time point , the names of computed
-    // observables, and pointers to the latter
-    using checkpoint_t = std::tuple<double, std::vector<std::string>,
-                                    std::vector<observable_ptr *>>;
 
-    std::unordered_map<std::string,
-                       std::pair<std::vector<double>, observable_ptr>>
-        observables;
-    std::priority_queue<checkpoint_t, std::vector<checkpoint_t>,
-                        std::greater<checkpoint_t>>
-        checkpoints;
+    // Mapping from the name of an existing observable to a owning ptr.
+    using OwningObservableMap =
+        std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>;
+    using ObservableMap = std::unordered_map<std::string, ObservableFunctor *>;
 
+    // A checkpoint consists of its time point, the names of computed
+    // observables, and pointers to the latter. A checkpoint does not own
+    // the observable !
+    using checkpoint_t = std::tuple<double, ObservableMap>;
+
+    // Later on we iterate over checkpoints:
+    // For each checkpoint, we...
+    // (i)   integrate to the next time point (first tuple element),
+    // (ii)  iterate over all observable names (keys in map)
+    // (iii) compute the observable via a non-owning pointer (values in map)
+    auto cmp = [](const checkpoint_t &a, const checkpoint_t &b) {
+        return std::get<0>(a) > std::get<0>(b);
+    };
+    std::priority_queue<checkpoint_t, std::vector<checkpoint_t>, decltype(cmp)>
+        checkpoints(cmp);
+
+    OwningObservableMap observables;
+    // Map the name of each observable to its computation time values
+    std::unordered_map<std::string, std::vector<double>>
+        observable_compute_times;
+
+    // Compute time point union and allocate all apearing observables.
+    // This populates 'observables' and 'time_point_union'
     for (auto &[name, parameters] : param["Observables"].items()) {
         auto compute_at = parameters["compute_at"];
         if (compute_at != Parameters::array()) {
@@ -101,25 +118,23 @@ int main(int argc, char **argv) {
                 }
                 time_point_union.insert(timepoints.begin(), timepoints.end());
             }
-            observables[name] =
-                std::make_pair(std::move(timepoints),
-                               ObservableFunctor::make(ns_name, param, cosmo));
+            observables[name] = ObservableFunctor::make(ns_name, param, cosmo);
+            observable_compute_times[name] = timepoints;
         }
         compute_at = "";
     }
-    for (double checkpoint : time_point_union) {
-        std::vector<std::string> obs_names;
-        std::vector<observable_ptr *> obs_ptrs;
-        for (auto &[name, value] : observables) {
-            auto &[timepoints, obs_ptr] = value;
+    // Next loop over all unique time points and populate the 'checkpoint' map
+    for (double compute_time : time_point_union) {
+        ObservableMap obs_at_compute_time;
+        for (auto &[name, timepoints] : observable_compute_times) {
+            auto obs_ptr = observables[name].get();
             if (timepoints[0] == -1 ||
                 std::binary_search(timepoints.begin(), timepoints.end(),
-                                   checkpoint)) {
-                obs_ptrs.push_back(&obs_ptr);
-                obs_names.push_back(name);
+                                   compute_time)) {
+                obs_at_compute_time[name] = obs_ptr;
             }
         }
-        checkpoints.push(checkpoint_t(checkpoint, obs_names, obs_ptrs));
+        checkpoints.push(checkpoint_t(compute_time, obs_at_compute_time));
     }
 
     // Output file setup
@@ -142,8 +157,8 @@ int main(int argc, char **argv) {
 
     const auto start = high_resolution_clock::now();
     while (!checkpoints.empty()) {
-        auto &[checkpoint, names, obs_ptrs] = checkpoints.top();
-        stepper->integrate(state, checkpoint);
+        auto &[checkpoint_time, obs_at_checkpoint] = checkpoints.top();
+        stepper->integrate(state, checkpoint_time);
         // Depending on the stepper a retransformation to real space might be
         // necessary. If not, transform acts as identity.
         state.transform(SimState::Representation::Position);
@@ -151,21 +166,22 @@ int main(int argc, char **argv) {
         // and only state.psis is correct. Thus, we recalculate the potential.
         pot->solve(state);
 
-        const double a = cosmo.a_of_tau(checkpoint);
+        const double a = cosmo.a_of_tau(checkpoint_time);
         const double z = Cosmology::z_of_a(a);
         std::cout << INFOTAG("Save observables @ tau/z = ")
-                  << ((cosmo == CosmoModel::Artificial) ? checkpoint : z)
+                  << ((cosmo == CosmoModel::Artificial) ? checkpoint_time : z)
                   << std::flush;
-        for (int i = 0; i < obs_ptrs.size(); ++i) {
-            auto &obs_ptr = obs_ptrs[i];
-            auto &name = names[i];
+        for (auto [name, obs_ptr] : obs_at_checkpoint) {
             // Construct path to dataset
             auto ds_name = std::to_string(state.n);
             ds_name.insert(ds_name.begin(), 10 - ds_name.length(), '0');
             path_to_ds = "/" + name + "/" + ds_name;
 
             // Computes the observable variant (i.e. some matrix/vector)
-            auto res = (*obs_ptr)->compute(state);
+            auto res = obs_ptr->compute(state, observables);
+            //            ^                       ^
+            //            |       owning ---------|
+            //            |---- non-owning
             boost::apply_visitor(write_variant, res);
 
             // Supplement informations to the observable
