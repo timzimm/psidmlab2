@@ -74,6 +74,9 @@ class Potential : public ObservableFunctor {
 };
 
 class WaveFunction : public ObservableFunctor {
+    double t_prev;
+    blaze::DynamicMatrix<double> psi_re_im;
+
    public:
     WaveFunction(const Parameters& p, const Cosmology&);
     ObservableFunctor::ReturnType compute(

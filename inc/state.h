@@ -5,18 +5,18 @@
 
 #include <blaze/math/DynamicVector.h>
 #include <complex>
+#include <cstddef>
 
 struct SimState {
     // Representation tags for the stored wavefunction
     enum class Representation { Position, Momentum };
 
-    int n;       // time step number
+    size_t n;    // time step number
     double tau;  // current time
     blaze::DynamicVector<double> V;
 
     blaze::DynamicVector<std::complex<double>> psi;
 
-    SimState(const Parameters &p);
     void transform(const Representation target);
 
    private:

@@ -1,12 +1,13 @@
 #ifndef __IO__
 #define __IO__
 
+#include "logging.h"
+
 #include <blaze/math/DynamicVector.h>
 #include <blaze/util/typetraits/IsComplex.h>
 #include <blaze/util/typetraits/RemoveReference.h>
 #include <hdf5.h>
 #include <cstring>
-#include <iostream>
 #include <map>
 #include <string>
 #include <utility>
@@ -62,12 +63,6 @@ struct is_string<std::string> : public std::true_type {};
 template <typename T>
 using is_bool = std::is_same<typename std::remove_cv<T>::type, bool>;
 
-// Definition of the File Interface. The project uses HDF5 as file format. HDF5
-// is the quasi-standard in scientific computing. It handles multidimensional,
-// heterogeneous data in a self-explaining way, very similar to a file structure
-// in your OS. Moreover, it is fast and can handle async, parallel, compressed
-// I/O if required (currently not).
-
 class HDF5File {
    private:
     hid_t file;          // Handle to HDF5 file
@@ -78,14 +73,15 @@ class HDF5File {
     // matrices.
     template <typename T>
     void matrix_dataspace_dim(const blaze::DynamicMatrix<T, blaze::rowMajor>& M,
-                              hsize_t* dims) {
+                              hsize_t* dims) const {
         dims[0] = M.rows();
         dims[1] = M.spacing();
     }
 
     template <typename T>
     void matrix_dataspace_dim(
-        const blaze::DynamicMatrix<T, blaze::columnMajor>& M, hsize_t* dims) {
+        const blaze::DynamicMatrix<T, blaze::columnMajor>& M,
+        hsize_t* dims) const {
         dims[0] = M.columns();
         dims[1] = M.spacing();
     }
@@ -131,7 +127,7 @@ class HDF5File {
         }
     }
 
-    // mkdir -p for HDF5
+    // mkdir -p
     hid_t create_groups_along_path(const std::string& path) {
         size_t end = 0;
         herr_t status;
@@ -149,24 +145,34 @@ class HDF5File {
     }
 
    public:
-    HDF5File(const std::string& filename,
-             const std::vector<std::string>& init_groups = {})
-        : file(H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
-                         H5P_DEFAULT)),
-          complex_type(H5Tcreate(H5T_COMPOUND, 2 * sizeof(double))),
-          str_type(H5Tcopy(H5T_C_S1)) {
+    HDF5File(const std::string& filename) {
+        // Store old error handler
+        herr_t (*old_func)(void*);
+        void* old_client_data;
+        H5Eget_auto1(&old_func, &old_client_data);
+        // Turn off error stack printing
+        H5Eset_auto1(NULL, NULL);
+        file =
+            H5Fcreate(filename.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
+        if (file < 0) {
+            std::cout << "Open existing file" << std::endl;
+            file = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+        }
+        if (file < 0) {
+            std::cout << "Cannot open file" << std::endl;
+            exit(1);
+        }
+        // Restore error handler
+        H5Eset_auto1(old_func, old_client_data);
+
         // HDF5 doesn't know about complex numbers. Let's define them
+        complex_type = H5Tcreate(H5T_COMPOUND, 2 * sizeof(double));
         H5Tinsert(complex_type, "r", 0, H5T_NATIVE_DOUBLE);
         H5Tinsert(complex_type, "i", sizeof(double), H5T_NATIVE_DOUBLE);
 
         // Same goes for variable strings
+        str_type = H5Tcopy(H5T_C_S1);
         /* H5Tset_size(str_type, H5T_VARIABLE); */
-
-        for (const auto& group_name : init_groups) {
-            auto group = H5Gcreate(file, group_name.c_str(), H5P_DEFAULT,
-                                   H5P_DEFAULT, H5P_DEFAULT);
-            H5Gclose(group);
-        }
     }
 
     // Write generic vector to file at path ds_path. In this context generic
@@ -231,25 +237,14 @@ class HDF5File {
         // Create new dataspaces in both the file and the memory area
         const int rank = 2;
 
-        const hsize_t dim_file[] = {
+        hsize_t dim_file[] = {
             (SO == blaze::columnMajor) ? data.columns() : data.rows(),
             (SO == blaze::columnMajor) ? data.rows() : data.columns()};
 
-        // Mem and file dataspace are not necessarily the same due to padding.
-        const hsize_t dim[] = {
-            (SO == blaze::columnMajor) ? data.columns() : data.rows(),
-            data.spacing()};
-
-        /* // Moreover, if SO=columnMajor, padding is added after each column
-         * not */
-        /* // row. */
-        /* if (SO == blaze::columnMajor) { */
-        /*     dim_file[0] = data.columns(); */
-        /*     dim_file[1] = data.rows(); */
-
-        /*     dim[0] = data.columns(); */
-        /*     dim[1] = data.spacing(); */
-        /* } */
+        // Mem and file dataspace are not necessarily the same due to
+        // padding.
+        hsize_t dim[2];
+        matrix_dataspace_dim(data, dim);
 
         auto dataspace_file = H5Screate_simple(rank, dim_file, NULL);
         auto dataspace_matrix = H5Screate_simple(rank, dim, NULL);
@@ -336,26 +331,116 @@ class HDF5File {
         if (!ext_managed) H5Gclose(loc);
     }
 
-    template <typename T>
-    void add_scalar_attribute(const std::string& path,
-                              const std::map<std::string, T>& attr_map) {
-        hid_t loc;
-        auto exists = H5Lexists(file, path.c_str(), H5P_DEFAULT);
-        // Open object whatever it is
-        if (exists) loc = H5Oopen(file, path.c_str(), H5P_DEFAULT);
-        // Assume caller wants a group
-        else
-            loc = create_groups_along_path(path + "/");
-        hsize_t dim = 1;
-        auto attr_space = H5Screate_simple(1, &dim, nullptr);
+    std::string read_string_attribute(const std::string& path,
+                                      const std::string& name) const {
+        hid_t loc = H5Oopen(file, path.c_str(), H5P_DEFAULT);
+        hid_t attr = H5Aopen(loc, name.c_str(), H5P_DEFAULT);
 
-        for (const auto& pair : attr_map) {
-            const std::string& key = pair.first;
-            const T& val = pair.second;
-            add_scalar_attribute(path, key, val, loc);
+        hid_t filetype = H5Aget_type(attr);
+        auto sdim = H5Tget_size(filetype);
+        sdim++; /* Make room for null terminator */
+        hid_t space = H5Aget_space(attr);
+
+        auto rdata = (char**)malloc(sizeof(char*));
+        rdata[0] = (char*)malloc(sdim * sizeof(char));
+
+        hid_t memtype = H5Tcopy(H5T_C_S1);
+        H5Tset_size(memtype, sdim);
+
+        H5Aread(attr, memtype, rdata[0]);
+        std::string result(rdata[0]);
+
+        free(rdata[0]);
+        free(rdata);
+        H5Aclose(attr);
+        H5Sclose(space);
+        H5Tclose(filetype);
+        H5Tclose(memtype);
+        H5Gclose(loc);
+
+        return result;
+    }
+    // Return vector of all objects names linked to root
+    std::vector<std::string> ls(const std::string& root) {
+        std::vector<std::string> content;
+        // Does root even exist?
+        if (!H5Lexists(file, root.c_str(), H5P_DEFAULT)) {
+            return content;
+        }
+        hid_t root_obj = H5Oopen(file, root.c_str(), H5P_DEFAULT);
+        auto push_back_names = [](hid_t, const char* name, const H5L_info_t*,
+                                  void* data) {
+            auto ptr = reinterpret_cast<std::vector<std::string>*>(data);
+            ptr->push_back(name);
+            return 0;
+        };
+        H5Literate(root_obj, H5_INDEX_NAME, H5_ITER_NATIVE, NULL,
+                   push_back_names, &content);
+
+        std::string newroot = (root == "/") ? "" : root;
+        for (auto& s : content) {
+            s = newroot + "/" + s;
         }
 
-        H5Gclose(loc);
+        return content;
+    }
+    // Reads vector at path into double precision blaze column-vector
+    blaze::DynamicVector<double> read_vector(const std::string& path) const {
+        hid_t ds = H5Dopen(file, path.c_str(), H5P_DEFAULT);
+
+        // Vector => rank=1
+        int rank = 1;
+        hsize_t dim_file[rank];
+        hsize_t dim_mem[rank];
+
+        // File side
+        hid_t file_space = H5Dget_space(ds);
+        H5Sget_simple_extent_dims(file_space, dim_file, nullptr);
+
+        // Memory side
+        blaze::DynamicVector<double> data(dim_file[0]);
+        dim_mem[0] = dim_file[0];
+        hid_t mem_space = H5Screate_simple(rank, dim_mem, nullptr);
+
+        H5Dread(ds, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                data.data());
+
+        H5Sclose(file_space);
+        H5Sclose(mem_space);
+        H5Dclose(ds);
+
+        return data;
+    }
+    // Reads row-major matrix at path into double precision row-major blaze
+    // matrix
+    blaze::DynamicMatrix<double> read_matrix(const std::string& path) const {
+        hid_t ds = H5Dopen(file, path.c_str(), H5P_DEFAULT);
+
+        // Matrix => rank=2
+        int rank = 2;
+        hsize_t dim_file[rank];
+        hsize_t dim_mem[rank];
+
+        // File side
+        hid_t file_space = H5Dget_space(ds);
+        H5Sget_simple_extent_dims(file_space, dim_file, nullptr);
+
+        // Memory side
+        blaze::DynamicMatrix<double> data(dim_file[0], dim_file[1]);
+        matrix_dataspace_dim(data, dim_mem);
+        hid_t mem_space = H5Screate_simple(rank, dim_mem, nullptr);
+        hsize_t mem_offset[] = {0, 0};
+        H5Sselect_hyperslab(mem_space, H5S_SELECT_SET, mem_offset, nullptr,
+                            dim_file, nullptr);
+
+        H5Dread(ds, H5T_NATIVE_DOUBLE, mem_space, file_space, H5P_DEFAULT,
+                data.data());
+
+        H5Sclose(file_space);
+        H5Sclose(mem_space);
+        H5Dclose(ds);
+
+        return data;
     }
 
     ~HDF5File() { H5Fclose(file); };

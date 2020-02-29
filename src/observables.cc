@@ -199,8 +199,6 @@ ObservableFunctor::ReturnType PhaseSpaceDistribution::compute(
     return wigner_f;
 }
 
-Potential::Potential(const Parameters& p, const Cosmology&){};
-
 ObservableFunctor::ReturnType Potential::compute(
     const SimState& state,
     const std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
@@ -208,13 +206,21 @@ ObservableFunctor::ReturnType Potential::compute(
     return state.V;
 }
 
-WaveFunction::WaveFunction(const Parameters& p, const Cosmology&){};
+Potential::Potential(const Parameters& p, const Cosmology&) {}
+
+WaveFunction::WaveFunction(const Parameters& p, const Cosmology&)
+    : t_prev(-1), psi_re_im(p["Simulation"]["N"].get<int>(), 2){};
 
 ObservableFunctor::ReturnType WaveFunction::compute(
     const SimState& state,
     const std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
         obs) {
-    return state.psi;
+    if (t_prev < state.tau) {
+        t_prev = state.tau;
+        blaze::column(psi_re_im, 0) = blaze::real(state.psi);
+        blaze::column(psi_re_im, 1) = blaze::imag(state.psi);
+    }
+    return psi_re_im;
 }
 
 Energy::Energy(const Parameters& p, const Cosmology& cosmo_)

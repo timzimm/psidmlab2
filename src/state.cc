@@ -3,15 +3,6 @@
 #include "fftw3.h"
 #include "parameters.h"
 
-SimState::SimState(const Parameters& p)
-    : n(0),
-      tau(0),
-      representation{Representation::Position},
-      position_to_momentum{nullptr},
-      momentum_to_position{nullptr},
-      N_plan{0},
-      psi_ptr{nullptr} {}
-
 void SimState::transform(const SimState::Representation target) {
     // Identity transform
     if (target == representation) return;

@@ -1,3 +1,4 @@
+#include "H5Fpublic.h"
 #include "cosmology.h"
 #include "ic.h"
 #include "interfaces.h"
@@ -5,6 +6,7 @@
 #include "parameters.h"
 #include "state.h"
 
+#include <algorithm>
 #include <chrono>   //runtime measurement
 #include <fstream>  //loading the json file
 #include <queue>    //priority queue to select to next checkpoint
@@ -24,16 +26,67 @@ int main(int argc, char **argv) {
     std::cout << INFOTAG("Threading active") << std::endl;
 #endif
 
-    // We need a json file. Otherwise, we give up...
+    // We need a input file. Otherwise, we give up...
     if (argc != 2) {
-        std::cerr << ERRORTAG("Usage: ./sim /path/to/config_file.json")
-                  << std::endl;
+        std::cerr << ERRORTAG("Usage: ./sim /path/to/(HDF5|json)") << std::endl;
         exit(1);
     }
 
-    // Load parameters from file
+    // Two operationn modi need to be distinguish:
+    // (i) Fresh simulation
+    // (ii) Resumed simulation
+    bool resume = false;
+
+    // Holds psi, V, n, tau
+    SimState state;
+
+    // Parameter datastructure (a json file)
     Parameters param;
-    std::ifstream(argv[1]) >> param;
+
+    // Get simulation parameters via input file
+    // The input file is either ...
+    // (i) json file for a fresh simulation.
+    // (ii) a HDF5 file holding an existing simulation state to be resumed
+    auto result = H5Fis_hdf5(argv[1]);
+    if (result < 0) {
+        std::cerr
+            << ERRORTAG(
+                   "Cannot determine input file type. Does the file exist?")
+            << std::endl;
+        // Case (i) :  New simulation
+    } else if (result == 0) {
+        std::cout << "Initialize simulation from json file" << std::endl;
+        // Load parameters from file
+        std::ifstream(argv[1]) >> param;
+        // Case (ii) :  Resume old simulation
+    } else {
+        resume = true;
+        std::cout << "Resume simulation with last state stored in input file"
+                  << std::endl;
+
+        HDF5File file(argv[1]);
+        // Load parameters from dumped json in HDF5 file
+        std::string dump = file.read_string_attribute("/", "parameters");
+        param = Parameters::parse(dump);
+
+        // Determine last available wavefunction
+        std::vector<std::string> psis = file.ls("/WaveFunction");
+        auto psi0 = std::max_element(psis.begin(), psis.end());
+        if (psi0 != psis.end()) {
+            auto psi0_matrix = file.read_matrix(*psi0);
+            // Populate simualation state.
+            // We don't need the potential. It can be computed from psi.
+            state.psi = blaze::map(blaze::column(psi0_matrix, 0),
+                                   blaze::column(psi0_matrix, 1),
+                                   [](const double r, const double i) {
+                                       return std::complex<double>(r, i);
+                                   });
+            state.tau = std::stod(file.read_string_attribute(*psi0, "tau"));
+            state.n = std::stoull(file.read_string_attribute(*psi0, "n"));
+        } else {  // If there is no wave function we're back to (i)
+            resume = false;
+        }
+    }
 
     // Holds mathematical union of all explicitly stated time points
     std::set<double> time_point_union;
@@ -49,16 +102,16 @@ int main(int argc, char **argv) {
     param["Cosmology"]["save_at"] = time_point_union;
     time_point_union.clear();
 
-    // Setup a(tau) and tau(a)...
     const Cosmology cosmo(param["Cosmology"]);
-    // ... and transform length scales to code units
     param << cosmo;
 
-    SimState state(param);
-
-    ICGenerator ic(param);
-    ic.generate(state, cosmo);
-    state >> param;
+    // In case (i) initial conditions are generated according to config file.
+    if (!resume) {
+        ICGenerator ic(param);
+        // Populates simulation state
+        ic.generate(state, cosmo);
+        state >> param;
+    }
 
     const auto potential = param["Simulation"]["potential"].get<std::string>();
     auto pot = Interaction::make(potential, param, state);
@@ -116,12 +169,22 @@ int main(int argc, char **argv) {
                     std::transform(std::begin(timepoints), std::end(timepoints),
                                    std::begin(timepoints), tau_of_z);
                 }
+                // Drop all time points that state already visisted (due to ii)
+                timepoints.erase(
+                    std::remove_if(
+                        timepoints.begin(), timepoints.end(),
+                        [&state](const double t) { return t < state.tau; }),
+                    timepoints.end());
+
                 time_point_union.insert(timepoints.begin(), timepoints.end());
             }
-            observables[name] = ObservableFunctor::make(ns_name, param, cosmo);
-            observable_compute_times[name] = timepoints;
+            // Do time points exist after we erased already visited ones?
+            if (timepoints.size() != 0) {
+                observables[name] =
+                    ObservableFunctor::make(ns_name, param, cosmo);
+                observable_compute_times[name] = timepoints;
+            }
         }
-        compute_at = "";
     }
     // Next loop over all unique time points and populate the 'checkpoint' map
     for (double compute_time : time_point_union) {
@@ -149,11 +212,12 @@ int main(int argc, char **argv) {
     };
 
     // Everything is set up...
-    // Dump parameters (modulo the i/o checkpoints since this can be a long
-    // list)
+    // Dump parameters
     std::cout << INFOTAG("Parameter dump:") << std::endl;
     std::cout << std::setw(4) << param << std::endl;
-    file.add_scalar_attribute("/", "parameters", param.dump());
+    if (!resume) {
+        file.add_scalar_attribute("/", "parameters", param.dump());
+    }
 
     const auto start = high_resolution_clock::now();
     while (!checkpoints.empty()) {

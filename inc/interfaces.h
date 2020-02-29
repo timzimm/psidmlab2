@@ -64,8 +64,7 @@ class ObservableFunctor
     using ReturnType =
         boost::variant<const blaze::DynamicMatrix<double>&,
                        const blaze::DynamicMatrix<double, blaze::columnMajor>&,
-                       const blaze::DynamicVector<double>&,
-                       const blaze::DynamicVector<std::complex<double>>&>;
+                       const blaze::DynamicVector<double>&>;
 
     // Computes the observable based on SimState state and potentially other
     // observables obs if the observables is a derived quantity (like
