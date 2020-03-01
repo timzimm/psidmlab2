@@ -151,7 +151,13 @@ int main(int argc, char **argv) {
     // Output file setup
     std::string filename;
     param["General"]["output_file"].get_to(filename);
-    HDF5File file(filename, HDF5File::Access::Write);
+
+    // File access mode
+    HDF5File::Access mode = HDF5File::Access::NewFile;
+    if (ic.type == ICType::PreviousSimulation) {
+        mode = HDF5File::Access::Write;
+    }
+    HDF5File file(filename, mode);
 
     // Define I/O visitor
     std::string path_to_ds;

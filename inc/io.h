@@ -1,21 +1,15 @@
 #ifndef __IO__
 #define __IO__
 
-#include "H5Apublic.h"
 #include "H5Fpublic.h"
-#include "H5Ppublic.h"
 #include "logging.h"
 
 #include <blaze/math/DynamicVector.h>
 #include <blaze/util/typetraits/IsBoolean.h>
-#include <blaze/util/typetraits/IsComplex.h>
-#include <blaze/util/typetraits/IsComplexDouble.h>
 #include <blaze/util/typetraits/IsDouble.h>
 #include <blaze/util/typetraits/IsInteger.h>
 #include <blaze/util/typetraits/RemoveReference.h>
 #include <hdf5.h>
-#include <cstring>
-#include <map>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -71,8 +65,7 @@ struct is_string<std::string> : public std::true_type {};
 
 class HDF5File {
    private:
-    hid_t file;          // Handle to HDF5 file
-    hid_t complex_type;  // compound datatype for complex data
+    hid_t file;  // Handle to HDF5 file
 
     // Computes correct memory dataspace due to potential padding of blaze
     // matrices.
@@ -119,12 +112,12 @@ class HDF5File {
             // Select column in file
             offset_file[1] = i;
             H5Sselect_hyperslab(file_space_id, H5S_SELECT_SET, offset_file,
-                                NULL, count_file, NULL);
+                                nullptr, count_file, nullptr);
 
             // Select row in memory
             offset_mem[0] = i;
-            H5Sselect_hyperslab(mem_space_id, H5S_SELECT_SET, offset_mem, NULL,
-                                count_mem, NULL);
+            H5Sselect_hyperslab(mem_space_id, H5S_SELECT_SET, offset_mem,
+                                nullptr, count_mem, nullptr);
 
             H5Dwrite(dataset_id, type, mem_space_id, file_space_id,
                      xfer_plist_id, buf.data());
@@ -149,31 +142,30 @@ class HDF5File {
     }
 
    public:
-    enum class Access { Read, Write };
+    enum class Access { Read, Write, NewFile };
     HDF5File(const std::string& filename, const Access& strategy) {
         // Store old error handler
         herr_t (*old_func)(void*);
         void* old_client_data;
         H5Eget_auto1(&old_func, &old_client_data);
         // Turn off error stack printing
-        /* H5Eset_auto1(NULL, NULL); */
+        H5Eset_auto1(nullptr, nullptr);
 
-        if (strategy == Access::Write) {
-            file = H5Fcreate(filename.c_str(), H5F_ACC_EXCL, H5P_DEFAULT,
+        // Create new file
+        if (strategy == Access::NewFile) {
+            file = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
                              H5P_DEFAULT);
+        }
+        // Open existing file
+        if (strategy == Access::Write) {
+            file = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
             if (file < 0) {
-                // File exists. Open it in rw mode
-                file = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-                if (file < 0) {
-                    std::cerr
-                        << ERRORTAG("Cannot open file for writing. Damaged?")
-                        << std::endl;
-                    exit(1);
-                }
+                std::cerr << ERRORTAG("Cannot open file for writing. Damaged?")
+                          << std::endl;
+                exit(1);
             }
         }
         if (strategy == Access::Read) {
-            // Read implies the file already exists. Open it i r mode.
             file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
             if (file < 0) {
                 std::cerr << ERRORTAG("Cannot open file for reading. Damaged?")
@@ -183,17 +175,12 @@ class HDF5File {
         }
 
         H5Eset_auto1(old_func, old_client_data);
-
-        // HDF5 doesn't know about complex numbers. Let's define them
-        complex_type = H5Tcreate(H5T_COMPOUND, 2 * sizeof(double));
-        H5Tinsert(complex_type, "r", 0, H5T_NATIVE_DOUBLE);
-        H5Tinsert(complex_type, "i", sizeof(double), H5T_NATIVE_DOUBLE);
     }
 
     // Write generic vector to file at path ds_path. In this context generic
     // means:
     //
-    // T = std::complex<double> , double, int
+    // T = double, int
     // TF = blaze::columnVector, blaze::rowVector
     //
     // If groups along ds_path are missing, we generate them in the process
@@ -218,14 +205,11 @@ class HDF5File {
         hsize_t dim = data.size();
 
         // Discards padding automatically
-        auto dataspace = H5Screate_simple(rank, &dim, NULL);
+        auto dataspace = H5Screate_simple(rank, &dim, nullptr);
 
         // Select correct memory and file types
         hid_t filetype, memtype;
-        if constexpr (blaze::IsComplexDouble_v<T>) {
-            filetype = complex_type;
-            memtype = complex_type;
-        } else if constexpr (blaze::IsDouble_v<T>) {
+        if constexpr (blaze::IsDouble_v<T>) {
             filetype = H5T_IEEE_F64BE;
             memtype = H5T_NATIVE_DOUBLE;
         } else {
@@ -246,7 +230,7 @@ class HDF5File {
 
     // Write generic matrix to file. In this context generic means:
     //
-    // T = std::complex<double> , double, int
+    // T = double, int
     // SO = blaze::rowMajor, blaze::columnMajor
     //
     // If groups along ds_path are missing, we generate them in the process
@@ -278,20 +262,17 @@ class HDF5File {
         hsize_t dim[2];
         matrix_dataspace_dim(data, dim);
 
-        auto dataspace_file = H5Screate_simple(rank, dim_file, NULL);
-        auto dataspace_matrix = H5Screate_simple(rank, dim, NULL);
+        auto dataspace_file = H5Screate_simple(rank, dim_file, nullptr);
+        auto dataspace_matrix = H5Screate_simple(rank, dim, nullptr);
 
         // Discard padding in memory
         const hsize_t offset[] = {0, 0};
-        H5Sselect_hyperslab(dataspace_matrix, H5S_SELECT_SET, offset, NULL,
-                            dim_file, NULL);
+        H5Sselect_hyperslab(dataspace_matrix, H5S_SELECT_SET, offset, nullptr,
+                            dim_file, nullptr);
 
         // Select correct memory and file types
         hid_t filetype, memtype;
-        if constexpr (blaze::IsComplexDouble_v<T>) {
-            filetype = complex_type;
-            memtype = complex_type;
-        } else if constexpr (blaze::IsDouble_v<T>) {
+        if constexpr (blaze::IsDouble_v<T>) {
             filetype = H5T_IEEE_F64BE;
             memtype = H5T_NATIVE_DOUBLE;
         } else {
@@ -323,7 +304,7 @@ class HDF5File {
     // (Over)writes scalar attribute of type T to object (group, dataset) at
     // path.
     //
-    // T = std::complex<double>, double, (unsigned) int, bool, std::string
+    // T = double, (unsigned) int, bool, std::string
     //
     // If the object does not exist yet, we generate a group and attach the
     // attribute to it.
@@ -361,10 +342,7 @@ class HDF5File {
 
         // Select correct memory and file types
         hid_t filetype, memtype;
-        if constexpr (blaze::IsComplexDouble_v<T>) {
-            filetype = complex_type;
-            memtype = complex_type;
-        } else if constexpr (blaze::IsDouble_v<T>) {
+        if constexpr (blaze::IsDouble_v<T>) {
             filetype = H5T_IEEE_F64BE;
             memtype = H5T_NATIVE_DOUBLE;
         } else if constexpr (blaze::IsInteger_v<T> && std::is_signed_v<T>) {
@@ -448,7 +426,7 @@ class HDF5File {
             ptr->push_back(name);
             return 0;
         };
-        H5Literate(root_obj, H5_INDEX_NAME, H5_ITER_NATIVE, NULL,
+        H5Literate(root_obj, H5_INDEX_NAME, H5_ITER_NATIVE, nullptr,
                    push_back_names, &content);
 
         std::string newroot = (root == "/") ? "" : root;
@@ -519,10 +497,7 @@ class HDF5File {
         return data;
     }
 
-    ~HDF5File() {
-        H5Fclose(file);
-        H5Tclose(complex_type);
-    };
+    ~HDF5File() { H5Fclose(file); };
 };
 
 #endif

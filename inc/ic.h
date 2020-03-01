@@ -20,8 +20,14 @@ enum class ICType {
 };
 
 class ICGenerator {
-   private:
+   public:
     ICType type;
+    ICGenerator(const Parameters& param);
+    void generate(SimState& state, const Cosmology&) const;
+
+    ~ICGenerator();
+
+   private:
     int N;
     int data_N;
     double L;
@@ -42,11 +48,5 @@ class ICGenerator {
 
     // restore wavefunction from previous simulation
     void psi_from_state(SimState& state) const;
-
-   public:
-    ICGenerator(const Parameters& param);
-    void generate(SimState& state, const Cosmology&) const;
-
-    ~ICGenerator();
 };
 #endif
