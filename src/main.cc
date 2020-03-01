@@ -32,61 +32,10 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    // Two operationn modi need to be distinguish:
-    // (i) Fresh simulation
-    // (ii) Resumed simulation
-    bool resume = false;
-
-    // Holds psi, V, n, tau
-    SimState state;
-
     // Parameter datastructure (a json file)
     Parameters param;
-
-    // Get simulation parameters via input file
-    // The input file is either ...
-    // (i) json file for a fresh simulation.
-    // (ii) a HDF5 file holding an existing simulation state to be resumed
-    auto result = H5Fis_hdf5(argv[1]);
-    if (result < 0) {
-        std::cerr
-            << ERRORTAG(
-                   "Cannot determine input file type. Does the file exist?")
-            << std::endl;
-        // Case (i) :  New simulation
-    } else if (result == 0) {
-        std::cout << "Initialize simulation from json file" << std::endl;
-        // Load parameters from file
-        std::ifstream(argv[1]) >> param;
-        // Case (ii) :  Resume old simulation
-    } else {
-        resume = true;
-        std::cout << "Resume simulation with last state stored in input file"
-                  << std::endl;
-
-        HDF5File file(argv[1]);
-        // Load parameters from dumped json in HDF5 file
-        std::string dump = file.read_string_attribute("/", "parameters");
-        param = Parameters::parse(dump);
-
-        // Determine last available wavefunction
-        std::vector<std::string> psis = file.ls("/WaveFunction");
-        auto psi0 = std::max_element(psis.begin(), psis.end());
-        if (psi0 != psis.end()) {
-            auto psi0_matrix = file.read_matrix(*psi0);
-            // Populate simualation state.
-            // We don't need the potential. It can be computed from psi.
-            state.psi = blaze::map(blaze::column(psi0_matrix, 0),
-                                   blaze::column(psi0_matrix, 1),
-                                   [](const double r, const double i) {
-                                       return std::complex<double>(r, i);
-                                   });
-            state.tau = std::stod(file.read_string_attribute(*psi0, "tau"));
-            state.n = std::stoull(file.read_string_attribute(*psi0, "n"));
-        } else {  // If there is no wave function we're back to (i)
-            resume = false;
-        }
-    }
+    // Load parameters from file
+    std::ifstream(argv[1]) >> param;
 
     // Holds mathematical union of all explicitly stated time points
     std::set<double> time_point_union;
@@ -105,13 +54,12 @@ int main(int argc, char **argv) {
     const Cosmology cosmo(param["Cosmology"]);
     param << cosmo;
 
-    // In case (i) initial conditions are generated according to config file.
-    if (!resume) {
-        ICGenerator ic(param);
-        // Populates simulation state
-        ic.generate(state, cosmo);
-        state >> param;
-    }
+    // Holds psi, V, n, tau
+    SimState state;
+    // Populate simulation state
+    ICGenerator ic(param);
+    ic.generate(state, cosmo);
+    state >> param;
 
     const auto potential = param["Simulation"]["potential"].get<std::string>();
     auto pot = Interaction::make(potential, param, state);
@@ -203,7 +151,7 @@ int main(int argc, char **argv) {
     // Output file setup
     std::string filename;
     param["General"]["output_file"].get_to(filename);
-    HDF5File file(filename);
+    HDF5File file(filename, HDF5File::Access::Write);
 
     // Define I/O visitor
     std::string path_to_ds;
@@ -215,8 +163,14 @@ int main(int argc, char **argv) {
     // Dump parameters
     std::cout << INFOTAG("Parameter dump:") << std::endl;
     std::cout << std::setw(4) << param << std::endl;
-    if (!resume) {
-        file.add_scalar_attribute("/", "parameters", param.dump());
+
+    double runtime_old = 0;
+
+    // For fresh runs (no step performed yet) dump parameters into file
+    if (state.tau == 0) {
+        file.write_scalar_attribute("/", "parameters", param.dump());
+    } else {
+        runtime_old = file.read_scalar_attribute<double>("/", "runtime");
     }
 
     const auto start = high_resolution_clock::now();
@@ -249,10 +203,10 @@ int main(int argc, char **argv) {
             boost::apply_visitor(write_variant, res);
 
             // Supplement informations to the observable
-            file.add_scalar_attribute(path_to_ds, "tau", state.tau);
-            file.add_scalar_attribute(path_to_ds, "a", a);
-            file.add_scalar_attribute(path_to_ds, "z", z);
-            file.add_scalar_attribute(path_to_ds, "n", state.n);
+            file.write_scalar_attribute(path_to_ds, "tau", state.tau);
+            file.write_scalar_attribute(path_to_ds, "a", a);
+            file.write_scalar_attribute(path_to_ds, "z", z);
+            file.write_scalar_attribute(path_to_ds, "n", state.n);
         }
         std::cout << " ... done" << std::endl;
         checkpoints.pop();
@@ -260,7 +214,7 @@ int main(int argc, char **argv) {
 
     const auto stop = high_resolution_clock::now();
     const auto runtime = duration_cast<duration<double>>(stop - start);
-    file.add_scalar_attribute("/", "runtime", runtime.count());
+    file.write_scalar_attribute("/", "runtime", runtime_old + runtime.count());
 
     return 0;
 }

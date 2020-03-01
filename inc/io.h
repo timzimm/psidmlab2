@@ -1,15 +1,23 @@
 #ifndef __IO__
 #define __IO__
 
+#include "H5Apublic.h"
+#include "H5Fpublic.h"
+#include "H5Ppublic.h"
 #include "logging.h"
 
 #include <blaze/math/DynamicVector.h>
+#include <blaze/util/typetraits/IsBoolean.h>
 #include <blaze/util/typetraits/IsComplex.h>
+#include <blaze/util/typetraits/IsComplexDouble.h>
+#include <blaze/util/typetraits/IsDouble.h>
+#include <blaze/util/typetraits/IsInteger.h>
 #include <blaze/util/typetraits/RemoveReference.h>
 #include <hdf5.h>
 #include <cstring>
 #include <map>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -60,14 +68,11 @@ template <typename T>
 struct is_string : public std::false_type {};
 template <>
 struct is_string<std::string> : public std::true_type {};
-template <typename T>
-using is_bool = std::is_same<typename std::remove_cv<T>::type, bool>;
 
 class HDF5File {
    private:
     hid_t file;          // Handle to HDF5 file
     hid_t complex_type;  // compound datatype for complex data
-    hid_t str_type;      // compound datatype for string data
 
     // Computes correct memory dataspace due to potential padding of blaze
     // matrices.
@@ -111,7 +116,6 @@ class HDF5File {
         hsize_t offset_mem[] = {0, 0};
         hsize_t count_mem[] = {1, buf.rows()};
         for (int i = 0; i < buf.columns(); ++i) {
-            std::cout << "test" << std::endl;
             // Select column in file
             offset_file[1] = i;
             H5Sselect_hyperslab(file_space_id, H5S_SELECT_SET, offset_file,
@@ -127,7 +131,7 @@ class HDF5File {
         }
     }
 
-    // mkdir -p
+    // mkdir -p. Caller is responsible to close group!
     hid_t create_groups_along_path(const std::string& path) {
         size_t end = 0;
         herr_t status;
@@ -145,41 +149,51 @@ class HDF5File {
     }
 
    public:
-    HDF5File(const std::string& filename) {
+    enum class Access { Read, Write };
+    HDF5File(const std::string& filename, const Access& strategy) {
         // Store old error handler
         herr_t (*old_func)(void*);
         void* old_client_data;
         H5Eget_auto1(&old_func, &old_client_data);
         // Turn off error stack printing
-        H5Eset_auto1(NULL, NULL);
-        file =
-            H5Fcreate(filename.c_str(), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
-        if (file < 0) {
-            std::cout << "Open existing file" << std::endl;
-            file = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+        /* H5Eset_auto1(NULL, NULL); */
+
+        if (strategy == Access::Write) {
+            file = H5Fcreate(filename.c_str(), H5F_ACC_EXCL, H5P_DEFAULT,
+                             H5P_DEFAULT);
+            if (file < 0) {
+                // File exists. Open it in rw mode
+                file = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+                if (file < 0) {
+                    std::cerr
+                        << ERRORTAG("Cannot open file for writing. Damaged?")
+                        << std::endl;
+                    exit(1);
+                }
+            }
         }
-        if (file < 0) {
-            std::cout << "Cannot open file" << std::endl;
-            exit(1);
+        if (strategy == Access::Read) {
+            // Read implies the file already exists. Open it i r mode.
+            file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+            if (file < 0) {
+                std::cerr << ERRORTAG("Cannot open file for reading. Damaged?")
+                          << std::endl;
+                exit(1);
+            }
         }
-        // Restore error handler
+
         H5Eset_auto1(old_func, old_client_data);
 
         // HDF5 doesn't know about complex numbers. Let's define them
         complex_type = H5Tcreate(H5T_COMPOUND, 2 * sizeof(double));
         H5Tinsert(complex_type, "r", 0, H5T_NATIVE_DOUBLE);
         H5Tinsert(complex_type, "i", sizeof(double), H5T_NATIVE_DOUBLE);
-
-        // Same goes for variable strings
-        str_type = H5Tcopy(H5T_C_S1);
-        /* H5Tset_size(str_type, H5T_VARIABLE); */
     }
 
     // Write generic vector to file at path ds_path. In this context generic
     // means:
     //
-    // T = std::complex<FT> , FT
-    // FT = double, float, int... (anything with sizeof(FT) < sizeof(double))
+    // T = std::complex<double> , double, int
     // TF = blaze::columnVector, blaze::rowVector
     //
     // If groups along ds_path are missing, we generate them in the process
@@ -187,6 +201,11 @@ class HDF5File {
     template <typename T, bool TF>
     void write(const std::string& ds_path,
                const blaze::DynamicVector<T, TF>& data) {
+        // We only deal with Ts as specified above
+        static_assert(blaze::IsComplexDouble_v<T> || blaze::IsDouble_v<T> ||
+                          (blaze::IsInteger_v<T> && std::is_signed_v<T>),
+                      "Datatype not supported");
+
         // Split path into parent group and dataset name
         auto split_pos = ds_path.find_last_of("/");
         auto parent_name = ds_path.substr(0, split_pos + 1);
@@ -201,16 +220,23 @@ class HDF5File {
         // Discards padding automatically
         auto dataspace = H5Screate_simple(rank, &dim, NULL);
 
-        hid_t datatype;
-        if constexpr (std::is_floating_point_v<T>)
-            datatype = H5T_NATIVE_DOUBLE;
-        else if constexpr (blaze::IsComplexDouble_v<T>)
-            datatype = complex_type;
+        // Select correct memory and file types
+        hid_t filetype, memtype;
+        if constexpr (blaze::IsComplexDouble_v<T>) {
+            filetype = complex_type;
+            memtype = complex_type;
+        } else if constexpr (blaze::IsDouble_v<T>) {
+            filetype = H5T_IEEE_F64BE;
+            memtype = H5T_NATIVE_DOUBLE;
+        } else {
+            filetype = H5T_STD_I32BE;
+            memtype = H5T_NATIVE_INT;
+        }
         auto dataset =
-            H5Dcreate(parent_group, ds_path.c_str(), datatype, dataspace,
+            H5Dcreate(parent_group, ds_path.c_str(), filetype, dataspace,
                       H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-        H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data.data());
+        H5Dwrite(dataset, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data.data());
 
         // Close all handles
         H5Sclose(dataspace);
@@ -220,13 +246,19 @@ class HDF5File {
 
     // Write generic matrix to file. In this context generic means:
     //
-    // T = std::complex<FT> , FT
-    // FT = double, float, int... (anything with sizeof(FT) < sizeof(double))
+    // T = std::complex<double> , double, int
     // SO = blaze::rowMajor, blaze::columnMajor
+    //
+    // If groups along ds_path are missing, we generate them in the process
 
     template <typename T, bool SO>
     void write(const std::string& ds_path,
                const blaze::DynamicMatrix<T, SO>& data) {
+        // We only deal with Ts as specified above
+        static_assert(blaze::IsComplexDouble_v<T> || blaze::IsDouble_v<T> ||
+                          (blaze::IsInteger_v<T> && std::is_signed_v<T>),
+                      "Datatype not supported");
+
         // Split path into parent group and dataset name
         auto split_pos = ds_path.find_last_of("/");
         auto parent_name = ds_path.substr(0, split_pos + 1);
@@ -254,26 +286,32 @@ class HDF5File {
         H5Sselect_hyperslab(dataspace_matrix, H5S_SELECT_SET, offset, NULL,
                             dim_file, NULL);
 
-        // Select the correct H5T dataype
-        hid_t datatype;
-        if constexpr (std::is_floating_point_v<T>)
-            datatype = H5T_NATIVE_DOUBLE;
-        else if constexpr (blaze::IsComplexDouble_v<T>)
-            datatype = complex_type;
+        // Select correct memory and file types
+        hid_t filetype, memtype;
+        if constexpr (blaze::IsComplexDouble_v<T>) {
+            filetype = complex_type;
+            memtype = complex_type;
+        } else if constexpr (blaze::IsDouble_v<T>) {
+            filetype = H5T_IEEE_F64BE;
+            memtype = H5T_NATIVE_DOUBLE;
+        } else {
+            filetype = H5T_STD_I32BE;
+            memtype = H5T_NATIVE_INT;
+        }
 
         auto dataset =
-            H5Dcreate(parent_group, ds_path.c_str(), datatype, dataspace_file,
+            H5Dcreate(parent_group, ds_path.c_str(), filetype, dataspace_file,
                       H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
-        H5Dwrite(dataset, datatype, dataspace_matrix, dataspace_file,
+        H5Dwrite(dataset, memtype, dataspace_matrix, dataspace_file,
                  H5P_DEFAULT, data.data());
 
-        // If columnMajor data is written to file, the user needs to be aware
-        // that an additional transpose is required
+        // If columnMajor data is written to file, the user needs to be
+        // aware that an additional transpose is required
         if (SO == blaze::columnMajor)
-            add_scalar_attribute(ds_path, "transpose", true, dataset);
+            write_scalar_attribute(ds_path, "transpose", true, dataset);
         else
-            add_scalar_attribute(ds_path, "transpose", false, dataset);
+            write_scalar_attribute(ds_path, "transpose", false, dataset);
 
         // Close all handles
         H5Sclose(dataspace_matrix);
@@ -282,12 +320,23 @@ class HDF5File {
         H5Gclose(parent_group);
     }
 
-    // Adds scalar attribute of type T to object (group, dataset) at path. If
-    // the object does not exist yet, we generate a group and attach the
+    // (Over)writes scalar attribute of type T to object (group, dataset) at
+    // path.
+    //
+    // T = std::complex<double>, double, (unsigned) int, bool, std::string
+    //
+    // If the object does not exist yet, we generate a group and attach the
     // attribute to it.
     template <typename T>
-    void add_scalar_attribute(const std::string& path, const std::string& name,
-                              const T& value, hid_t loc = -1) {
+    void write_scalar_attribute(const std::string& path,
+                                const std::string& name, const T& value,
+                                hid_t loc = -1) {
+        // We only deal with Ts as specified above
+        static_assert(blaze::IsComplexDouble_v<T> || blaze::IsDouble_v<T> ||
+                          blaze::IsInteger_v<T> || blaze::IsBoolean_v<T> ||
+                          is_string<T>(),
+                      "Datatype not supported");
+
         // We need linear order of members within class types
         static_assert(std::is_standard_layout<T>::value);
 
@@ -306,62 +355,87 @@ class HDF5File {
         hsize_t dim = 1;
         hid_t attr_space = H5Screate_simple(1, &dim, nullptr);
 
-        // TODO: This needs to be reworked!
         hid_t attr_type = H5T_NATIVE_INT;
 
         auto c_ptr = reinterpret_cast<const void*>(&value);
-        if constexpr (std::is_floating_point_v<T>)
-            attr_type = H5T_NATIVE_DOUBLE;
-        else if constexpr (blaze::IsComplexDouble_v<T>)
-            attr_type = complex_type;
-        else if constexpr (is_bool<T>::value) {
-            attr_type = H5T_NATIVE_HBOOL;
+
+        // Select correct memory and file types
+        hid_t filetype, memtype;
+        if constexpr (blaze::IsComplexDouble_v<T>) {
+            filetype = complex_type;
+            memtype = complex_type;
+        } else if constexpr (blaze::IsDouble_v<T>) {
+            filetype = H5T_IEEE_F64BE;
+            memtype = H5T_NATIVE_DOUBLE;
+        } else if constexpr (blaze::IsInteger_v<T> && std::is_signed_v<T>) {
+            filetype = H5T_STD_I32BE;
+            memtype = H5T_NATIVE_INT;
+        } else if constexpr (blaze::IsInteger_v<T> && std::is_unsigned_v<T>) {
+            filetype = H5T_STD_U32BE;
+            memtype = H5T_NATIVE_UINT;
+        } else if constexpr (blaze::IsBoolean_v<T>) {
+            filetype = H5T_NATIVE_HBOOL;
+            memtype = filetype;
         } else if constexpr (is_string<T>()) {
-            attr_type = str_type;
+            hid_t str_type = H5Tcopy(H5T_C_S1);
             H5Tset_size(str_type, value.size());
+            filetype = str_type;
+            memtype = filetype;
             c_ptr = reinterpret_cast<const void*>(value.c_str());
         }
 
-        hid_t attr = H5Acreate(loc, name.c_str(), attr_type, attr_space,
+        // Overwrite if attribute exists
+        auto exists = H5Aexists(loc, name.c_str());
+        if (exists > 0) {
+            H5Adelete(loc, name.c_str());
+        }
+
+        hid_t attr = H5Acreate(loc, name.c_str(), filetype, attr_space,
                                H5P_DEFAULT, H5P_DEFAULT);
-        H5Awrite(attr, attr_type, c_ptr);
+        H5Awrite(attr, memtype, c_ptr);
 
+        if constexpr (is_string<T>()) {
+            H5Tclose(memtype);
+        }
         H5Aclose(attr);
-
-        if (!ext_managed) H5Gclose(loc);
+        if (!ext_managed) H5Oclose(loc);
     }
 
-    std::string read_string_attribute(const std::string& path,
-                                      const std::string& name) const {
+    // Read scalar attribute of type T from object (group, dataset) at path.
+    //
+    // T = double, (unsigned) int,
+    template <typename T>
+    T read_scalar_attribute(const std::string& path,
+                            const std::string& name) const {
+        // We only deal with Ts as specified above
+        static_assert(blaze::IsDouble_v<T> || blaze::IsInteger_v<T>,
+                      "Datatype not supported");
         hid_t loc = H5Oopen(file, path.c_str(), H5P_DEFAULT);
         hid_t attr = H5Aopen(loc, name.c_str(), H5P_DEFAULT);
 
-        hid_t filetype = H5Aget_type(attr);
-        auto sdim = H5Tget_size(filetype);
-        sdim++; /* Make room for null terminator */
         hid_t space = H5Aget_space(attr);
 
-        auto rdata = (char**)malloc(sizeof(char*));
-        rdata[0] = (char*)malloc(sdim * sizeof(char));
+        // Select correct memory file type
+        hid_t memtype;
+        if constexpr (blaze::IsDouble_v<T>) {
+            memtype = H5T_NATIVE_DOUBLE;
+        } else if constexpr (blaze::IsInteger_v<T> && std::is_signed_v<T>) {
+            memtype = H5T_NATIVE_INT;
+        } else if constexpr (blaze::IsInteger_v<T> && std::is_unsigned_v<T>) {
+            memtype = H5T_NATIVE_UINT;
+        }
 
-        hid_t memtype = H5Tcopy(H5T_C_S1);
-        H5Tset_size(memtype, sdim);
+        T attribute_val;
+        H5Aread(attr, memtype, &attribute_val);
 
-        H5Aread(attr, memtype, rdata[0]);
-        std::string result(rdata[0]);
-
-        free(rdata[0]);
-        free(rdata);
-        H5Aclose(attr);
         H5Sclose(space);
-        H5Tclose(filetype);
-        H5Tclose(memtype);
-        H5Gclose(loc);
+        H5Aclose(attr);
+        H5Oclose(loc);
 
-        return result;
+        return attribute_val;
     }
-    // Return vector of all objects names linked to root
-    std::vector<std::string> ls(const std::string& root) {
+    // Return vector of all object names linked to root
+    std::vector<std::string> ls(const std::string& root) const {
         std::vector<std::string> content;
         // Does root even exist?
         if (!H5Lexists(file, root.c_str(), H5P_DEFAULT)) {
@@ -381,6 +455,8 @@ class HDF5File {
         for (auto& s : content) {
             s = newroot + "/" + s;
         }
+
+        H5Oclose(root_obj);
 
         return content;
     }
@@ -443,7 +519,10 @@ class HDF5File {
         return data;
     }
 
-    ~HDF5File() { H5Fclose(file); };
+    ~HDF5File() {
+        H5Fclose(file);
+        H5Tclose(complex_type);
+    };
 };
 
 #endif

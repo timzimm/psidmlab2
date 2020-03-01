@@ -1,13 +1,16 @@
 #include "ic.h"
+#include "blaze/math/typetraits/Size.h"
 #include "cosmology.h"
 #include "fftw.h"
 #include "interfaces.h"
 #include "io.h"
 #include "logging.h"
+#include "parameters.h"
 #include "state.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <map>
 #include <numeric>
 #include <random>
@@ -22,24 +25,35 @@ ICGenerator::ICGenerator(const Parameters& p)
       dx{L / N},
       seed{p["Initial Conditions"]["seed"].get<int>()},
       compute_velocity{p["Initial Conditions"]["compute_velocity"].get<bool>()},
-      ic_file{p["Initial Conditions"]["source_file"].get<std::string>()},
-      param{p} {
-    data_N = std::count(std::istreambuf_iterator<char>(ic_file),
-                        std::istreambuf_iterator<char>(), '\n');
-
+      param{},
+      filename{p["Initial Conditions"]["source_file"].get<std::string>()} {
+    // Check data integrity
     switch (type) {
-        case ICType::ExternalRealImag... ICType::ExternalModulusPhase:
+        case ICType::ExternalRealImag... ICType::ExternalModulusPhase: {
+            param = p;
+            ic_file = std::ifstream(filename);
+            data_N = std::count(std::istreambuf_iterator<char>(ic_file),
+                                std::istreambuf_iterator<char>(), '\n');
             if (data_N != N) {
-                std::cout << ERRORTAG("#lines in source_file(" << data_N
+                std::cerr << ERRORTAG("#lines in source_file(" << data_N
                                                                << ") != N")
                           << std::endl;
                 exit(1);
             }
+            ic_file.seekg(0);
+            break;
+        }
+        case ICType::PreviousSimulation: {
+            auto result = H5Fis_hdf5(filename.c_str());
+            if (result <= 0) {
+                std::cerr << ERRORTAG("No valid HDF5 file found") << std::endl;
+                exit(1);
+            }
+            break;
+        }
         default:
             break;
     };
-
-    ic_file.seekg(0);
 }
 
 void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
@@ -61,6 +75,11 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
             delta_from_power(state, cosmo);
             std::cout << " ... done" << std::endl;
             break;
+        case ICType::PreviousSimulation:
+            std::cout << INFOTAG("Load psi0 from last stored state")
+                      << std::flush;
+            psi_from_state(state);
+            std::cout << " ... done" << std::endl;
     }
 
     // Velocity Initialization
@@ -90,6 +109,27 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
             // Madelung Representation.
             psi *= exp(std::complex<double>(0, 1) * phase);
         }
+    }
+}
+void ICGenerator::psi_from_state(SimState& state) const {
+    // Determine last available wavefunction
+    HDF5File file(filename, HDF5File::Access::Read);
+    std::vector<std::string> psis = file.ls("/WaveFunction");
+    auto psi0 = std::max_element(psis.begin(), psis.end());
+    if (psi0 != psis.end()) {
+        auto psi0_matrix = file.read_matrix(*psi0);
+        // Populate simualation state.
+        state.psi = blaze::map(blaze::column(psi0_matrix, 0),
+                               blaze::column(psi0_matrix, 1),
+                               [](const double r, const double i) {
+                                   return std::complex<double>(r, i);
+                               });
+        state.V.resize(N);
+        state.tau = file.read_scalar_attribute<double>(*psi0, "tau");
+        state.n = file.read_scalar_attribute<unsigned int>(*psi0, "n");
+    } else {
+        std::cerr << ERRORTAG("No wavefunction found.") << std::endl;
+        exit(1);
     }
 }
 

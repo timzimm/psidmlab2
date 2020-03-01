@@ -54,6 +54,7 @@ Blaze_Config(
     VECTORIZATION           ON
     TRANSPOSE_FLAG          columnVector
     STORAGE_ORDER           rowMajor
+    FUNCTION_TRACES         OFF
 )
 
 add_executable(psidm 
