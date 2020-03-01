@@ -7,10 +7,10 @@ import sys
 def wavefunction(file, time, p=None):
     """
     Given an HDF5 file and a list of time points this function returns 
-    a tuple of numpy arrays holding |psi|^2, Re(psi), Im(psi), Arg(psi)
+    a list of complex numpy arrays psi for each requested time point
 
     Input: HDF5 file handle, list of timepoints
-    Returns: tuple of arrays (len(time) x N)
+    Returns: list (len(time)) of arrays (N)
     """
     # Get simultion parameters and parse string as json
     if p is None:
@@ -26,10 +26,12 @@ def wavefunction(file, time, p=None):
     else:
         time_file = np.array([psi.attrs['z'][0] for psi in psis.values()])
 
-    psis = [np.ravel(psis[ds_names[np.argmin(np.abs(time_file - t))]]) for t
-                       in time]
+    psis_complex = []
+    for t in time:
+        psi_flat = np.ravel(psis[ds_names[np.argmin(np.abs(time_file - t))]])
+        psis_complex.append(psi_flat[::2] + 1.0j * psi_flat[1::2])
 
-    return psis
+    return psis_complex
 
 if __name__ == "__main__":
     file = h5py.File(sys.argv[1], 'r')
