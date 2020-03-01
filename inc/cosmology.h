@@ -1,8 +1,8 @@
 #ifndef __COSMOLOGY__
 #define __COSMOLOGY__
+#include <blaze/math/DynamicVector.h>
 #include <boost/units/base_units/astronomical/parsec.hpp>
 #include <unordered_map>
-#include <vector>
 
 // Forward Declaration
 #include "parameters_fwd.h"
@@ -23,7 +23,7 @@ class Cosmology {
     double delta_a;
     int A;
 
-    std::vector<double> a_grid;
+    blaze::DynamicVector<double> a_grid;
     std::unordered_map<double, double> tau_a_map;
 
     double E(const double a) const;

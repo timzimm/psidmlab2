@@ -32,14 +32,9 @@ Cosmology::Cosmology(const Parameters& p)
         std::cout << INFOTAG("Initialize time lookup table from cosmology")
                   << std::endl;
         A = p["a_grid_N"].get<int>();
-        // Here the save_at array in the config file holds redshift values. We
-        // transform them to scalefactor values and take the largest of them
-        // to determine a_end
-        auto save_at = p["save_at"].get<std::vector<double>>();
-        std::transform(save_at.begin(), save_at.end(), save_at.begin(), a_of_z);
 
-        a_start = a_of_z(p["z_start"].get<double>()),
-        a_end = *std::max_element(save_at.begin(), save_at.end());
+        a_start = a_of_z(p["z_start"].get<double>());
+        a_end = 1;
         delta_a = (a_end - a_start) / (A - 1);
 
         // Super conformal time is defined via its differential
@@ -70,7 +65,7 @@ Cosmology::Cosmology(const Parameters& p)
                        std::istreambuf_iterator<char>(), '\n');
         a_file.seekg(0);
 
-        std::vector<double> tau(A);
+        blaze::DynamicVector<double> tau(A);
         a_grid.resize(A);
         fill_from_file(a_file, tau, a_grid);
         for (int j = 0; j < A; ++j) {

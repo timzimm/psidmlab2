@@ -37,20 +37,6 @@ int main(int argc, char **argv) {
     // Load parameters from file
     std::ifstream(argv[1]) >> param;
 
-    // Holds mathematical union of all explicitly stated time points
-    std::set<double> time_point_union;
-    for (auto &[name, parameters] : param["Observables"].items()) {
-        if (auto compute_at = parameters["compute_at"];
-            compute_at != Parameters::array() &&
-            compute_at != Parameters::array({-1})) {
-            // Extract time points at which the observable should be saved
-            auto timepoints = compute_at.get<std::vector<double>>();
-            time_point_union.insert(timepoints.begin(), timepoints.end());
-        }
-    }
-    param["Cosmology"]["save_at"] = time_point_union;
-    time_point_union.clear();
-
     const Cosmology cosmo(param["Cosmology"]);
     param << cosmo;
 
@@ -97,6 +83,8 @@ int main(int argc, char **argv) {
     std::unordered_map<std::string, std::vector<double>>
         observable_compute_times;
 
+    // Holds mathematical union of all explicitly stated time points
+    std::set<double> time_point_union;
     // Compute time point union and allocate all apearing observables.
     // This populates 'observables' and 'time_point_union'
     for (auto &[name, parameters] : param["Observables"].items()) {
@@ -121,7 +109,7 @@ int main(int argc, char **argv) {
                 timepoints.erase(
                     std::remove_if(
                         timepoints.begin(), timepoints.end(),
-                        [&state](const double t) { return t < state.tau; }),
+                        [&state](const double t) { return t <= state.tau; }),
                     timepoints.end());
 
                 time_point_union.insert(timepoints.begin(), timepoints.end());
