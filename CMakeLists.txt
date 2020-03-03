@@ -57,18 +57,20 @@ Blaze_Config(
     FUNCTION_TRACES         OFF
 )
 
+file(GLOB OBSERVABLES_CXX CONFIGURE_DEPENDS, src/observables/*.cc)
+
 add_executable(psidm 
     src/main.cc 
     src/state.cc 
     src/fftw.cc 
     src/cosmology.cc
     src/ic.cc
-    src/observables.cc
     src/convolution_functions.cc
     src/interaction/poisson_fft.cc
     src/evolution/kinetic.cc
     src/evolution/interaction_potential_trapezodial.cc
     src/evolution/concrete_splittings.cc
+    "${OBSERVABLES_CXX}"
 )
 
 target_compile_features(psidm PRIVATE cxx_std_17)
