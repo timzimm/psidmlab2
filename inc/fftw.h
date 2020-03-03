@@ -2,7 +2,6 @@
 #define __FFTW__
 
 #include <fftw3.h>
-#include <complex>
 #include <memory>
 
 struct fftw_plan_deleter {
