@@ -12,16 +12,17 @@ namespace Schroedinger {
 // assuming periodic boundary conditions.
 
 class Kinetic : public DefaultDriver<Kinetic> {
-    double dt_last;
+    mutable double dt_last;
     const int N;
     const double L;
     blaze::DynamicVector<double> kx2;
+    mutable blaze::DynamicVector<std::complex<double>> U;
 
    public:
     Kinetic(const Parameters& p, const SimState& state,
             const Cosmology& cosmo_);
     double next_dt(const SimState& state) const;
-    void step(SimState& state, const double dt);
+    void step(SimState& state, const double dt) const;
 };
 }  // namespace Schroedinger
 #endif

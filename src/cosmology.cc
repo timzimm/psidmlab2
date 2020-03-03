@@ -18,10 +18,10 @@ using namespace boost::units::si::constants::codata;
 BOOST_UNITS_STATIC_CONSTANT(parsec, astronomical::parsec_base_unit::unit_type);
 
 Cosmology::Cosmology(const Parameters& p)
-    : model{static_cast<CosmoModel>(p["model"].get<int>())},
-      omega_m0{p["omega_m0"].get<double>()},
-      hubble{p["h"].get<double>()},
-      mu{p["mu"].get<double>()},
+    : model{static_cast<CosmoModel>(p["model"])},
+      omega_m0{p["omega_m0"]},
+      hubble{p["h"]},
+      mu{p["mu"]},
       a_start{0},
       a_end{0},
       delta_a{0},
@@ -31,9 +31,9 @@ Cosmology::Cosmology(const Parameters& p)
     if (model == CosmoModel::Dynamic) {
         std::cout << INFOTAG("Initialize time lookup table from cosmology")
                   << std::endl;
-        A = p["a_grid_N"].get<int>();
+        A = p["a_grid_N"];
 
-        a_start = a_of_z(p["z_start"].get<double>());
+        a_start = a_of_z(p["z_start"]);
         a_end = 1;
         delta_a = (a_end - a_start) / (A - 1);
 

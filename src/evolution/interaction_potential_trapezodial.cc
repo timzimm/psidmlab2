@@ -14,10 +14,8 @@ InteractionPotentialTrapezodial::InteractionPotentialTrapezodial(
     const Parameters& p, const SimState& state, const Cosmology& cosmo_)
     : DefaultDriver(p),
       cosmo{cosmo_},
-      dt_last{-1},
-      N{p["Simulation"]["N"].get<int>()},
-      pot{Interaction::make(p["Simulation"]["potential"].get<std::string>(), p,
-                            state)},
+      N{p["Simulation"]["N"]},
+      pot{Interaction::make(p["Simulation"]["potential"], p, state)},
       pot_external(0) {
     try {
         std::ifstream pot_file{p["Simulation"]["stepper"]["external_potential"]
@@ -47,19 +45,16 @@ double InteractionPotentialTrapezodial::next_dt(const SimState& state) const {
            (2 * cosmo.a_of_tau(state.tau) * max(abs(state.V + pot_external)));
 }
 
-void InteractionPotentialTrapezodial::step(SimState& state, const double dt) {
+void InteractionPotentialTrapezodial::step(SimState& state,
+                                           const double dt) const {
     state.transform(SimState::Representation::Position);
-    pot->solve(state);
     const double a_half = cosmo.a_of_tau(state.tau + dt / 2);
-    if (dt - dt_last != 0) {
-        if (pot_external.size() == N) state.V += pot_external;
-    }
-    auto drift = exp(-1.0i * a_half * state.V * dt);
-    state.psi *= drift;
+    pot->solve(state);
+    if (pot_external.size() == N) state.V += pot_external;
+    state.psi *= exp(-1.0i * a_half * state.V * dt);
 
     state.tau += dt;
     state.n += 1;
-    dt_last = dt;
 }
 
 }  // namespace Schroedinger

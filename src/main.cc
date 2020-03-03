@@ -47,12 +47,11 @@ int main(int argc, char **argv) {
     ic.generate(state, cosmo);
     state >> param;
 
-    const auto potential = param["Simulation"]["potential"].get<std::string>();
+    const std::string potential = param["Simulation"]["potential"];
     auto pot = Interaction::make(potential, param, state);
 
     // This defines the PDE to integrate as well as its discretization
-    const auto stepper_name =
-        param["Simulation"]["stepper"]["name"].get<std::string>();
+    const std::string stepper_name = param["Simulation"]["stepper"]["name"];
     auto stepper = TimeEvolution::make(stepper_name, param, state, cosmo);
 
     // Setup Analysis Functors
@@ -107,9 +106,10 @@ int main(int argc, char **argv) {
                 }
                 // Drop all time points that state already visisted (due to ii)
                 timepoints.erase(
-                    std::remove_if(
-                        timepoints.begin(), timepoints.end(),
-                        [&state](const double t) { return t <= state.tau; }),
+                    std::remove_if(timepoints.begin(), timepoints.end(),
+                                   [&state](const double t) {
+                                       return t <= state.tau && state.tau > 0;
+                                   }),
                     timepoints.end());
 
                 time_point_union.insert(timepoints.begin(), timepoints.end());
@@ -137,8 +137,7 @@ int main(int argc, char **argv) {
     }
 
     // Output file setup
-    std::string filename;
-    param["General"]["output_file"].get_to(filename);
+    std::string filename = param["General"]["output_file"];
 
     // File access mode
     HDF5File::Access mode = HDF5File::Access::NewFile;

@@ -88,7 +88,7 @@ class SRKN : public DefaultDriver<SRKN<FlowMapA, FlowMapB>> {
     }
 
     // Evolution operator for i del_t psi = (A + B) psi
-    void step(SimState& state, const double dt) {
+    void step(SimState& state, const double dt) const {
         const double t = state.tau;
         const int n = state.n;
         for (int stage = 0; stage < a.size(); ++stage) {

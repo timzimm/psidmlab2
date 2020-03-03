@@ -18,15 +18,15 @@
 using namespace blaze;
 
 ICGenerator::ICGenerator(const Parameters& p)
-    : type{static_cast<ICType>(p["Initial Conditions"]["ic_type"].get<int>())},
-      N{p["Simulation"]["N"].get<int>()},
+    : type{static_cast<ICType>(p["Initial Conditions"]["ic_type"])},
+      N{p["Simulation"]["N"]},
       data_N{0},
-      L{p["Simulation"]["L"].get<double>()},
+      L{p["Simulation"]["L"]},
       dx{L / N},
-      seed{p["Initial Conditions"]["seed"].get<int>()},
-      compute_velocity{p["Initial Conditions"]["compute_velocity"].get<bool>()},
+      seed{p["Initial Conditions"]["seed"]},
+      compute_velocity{p["Initial Conditions"]["compute_velocity"]},
       param{},
-      filename{p["Initial Conditions"]["source_file"].get<std::string>()} {
+      filename{p["Initial Conditions"]["source_file"]} {
     // Check data integrity
     switch (type) {
         case ICType::ExternalRealImag... ICType::ExternalModulusPhase: {

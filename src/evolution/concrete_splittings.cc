@@ -9,8 +9,3 @@ template class SRKN<Schroedinger::Kinetic,
                     Schroedinger::InteractionPotentialTrapezodial>;
 template class SRKN<Schroedinger::InteractionPotentialTrapezodial,
                     Schroedinger::Kinetic>;
-template class SRKN<Schroedinger::Kinetic,
-                    Schroedinger::CAPPoissonPotentialDelta>;
-template class SRKN<Schroedinger::CAPPoissonPotentialDelta,
-                    Schroedinger::Kinetic>;
-

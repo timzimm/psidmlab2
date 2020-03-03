@@ -17,7 +17,6 @@ namespace Schroedinger {
 class InteractionPotentialTrapezodial
     : public DefaultDriver<InteractionPotentialTrapezodial> {
     const Cosmology& cosmo;
-    double dt_last;
     int N;
     std::unique_ptr<Interaction> pot;
     blaze::DynamicVector<double> pot_external;
@@ -26,7 +25,7 @@ class InteractionPotentialTrapezodial
     InteractionPotentialTrapezodial(const Parameters& p, const SimState& state,
                                     const Cosmology& cosmo_);
     double next_dt(const SimState& state) const;
-    void step(SimState& state, const double dt);
+    void step(SimState& state, const double dt) const;
 };
 }  // namespace Schroedinger
 #endif

@@ -17,7 +17,9 @@ class DefaultDriver : public TimeEvolution {
     Derived& self() { return static_cast<Derived&>(*this); }
 
     // Forward to true implementation
-    void step(SimState& state, const double dt) { self().step(state, dt); }
+    void step(SimState& state, const double dt) const {
+        self().step(state, dt);
+    }
     double next_dt(const SimState& state) { return self().next_dt(state); }
     // Default implementation of integration functionality. This is used if
     // Derived does not explicitly overload integrate(...)

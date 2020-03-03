@@ -47,7 +47,7 @@ class TimeEvolution : public Factory<TimeEvolution, const Parameters&,
     // representation of state.psis as required, that is no guarantees are made
     // whether the passed in state is in momentum, position or any other
     // representation.
-    virtual void step(SimState& state, const double dt) = 0;
+    virtual void step(SimState& state, const double dt) const = 0;
     // Returns next stable dt based on current state
     virtual double next_dt(const SimState& state) const = 0;
     // Integrates the numerical solution over the finite, macroscopic time
