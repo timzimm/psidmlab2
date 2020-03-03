@@ -1,4 +1,6 @@
 extern/
 .git/
 .clangd/
+build/
+debug/
 .DS_Store
