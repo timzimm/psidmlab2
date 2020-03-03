@@ -3,9 +3,7 @@
 #include "factory.h"
 #include "state.h"
 
-#include <boost/variant.hpp>
-#include <memory>
-#include <unordered_map>
+#include <boost/variant.hpp>  // for the return type of Observable::compute()
 
 // This header defines all interfaces of
 //
@@ -70,13 +68,13 @@ class ObservableFunctor
     // observables obs if the observables is a derived quantity (like
     // entropy is dependent on the phasespace distribution). The idea is
     // that each observable only returns references to their internal data
-    // via compute(). Observables, on the other hand, can share preexsiting
+    // via compute(). Observables, can share preexsiting
     // results avoiding recomputation if they have a handle to all available
     // ObservableFunctors (obs).
     virtual ReturnType compute(
         const SimState& state,
-        const std::unordered_map<std::string,
-                                 std::unique_ptr<ObservableFunctor>>& obs) = 0;
+        std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+            obs) = 0;
     virtual ~ObservableFunctor() = default;
 };
 #endif

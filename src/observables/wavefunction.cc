@@ -15,8 +15,8 @@ class WaveFunction : public ObservableFunctor {
 
     ReturnType compute(
         const SimState& state,
-        const std::unordered_map<
-            std::string, std::unique_ptr<ObservableFunctor>>& obs) override {
+        std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+            obs) override {
         if (t_prev < state.tau) {
             t_prev = state.tau;
             column(psi_re_im, 0) = real(state.psi);

@@ -7,8 +7,8 @@ class Potential : public ObservableFunctor {
     Potential(const Parameters& p, const Cosmology&) {}
     ReturnType compute(
         const SimState& state,
-        const std::unordered_map<std::string,
-                                 std::unique_ptr<ObservableFunctor>>& obs) {
+        std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+            obs) {
         return state.V;
     }
 

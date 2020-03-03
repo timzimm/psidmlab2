@@ -147,8 +147,8 @@ class PhaseSpaceDistribution : public ObservableFunctor {
 
     ReturnType compute(
         const SimState& state,
-        const std::unordered_map<std::string,
-                                 std::unique_ptr<ObservableFunctor>>& obs) {
+        std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+            obs) {
         if (husimi) {
             if (t_prev < state.tau) {
                 t_prev = state.tau;
@@ -156,13 +156,14 @@ class PhaseSpaceDistribution : public ObservableFunctor {
                 husimi_distribution(state);
             }
             return husimi_f;
+        } else {
+            if (t_prev < state.tau) {
+                t_prev = state.tau;
+                wigner_f = 0;
+                wigner_distribution(state);
+            }
+            return wigner_f;
         }
-        if (t_prev < state.tau) {
-            t_prev = state.tau;
-            wigner_f = 0;
-            wigner_distribution(state);
-        }
-        return wigner_f;
     }
 
     REGISTER(PhaseSpaceDistribution)

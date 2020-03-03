@@ -35,8 +35,8 @@ class DensityContrast : public ObservableFunctor {
 
     ReturnType compute(
         const SimState& state,
-        const std::unordered_map<std::string,
-                                 std::unique_ptr<ObservableFunctor>>& obs) {
+        std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
+            obs) {
         if (t_prev < state.tau) {
             t_prev = state.tau;
             if (husimi) {
