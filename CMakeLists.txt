@@ -68,7 +68,6 @@ add_executable(psidm
     src/interaction/poisson_fft.cc
     src/evolution/kinetic.cc
     src/evolution/interaction_potential_trapezodial.cc
-    src/evolution/cap_poisson_potential_delta.cc
     src/evolution/concrete_splittings.cc
 )
 
@@ -81,11 +80,9 @@ set_target_properties(psidm PROPERTIES
 
 target_compile_options(psidm
     PRIVATE $<$<CONFIG:Release>:
-            -fno-omit-frame-pointer
             -ffast-math
             -march=native>
             $<$<CONFIG:Debug>:
-            -fno-omit-frame-pointer
             -fsanitize=undefined
             -fsanitize=address>
 )
