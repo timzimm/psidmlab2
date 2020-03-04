@@ -1,7 +1,6 @@
 #ifndef __IO__
 #define __IO__
 
-#include "H5Fpublic.h"
 #include "logging.h"
 
 #include <blaze/math/DynamicVector.h>
@@ -84,46 +83,6 @@ class HDF5File {
         dims[1] = M.spacing();
     }
 
-    // HDF5 always assumes row major data. This is of course wrong for blaze's
-    // columnMajor matrices. Hence, a distinction has to be made indepedent of
-    // the type.
-    // Row-Major matrix is trivial. Just forward to the C-API.
-    template <typename T>
-    void H5Dwrite_wrapper(hid_t dataset_id, hid_t type, hid_t mem_space_id,
-                          hid_t file_space_id, hid_t xfer_plist_id,
-                          const blaze::DynamicMatrix<T, blaze::rowMajor>& buf) {
-        H5Dwrite(dataset_id, type, mem_space_id, file_space_id, xfer_plist_id,
-                 buf.data());
-    }
-
-    // Column-Major matrix needs to be "transposed" on write
-    template <typename T>
-    void H5Dwrite_wrapper(
-        hid_t dataset_id, hid_t type, hid_t mem_space_id, hid_t file_space_id,
-        hid_t xfer_plist_id,
-        const blaze::DynamicMatrix<T, blaze::columnMajor>& buf) {
-        // Write column by column ( otherwise the raw pointer is invalid)
-        hsize_t offset_file[] = {0, 0};
-        hsize_t count_file[] = {buf.rows(), 1};
-
-        hsize_t offset_mem[] = {0, 0};
-        hsize_t count_mem[] = {1, buf.rows()};
-        for (int i = 0; i < buf.columns(); ++i) {
-            // Select column in file
-            offset_file[1] = i;
-            H5Sselect_hyperslab(file_space_id, H5S_SELECT_SET, offset_file,
-                                nullptr, count_file, nullptr);
-
-            // Select row in memory
-            offset_mem[0] = i;
-            H5Sselect_hyperslab(mem_space_id, H5S_SELECT_SET, offset_mem,
-                                nullptr, count_mem, nullptr);
-
-            H5Dwrite(dataset_id, type, mem_space_id, file_space_id,
-                     xfer_plist_id, buf.data());
-        }
-    }
-
     // mkdir -p. Caller is responsible to close group!
     hid_t create_groups_along_path(const std::string& path) {
         size_t end = 0;
@@ -142,7 +101,15 @@ class HDF5File {
     }
 
    public:
+    // File access types. We distinguish:
+    // Access::Read     =   Read access to existing file.
+    //                      Fails if file is damaged or does not exist.
+    // Access::Write    =   Read/Write access to existing file.
+    //                      Fails if file is damaged or does not exist.
+    // Access::NewFile  =   Create new file.
+    //                      Truncates content if file already exists.
     enum class Access { Read, Write, NewFile };
+
     HDF5File(const std::string& filename, const Access& strategy) {
         // Store old error handler
         herr_t (*old_func)(void*);
@@ -165,6 +132,7 @@ class HDF5File {
                 exit(1);
             }
         }
+        // Read existing file
         if (strategy == Access::Read) {
             file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
             if (file < 0) {
@@ -177,6 +145,8 @@ class HDF5File {
         H5Eset_auto1(old_func, old_client_data);
     }
 
+    /************************* WRITING FUNCTIONS **************************/
+
     // Write generic vector to file at path ds_path. In this context generic
     // means:
     //
@@ -184,12 +154,11 @@ class HDF5File {
     // TF = blaze::columnVector, blaze::rowVector
     //
     // If groups along ds_path are missing, we generate them in the process
-
     template <typename T, bool TF>
     void write(const std::string& ds_path,
                const blaze::DynamicVector<T, TF>& data) {
         // We only deal with Ts as specified above
-        static_assert(blaze::IsComplexDouble_v<T> || blaze::IsDouble_v<T> ||
+        static_assert(blaze::IsDouble_v<T> ||
                           (blaze::IsInteger_v<T> && std::is_signed_v<T>),
                       "Datatype not supported");
 
@@ -200,26 +169,27 @@ class HDF5File {
 
         auto parent_group = create_groups_along_path(parent_name);
 
-        // Create new dataspace and dataset for data vector
         const int rank = 1;
         hsize_t dim = data.size();
-
-        // Discards padding automatically
         auto dataspace = H5Screate_simple(rank, &dim, nullptr);
 
         // Select correct memory and file types
         hid_t filetype, memtype;
         if constexpr (blaze::IsDouble_v<T>) {
-            filetype = H5T_IEEE_F64BE;
+            filetype = H5T_IEEE_F64BE;  // 8-byte float, big endian
             memtype = H5T_NATIVE_DOUBLE;
         } else {
-            filetype = H5T_STD_I32BE;
+            filetype = H5T_STD_I32BE;  // 4-byte integer, big endian
             memtype = H5T_NATIVE_INT;
         }
         auto dataset =
             H5Dcreate(parent_group, ds_path.c_str(), filetype, dataspace,
                       H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
+        // Using H5S_all for mem_space_id makes HDF5 use the file dataspace
+        // (file_space_id) for the memory data space. Since file_space_id is
+        // H5S_ALL as well, the entire dataspace in the file is used. This
+        // excludes potential padding automatically.
         H5Dwrite(dataset, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data.data());
 
         // Close all handles
@@ -239,7 +209,7 @@ class HDF5File {
     void write(const std::string& ds_path,
                const blaze::DynamicMatrix<T, SO>& data) {
         // We only deal with Ts as specified above
-        static_assert(blaze::IsComplexDouble_v<T> || blaze::IsDouble_v<T> ||
+        static_assert(blaze::IsDouble_v<T> ||
                           (blaze::IsInteger_v<T> && std::is_signed_v<T>),
                       "Datatype not supported");
 
@@ -250,20 +220,20 @@ class HDF5File {
 
         auto parent_group = create_groups_along_path(ds_path);
 
-        // Create new dataspaces in both the file and the memory area
         const int rank = 2;
 
+        // The file space excludes padding
         hsize_t dim_file[] = {
             (SO == blaze::columnMajor) ? data.columns() : data.rows(),
             (SO == blaze::columnMajor) ? data.rows() : data.columns()};
 
         // Mem and file dataspace are not necessarily the same due to
         // padding.
-        hsize_t dim[2];
-        matrix_dataspace_dim(data, dim);
+        hsize_t dim_mem[2];
+        matrix_dataspace_dim(data, dim_mem);
 
         auto dataspace_file = H5Screate_simple(rank, dim_file, nullptr);
-        auto dataspace_matrix = H5Screate_simple(rank, dim, nullptr);
+        auto dataspace_matrix = H5Screate_simple(rank, dim_mem, nullptr);
 
         // Discard padding in memory
         const hsize_t offset[] = {0, 0};
@@ -307,15 +277,14 @@ class HDF5File {
     // T = double, (unsigned) int, bool, std::string
     //
     // If the object does not exist yet, we generate a group and attach the
-    // attribute to it.
+    // attribute to it. If the attribute exists, it gets overwritten.
     template <typename T>
     void write_scalar_attribute(const std::string& path,
                                 const std::string& name, const T& value,
                                 hid_t loc = -1) {
         // We only deal with Ts as specified above
-        static_assert(blaze::IsComplexDouble_v<T> || blaze::IsDouble_v<T> ||
-                          blaze::IsInteger_v<T> || blaze::IsBoolean_v<T> ||
-                          is_string<T>(),
+        static_assert(blaze::IsDouble_v<T> || blaze::IsInteger_v<T> ||
+                          blaze::IsBoolean_v<T> || is_string<T>(),
                       "Datatype not supported");
 
         // We need linear order of members within class types
@@ -379,6 +348,64 @@ class HDF5File {
         if (!ext_managed) H5Oclose(loc);
     }
 
+    /************************* READING FUNCTIONS **************************/
+
+    // Reads vector at path into double precision blaze column-vector
+    blaze::DynamicVector<double> read_vector(const std::string& path) const {
+        hid_t ds = H5Dopen(file, path.c_str(), H5P_DEFAULT);
+
+        // Vector => rank=1
+        int rank = 1;
+        hsize_t dim_file[rank];
+
+        // File side determines size of memory vector
+        hid_t file_space = H5Dget_space(ds);
+        H5Sget_simple_extent_dims(file_space, dim_file, nullptr);
+
+        // Memory side
+        blaze::DynamicVector<double> data(dim_file[0]);
+
+        H5Dread(ds, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                data.data());
+
+        H5Sclose(file_space);
+        H5Dclose(ds);
+
+        return data;
+    }
+
+    // Reads row-major matrix at path into double precision row-major blaze
+    // matrix
+    blaze::DynamicMatrix<double> read_matrix(const std::string& path) const {
+        hid_t ds = H5Dopen(file, path.c_str(), H5P_DEFAULT);
+
+        // Matrix => rank=2
+        int rank = 2;
+        hsize_t dim_file[rank];
+        hsize_t dim_mem[rank];
+
+        // File side
+        hid_t file_space = H5Dget_space(ds);
+        H5Sget_simple_extent_dims(file_space, dim_file, nullptr);
+
+        // Memory side
+        blaze::DynamicMatrix<double> data(dim_file[0], dim_file[1]);
+        matrix_dataspace_dim(data, dim_mem);
+        hid_t mem_space = H5Screate_simple(rank, dim_mem, nullptr);
+        hsize_t mem_offset[] = {0, 0};
+        H5Sselect_hyperslab(mem_space, H5S_SELECT_SET, mem_offset, nullptr,
+                            dim_file, nullptr);
+
+        H5Dread(ds, H5T_NATIVE_DOUBLE, mem_space, file_space, H5P_DEFAULT,
+                data.data());
+
+        H5Sclose(file_space);
+        H5Sclose(mem_space);
+        H5Dclose(ds);
+
+        return data;
+    }
+
     // Read scalar attribute of type T from object (group, dataset) at path.
     //
     // T = double, (unsigned) int,
@@ -412,7 +439,10 @@ class HDF5File {
 
         return attribute_val;
     }
-    // Return vector of all object names linked to root
+    /************************** Miscellaneous **************************/
+
+    // Return vector of absolute paths to all object names linked to root
+    // Behaves like UNIX ls /some/path
     std::vector<std::string> ls(const std::string& root) const {
         std::vector<std::string> content;
         // Does root even exist?
@@ -437,64 +467,6 @@ class HDF5File {
         H5Oclose(root_obj);
 
         return content;
-    }
-    // Reads vector at path into double precision blaze column-vector
-    blaze::DynamicVector<double> read_vector(const std::string& path) const {
-        hid_t ds = H5Dopen(file, path.c_str(), H5P_DEFAULT);
-
-        // Vector => rank=1
-        int rank = 1;
-        hsize_t dim_file[rank];
-        hsize_t dim_mem[rank];
-
-        // File side
-        hid_t file_space = H5Dget_space(ds);
-        H5Sget_simple_extent_dims(file_space, dim_file, nullptr);
-
-        // Memory side
-        blaze::DynamicVector<double> data(dim_file[0]);
-        dim_mem[0] = dim_file[0];
-        hid_t mem_space = H5Screate_simple(rank, dim_mem, nullptr);
-
-        H5Dread(ds, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                data.data());
-
-        H5Sclose(file_space);
-        H5Sclose(mem_space);
-        H5Dclose(ds);
-
-        return data;
-    }
-    // Reads row-major matrix at path into double precision row-major blaze
-    // matrix
-    blaze::DynamicMatrix<double> read_matrix(const std::string& path) const {
-        hid_t ds = H5Dopen(file, path.c_str(), H5P_DEFAULT);
-
-        // Matrix => rank=2
-        int rank = 2;
-        hsize_t dim_file[rank];
-        hsize_t dim_mem[rank];
-
-        // File side
-        hid_t file_space = H5Dget_space(ds);
-        H5Sget_simple_extent_dims(file_space, dim_file, nullptr);
-
-        // Memory side
-        blaze::DynamicMatrix<double> data(dim_file[0], dim_file[1]);
-        matrix_dataspace_dim(data, dim_mem);
-        hid_t mem_space = H5Screate_simple(rank, dim_mem, nullptr);
-        hsize_t mem_offset[] = {0, 0};
-        H5Sselect_hyperslab(mem_space, H5S_SELECT_SET, mem_offset, nullptr,
-                            dim_file, nullptr);
-
-        H5Dread(ds, H5T_NATIVE_DOUBLE, mem_space, file_space, H5P_DEFAULT,
-                data.data());
-
-        H5Sclose(file_space);
-        H5Sclose(mem_space);
-        H5Dclose(ds);
-
-        return data;
     }
 
     ~HDF5File() { H5Fclose(file); };
