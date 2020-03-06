@@ -93,28 +93,28 @@ class Energy : public ObservableFunctor {
           cosmo(cosmo_),
           dx(p["Simulation"]["L"].get<double>() /
              p["Simulation"]["N"].get<int>()),
+          t_prev(-1),
           energies(3, 0) {}
 
     ReturnType compute(
         const SimState& state,
         std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>&
             obs) {
-        // Trapezodial integration in x-space
-        auto integrate_density = [&](const auto& density) {
-            return dx * sum(density);
-        };
         if (t_prev < state.tau) {
             t_prev = state.tau;
-            // Check if there exists a EntropyDensity observable
-            const std::string name = "Observable::EnergyDensity";
+            // Check if there exists a EnergyDensity observable
+            const std::string name = "EnergyDensity";
+            const std::string full_name = "Observable::" + name;
             auto result = obs.find(name);
             if (result == obs.end()) {
                 // Allocate new EntropyDensity observable and
                 // store it in global obs map
-                obs[name] = ObservableFunctor::make(name, p, cosmo);
+                obs[name] = ObservableFunctor::make(full_name, p, cosmo);
             }
             ObservableFunctor* edensity = obs[name].get();
             ReturnType energy_density = edensity->compute(state, obs);
+            // Trapezodial integration in x-space
+
             energies =
                 dx * sum<rowwise>(boost::get<const DynamicMatrix<double>&>(
                          energy_density));

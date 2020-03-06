@@ -9,6 +9,7 @@
 #include <blaze/util/typetraits/IsInteger.h>
 #include <blaze/util/typetraits/RemoveReference.h>
 #include <hdf5.h>
+#include <iostream>
 #include <string>
 #include <type_traits>
 #include <utility>

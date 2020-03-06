@@ -31,7 +31,7 @@ class Factory {
         try {
             return data().at(s)(std::forward<T>(args)...);
         } catch (std::out_of_range) {
-            std::cout << s + " not registered" << std::endl;
+            std::cerr << ERRORTAG(s + " not registered") << std::endl;
             exit(1);
         }
     }

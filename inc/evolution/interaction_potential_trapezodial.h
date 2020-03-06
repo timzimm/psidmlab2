@@ -26,6 +26,8 @@ class InteractionPotentialTrapezodial
                                     const Cosmology& cosmo_);
     double next_dt(const SimState& state) const;
     void step(SimState& state, const double dt) const;
+
+    REGISTER(InteractionPotentialTrapezodial)
 };
 }  // namespace Schroedinger
 #endif

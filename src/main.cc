@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
         pot->solve(state);
 
         const double a = cosmo.a_of_tau(checkpoint_time);
-        const double z = Cosmology::z_of_a(a);
+        const double z = (a != 0) ? Cosmology::z_of_a(a) : 0;
         std::cout << INFOTAG("Save observables @ tau/z = ")
                   << ((cosmo == CosmoModel::Artificial) ? checkpoint_time : z)
                   << std::flush;
