@@ -24,6 +24,7 @@ class DefaultDriver : public TimeEvolution {
     // Default implementation of integration functionality. This is used if
     // Derived does not explicitly overload integrate(...)
     void integrate(SimState& state, const double t_final) {
+        if (state.tau >= t_final) return;
         if (stable) {
             for (double dt = next_dt(state); state.tau + dt < t_final;
                  dt = next_dt(state)) {
