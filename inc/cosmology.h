@@ -30,6 +30,7 @@ class Cosmology {
     double dtau_da(const double a) const;
 
    public:
+    Cosmology() = default;
     Cosmology(const Parameters& p);
     // Time dependent matter density parameter as a function of scalefactor
     double omega_m(double a) const;

@@ -1,8 +1,8 @@
 #include "H5Fpublic.h"
 #include "cosmology.h"
+#include "hdf5_file.h"
 #include "ic.h"
 #include "interfaces.h"
-#include "io.h"
 #include "parameters.h"
 #include "state.h"
 

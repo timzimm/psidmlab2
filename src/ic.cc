@@ -2,6 +2,7 @@
 #include "blaze/math/typetraits/Size.h"
 #include "cosmology.h"
 #include "fftw.h"
+#include "hdf5_file.h"
 #include "interfaces.h"
 #include "io.h"
 #include "logging.h"
