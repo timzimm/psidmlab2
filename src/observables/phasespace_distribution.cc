@@ -1,19 +1,16 @@
 #include <observables_common.h>
+#include <limits>
+#include "logging.h"
 
 namespace Observable {
 
 class PhaseSpaceDistribution : public ObservableFunctor {
-    using interval_t = std::array<double, 2ul>;
-    using patch_t = std::array<interval_t, 2ul>;
-
     const double sigma_x;  // spatial smoothing scale
     const bool husimi;     // compute husimi?
     const bool linear;     // do linear convolution?
-    const patch_t patch;
-    const int N;         // number of spatial gridpoints
-    const double L;      // spatial resolution
-    const int N_kernel;  // symmetric 5-sigma_x interval in points
-    double t_prev;       // timestamp of last cached observable
+    const int N;           // number of spatial gridpoints
+    const double L;        // spatial resolution
+    double t_prev;         // timestamp of last cached observable
     convolution_ws<std::complex<double>> ws;
     DynamicMatrix<double, columnMajor> wigner_f;  // cached wigner
     DynamicMatrix<double> husimi_f;               // cached husimi
@@ -59,18 +56,26 @@ class PhaseSpaceDistribution : public ObservableFunctor {
     }
 
     void husimi_distribution(const SimState& state) {
-        // Compute phase matrix only once
-        static auto phase_T = exp(-1.0i * (2.0 * M_PI / N) * idx * trans(idk));
+        // Occasionally zeros crop up in f. Imagine a exponentially
+        // decaying profile that drops below ~10^{-308} (smallest normalized
+        // number). An exact 0, however, can lead to NaN effects in the derived
+        // observables. We add the smallest possible offset to eliminate the
+        // problem.
+        const double eps = std::numeric_limits<double>::min();
 
-        auto& psi = state.psi;
-        auto modulated_psi =
-            phase_T %
-            expand(subvector(psi, N / 2 + idx[0], idx.size()), idk.size());
+        // transposed phase factor matrix exp(-i k x) = exp(-i dk dx i_x i_k)
+        auto phase_T = exp(-1.0i * (2.0 * M_PI / N) * idx * trans(idk));
+
+        // Select part of psi that lives inside the x-patch
+        auto psi = subvector(state.psi, N / 2 + idx[0], idx.size());
+        auto modulated_psi = phase_T % expand(psi, idk.size());
+
+        // columnwise gaussian smoothing + transpose into result matrix + offset
         for (int k = 0; k < idk.size(); ++k) {
             ws.signal_padded = column(modulated_psi, k);
             discrete_convolution(ws);
             row(husimi_f, k) =
-                trans(real(conj(ws.signal_padded) * ws.signal_padded));
+                eps + trans(real(conj(ws.signal_padded) * ws.signal_padded));
         }
     }
 
@@ -80,10 +85,9 @@ class PhaseSpaceDistribution : public ObservableFunctor {
           husimi(sigma_x > 0),
           linear{
               p["Observables"]["PhaseSpaceDistribution"]["linear_convolution"]},
-          patch{p["Observables"]["PhaseSpaceDistribution"]["patch"]},
           N{p["Simulation"]["N"]},
           L{p["Simulation"]["L"]},
-          N_kernel(2 * floor(5 * sigma_x / (L / N)) + 1),
+          // Choose N_kernel such that it is 10 times the smoothing scale
           t_prev(-1),
           ws(0, 0, 0),
           wigner_f(0, 0),
@@ -92,49 +96,95 @@ class PhaseSpaceDistribution : public ObservableFunctor {
           iaf(0, 0),
           c2c(nullptr) {
         if (husimi) {
+            // Resolution in k and x space
             const double dx = L / N;
             const double dk = 2 * M_PI / L;
 
+            std::array<std::array<double, 2ul>, 2ul> patch;
+            // Load patch information from config file.
+            try {
+                patch = p["Observables"]["PhaseSpaceDistribution"]["patch"];
+            } catch (...) {
+                // Default patch is entire grid
+                std::cout << WARNINGTAG(
+                                 "No valid patch specified. "
+                                 "Use entire grid for Husimi function. "
+                                 "This costs memory!")
+                          << std::endl;
+                patch = {{{-L / 2, L / 2 - L / N},
+                          {-M_PI * N / L, M_PI * N / L - 2 * M_PI / L}}};
+            }
+
             // 0-based indices
             int idx_start = std::abs(-L / 2 - patch[0][0]) / dx;
-            int idx_end = std::abs(-L / 2 - patch[0][1]) / dx;
-            int idk_start = std::abs(-dk * N / 2 - patch[1][0]) / dk;
-            int idk_end = std::abs(-dk * N / 2 - patch[1][1]) / dk;
+            int idk_start = std::abs(-M_PI / dx - patch[1][0]) / dk;
 
-            if (patch[0][0] >= patch[0][1] || patch[0][0] < -L / 2 ||
-                L / 2 < patch[0][1]) {
+            int idx_end = std::abs(-L / 2 - patch[0][1]) / dx;
+            int idk_end = std::abs(-M_PI / dx - patch[1][1]) / dk;
+
+            // Check if patch is...
+            //(i)   in increasing order
+            //(ii)  does not exceed the x-grid in negative direction
+            //(iii) does not exceed the x-grid in positive direction
+            //
+            // In this context 'exceed' means the difference is larger than 100
+            // times the machine epsilon
+            const double threshold =
+                100 * std::numeric_limits<double>::epsilon();
+            if (patch[0][0] >= patch[0][1] ||
+                -L / 2 - patch[0][0] > threshold ||
+                patch[0][1] - (L / 2 - dx) > threshold) {
                 std::cout
                     << WARNINGTAG(
                            "Wrong x interval in patch...Reset to entire domain")
                     << std::endl;
                 idx_start = 0;
-                idx_end = N;
+                idx_end = N - 1;
             }
-            if (patch[1][0] >= patch[1][1] || patch[1][0] < -dk * N / 2 ||
-                dk * (N - 1) / 2 < patch[1][1]) {
+            // Check if patch is...
+            //(i)   in increasing order
+            //(ii)  does not exceed the k-grid in negative direction
+            //(iii) does not exceed the k-grid in positive direction
+            //
+            // In this context 'exceed' means the difference is larger than 100
+            // times the machine epsilon
+
+            if (patch[1][0] >= patch[1][1] ||
+                -M_PI / dx - patch[1][0] > threshold ||
+                patch[1][1] - (M_PI / dx - dk) > threshold) {
                 std::cout
                     << WARNINGTAG(
                            "Wrong k interval in patch...Reset to entire domain")
                     << std::endl;
                 idk_start = 0;
-                idk_end = N;
+                idk_end = N - 1;
             }
 
-            const int Nx = idx_end - idx_start;
-            const int Nk = idk_end - idk_start;
+            // everything is +1 to get number of elements, and not their
+            // distance
+            const int Nx = idx_end - idx_start + 1;
+            const int Nk = idk_end - idk_start + 1;
 
             idx.resize(Nx);
             std::iota(idx.begin(), idx.end(), -N / 2 + idx_start);
             idk.resize(Nk);
             std::iota(idk.begin(), idk.end(), -N / 2 + idk_start);
             husimi_f.resize(Nk, Nx);
+
+            // Store gaussian kernel at most (floor) inside
+            // [-8 sigma_x, +8 sigma_x] and make sure that N_kernel is odd
+            // for symmetry of the kernel around x=0.
+            int N_kernel = floor(16 * sigma_x / dx);
+            N_kernel = N_kernel % 2 ? N_kernel : N_kernel + 1;
+            double L_kernel = (N_kernel - 1) * dx;
+
             ws = convolution_ws<std::complex<double>>(linear, Nx, N_kernel);
 
+            auto x = linspace(N_kernel, -L_kernel / 2, L_kernel / 2);
             auto& gaussian = ws.kernel_padded;
-            std::iota(std::begin(gaussian), std::end(gaussian), -N_kernel / 2);
-            gaussian =
-                exp(-dx * dx * gaussian * gaussian / (4 * sigma_x * sigma_x));
-            gaussian /= sum(gaussian);
+            gaussian = dx / std::pow(2 * M_PI * sigma_x * sigma_x, 0.25) *
+                       exp(-x * x / (4 * sigma_x * sigma_x));
+            /* gaussian /= sum(gaussian); */
         } else {
             iaf.resize(N, N);
             wigner_f.resize(N, N);
