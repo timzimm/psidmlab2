@@ -5,7 +5,6 @@
 
 #include <blaze/math/DynamicVector.h>
 #include <complex>
-#include <cstddef>
 
 struct SimState {
     // Representation tags for the stored wavefunction
@@ -31,7 +30,7 @@ struct SimState {
 void operator>>(const SimState &state, Parameters &p);
 
 inline decltype(auto) delta_from(const SimState &state) {
-    return real(conj(state.psi) * state.psi) - 1;
+    return real(conj(state.psi) * state.psi);
 }
 
 #endif
