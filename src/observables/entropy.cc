@@ -39,11 +39,12 @@ class EntropyDensity : public ObservableFunctor {
             t_prev = state.tau;
             // Check if there exists a PhaseSpaceDistribution observable
             const std::string name = "PhaseSpaceDistribution";
+            const std::string full_name = "Observable::" + name;
             auto result = obs.find(name);
             if (result == obs.end()) {
                 // Allocate new PhaseSpaceDistribution observable and
                 // store it in global obs map
-                obs[name] = ObservableFunctor::make(name, p, cosmo);
+                obs[name] = ObservableFunctor::make(full_name, p, cosmo);
             }
             ObservableFunctor* phasespace = obs[name].get();
             ReturnType rho = phasespace->compute(state, obs);

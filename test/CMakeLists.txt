@@ -1,10 +1,22 @@
 enable_testing()
 find_package(GTest MODULE REQUIRED)
  
-link_libraries(GTest::GTest GTest::Main)
+link_libraries(GTest::GTest GTest::Main Boost::boost blaze::blaze
+               nlohmann_json::nlohmann_json
+)
 
-add_executable(numbers numbers.cc)
-add_executable(strings strings.cc)
- 
-gtest_discover_tests(strings)
-gtest_discover_tests(numbers)
+if(NOT DEFINED ENV{MKLROOT})
+    link_libraries(FFTW3::fftw3)
+endif()
+
+add_executable(entropy entropy.cc)
+target_sources(entropy 
+    PRIVATE ../src/cosmology.cc 
+            ../src/state.cc
+            ../src/fftw.cc
+            ../src/convolution_functions.cc
+            ../src/observables/entropy.cc
+            ../src/observables/phasespace_distribution.cc
+)
+
+gtest_discover_tests(entropy)

@@ -184,7 +184,6 @@ class PhaseSpaceDistribution : public ObservableFunctor {
             auto& gaussian = ws.kernel_padded;
             gaussian = dx / std::pow(2 * M_PI * sigma_x * sigma_x, 0.25) *
                        exp(-x * x / (4 * sigma_x * sigma_x));
-            /* gaussian /= sum(gaussian); */
         } else {
             iaf.resize(N, N);
             wigner_f.resize(N, N);

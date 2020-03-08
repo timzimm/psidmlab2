@@ -27,7 +27,7 @@ class Factory {
     using CtorArgs = pack<Args...>;
 
     template <class... T>
-    static std::unique_ptr<Base> make(const std::string& s, T&&... args) {
+    static std::unique_ptr<Base> make(const std::string &s, T &&... args) {
         try {
             return data().at(s)(std::forward<T>(args)...);
         } catch (std::out_of_range) {
@@ -35,7 +35,7 @@ class Factory {
             exit(1);
         }
     }
-    static bool add(const std::string& name, const func_t& creator) {
+    static bool add(const std::string &name, const func_t &creator) {
         if (auto it = data().find(name); it == data().end()) {
             Factory::data()[name] = creator;
             return true;
@@ -49,7 +49,7 @@ class Factory {
    private:
     Factory() = default;
 
-    static auto& data() {
+    static auto &data() {
         static std::unordered_map<std::string, func_t> s;
         return s;
     }
