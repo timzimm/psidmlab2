@@ -18,7 +18,7 @@ class EntropyDensity : public ObservableFunctor {
           cosmo(cosmo_),
           husimi{p["Observables"]["PhaseSpaceDistribution"]["sigma_x"] > 0},
           N{p["Simulation"]["N"]},
-          dk{N / p["Simulation"]["L"].get<double>() * M_PI},
+          dk{2 * M_PI / p["Simulation"]["L"].get<double>()},
           t_prev(-1),
           s(1) {}
 
@@ -38,7 +38,7 @@ class EntropyDensity : public ObservableFunctor {
         if (t_prev < state.tau) {
             t_prev = state.tau;
             // Check if there exists a PhaseSpaceDistribution observable
-            const std::string name = "Observable::PhaseSpaceDistribution";
+            const std::string name = "PhaseSpaceDistribution";
             auto result = obs.find(name);
             if (result == obs.end()) {
                 // Allocate new PhaseSpaceDistribution observable and
@@ -91,12 +91,13 @@ class Entropy : public ObservableFunctor {
         if (t_prev < state.tau) {
             t_prev = state.tau;
             // Check if there exists a EntropyDensity observable
-            const std::string name = "Observable::EntropyDensity";
+            const std::string name = "EntropyDensity";
+            const std::string full_name = "Observable::" + name;
             auto result = obs.find(name);
             if (result == obs.end()) {
                 // Allocate new EntropyDensity observable and
                 // store it in global obs map
-                obs[name] = ObservableFunctor::make(name, p, cosmo);
+                obs[name] = ObservableFunctor::make(full_name, p, cosmo);
             }
             ObservableFunctor* sdensity = obs[name].get();
             ReturnType s = sdensity->compute(state, obs);
