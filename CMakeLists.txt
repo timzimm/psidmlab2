@@ -57,54 +57,9 @@ Blaze_Config(
     FUNCTION_TRACES         OFF
 )
 
-file(GLOB OBSERVABLES_CXX CONFIGURE_DEPENDS, src/observables/*.cc)
-
-add_executable(psidm 
-    src/main.cc 
-    src/state.cc 
-    src/fftw.cc 
-    src/cosmology.cc
-    src/ic.cc
-    src/convolution_functions.cc
-    src/interaction/poisson_fft.cc
-    src/evolution/kinetic.cc
-    src/evolution/interaction_potential_trapezodial.cc
-    src/evolution/concrete_splittings.cc
-    "${OBSERVABLES_CXX}"
+include_directories(
+    ${CMAKE_SOURCE_DIR}/inc
 )
 
-target_compile_features(psidm PRIVATE cxx_std_17)
-
-# don't use -isystem, just -I
-set_target_properties(psidm PROPERTIES 
-    NO_SYSTEM_FROM_IMPORTED TRUE
-)
-
-target_compile_options(psidm
-    PRIVATE $<$<CONFIG:Release>:
-            -ffast-math
-            -march=native>
-            $<$<CONFIG:Debug>:
-            -fsanitize=undefined
-            -fsanitize=address>
-)
-
-target_link_options(psidm
-    PRIVATE $<$<CONFIG:Debug>:
-            -fsanitize=undefined
-            -fsanitize=address>
-)
-
-if(${PSIDMLAB_SMP})
-    target_compile_definitions(psidm PRIVATE PSIDMLAB_SMP) 
-endif()
-
-target_include_directories(psidm PRIVATE inc)
-
-target_link_libraries(psidm 
-            Boost::boost
-            blaze::blaze
-            hdf5::hdf5-static 
-            hdf5::hdf5_hl-static
-            nlohmann_json::nlohmann_json
-)
+add_subdirectory(src)
+add_subdirectory(test)
