@@ -1,4 +1,5 @@
 #include <observables_common.h>
+#include <cstdlib>
 #include <limits>
 #include "logging.h"
 
@@ -11,11 +12,12 @@ class PhaseSpaceDistribution : public ObservableFunctor {
     const int N;           // number of spatial gridpoints
     const double L;        // spatial resolution
     double t_prev;         // timestamp of last cached observable
+    int idx_start;
     convolution_ws<std::complex<double>> ws;
     DynamicMatrix<double, columnMajor> wigner_f;  // cached wigner
     DynamicMatrix<double> husimi_f;               // cached husimi
-    DynamicVector<double> idx;
-    DynamicVector<double> idk;
+    DynamicVector<double> x;
+    DynamicVector<double> k;
     DynamicMatrix<std::complex<double>, columnMajor>
         iaf;            // instantaneous autocorrelation function
     fftw_plan_ptr c2c;  // IAF -> wigner transform (complex)
@@ -63,18 +65,16 @@ class PhaseSpaceDistribution : public ObservableFunctor {
         // problem.
         const double eps = std::numeric_limits<double>::min();
 
-        // transposed phase factor matrix exp(-i k x) = exp(-i dk dx i_x i_k)
-        auto phase_T = exp(-1.0i * (2.0 * M_PI / N) * idx * trans(idk));
-
-        // Select part of psi that lives inside the x-patch
-        auto psi = subvector(state.psi, N / 2 + idx[0], idx.size());
-        auto modulated_psi = phase_T % expand(psi, idk.size());
+        // Select part of psi that lives inside the x-patch and expand it in
+        // k-direction
+        auto psi = expand(subvector(state.psi, idx_start, x.size()), k.size());
+        auto modulated_psi = psi % exp(-1.0i * x * trans(k));
 
         // columnwise gaussian smoothing + transpose into result matrix + offset
-        for (int k = 0; k < idk.size(); ++k) {
-            ws.signal_padded = column(modulated_psi, k);
+        for (int K = 0; K < k.size(); ++K) {
+            ws.signal_padded = column(modulated_psi, K);
             discrete_convolution(ws);
-            row(husimi_f, k) =
+            row(husimi_f, K) =
                 eps + trans(real(conj(ws.signal_padded) * ws.signal_padded));
         }
     }
@@ -89,40 +89,57 @@ class PhaseSpaceDistribution : public ObservableFunctor {
           L{p["Simulation"]["L"]},
           // Choose N_kernel such that it is 10 times the smoothing scale
           t_prev(-1),
+          idx_start(0),
           ws(0, 0, 0),
           wigner_f(0, 0),
           husimi_f(0, 0),
-          idx(0),
+          x(0),
+          k(0),
           iaf(0, 0),
           c2c(nullptr) {
         if (husimi) {
             // Resolution in k and x space
             const double dx = L / N;
             const double dk = 2 * M_PI / L;
+            // Grid Limits
+            // in x-direction we have:
+            //
+            // [-L/2, L/2 - dx] (x=L/2 is redundant because of periodicity)
+            //
+            // in k-direction we have (truncating division):
+            //
+            // [-dk*(N/2), dk*(N/2)] if N is odd (indices symmetric around 0)
+            // [-dk*(N/2) + dk, dk*(N/2)] if N is even
+            //
+            // Recall that k is also periodic so we can equally adjust the
+            // right boundary:
+            //
+            // [-dk*(N/2), dk*(N/2)] if N is odd
+            // [-dk*(N/2), dk*(N/2) - dk] if N is even
+            //
+            // We do this to have a "common lower boundary"
+            // for both the even and odd case (see index calculation below)
+
+            const double xmin = -L / 2;
+            const double xmax = -xmin - dx;
+            const double kmin = -dk * (N / 2);
+            const double kmax = (N % 2) ? -kmin : -kmin - dk;
 
             std::array<std::array<double, 2ul>, 2ul> patch;
             // Load patch information from config file.
             try {
                 patch = p["Observables"]["PhaseSpaceDistribution"]["patch"];
             } catch (...) {
-                // Default patch is entire grid
                 std::cout << WARNINGTAG(
                                  "No valid patch specified. "
                                  "Use entire grid for Husimi function. "
                                  "This costs memory!")
                           << std::endl;
-                patch = {{{-L / 2, L / 2 - L / N},
-                          {-M_PI * N / L, M_PI * N / L - 2 * M_PI / L}}};
+                // Default patch is entire grid
+                patch = {{{xmin, xmax}, {kmin, kmax}}};
             }
 
-            // 0-based indices
-            int idx_start = std::abs(-L / 2 - patch[0][0]) / dx;
-            int idk_start = std::abs(-M_PI / dx - patch[1][0]) / dk;
-
-            int idx_end = std::abs(-L / 2 - patch[0][1]) / dx;
-            int idk_end = std::abs(-M_PI / dx - patch[1][1]) / dk;
-
-            // Check if patch is...
+            // Check if x-interval is...
             //(i)   in increasing order
             //(ii)  does not exceed the x-grid in negative direction
             //(iii) does not exceed the x-grid in positive direction
@@ -131,17 +148,16 @@ class PhaseSpaceDistribution : public ObservableFunctor {
             // times the machine epsilon
             const double threshold =
                 100 * std::numeric_limits<double>::epsilon();
-            if (patch[0][0] >= patch[0][1] ||
-                -L / 2 - patch[0][0] > threshold ||
-                patch[0][1] - (L / 2 - dx) > threshold) {
+            if (patch[0][0] >= patch[0][1] || xmin - patch[0][0] > threshold ||
+                patch[0][1] - xmax > threshold) {
                 std::cout
                     << WARNINGTAG(
                            "Wrong x interval in patch...Reset to entire domain")
                     << std::endl;
-                idx_start = 0;
-                idx_end = N - 1;
+                patch[0][0] = xmin;
+                patch[0][1] = xmax;
             }
-            // Check if patch is...
+            // Check if k-interval is...
             //(i)   in increasing order
             //(ii)  does not exceed the k-grid in negative direction
             //(iii) does not exceed the k-grid in positive direction
@@ -149,26 +165,31 @@ class PhaseSpaceDistribution : public ObservableFunctor {
             // In this context 'exceed' means the difference is larger than 100
             // times the machine epsilon
 
-            if (patch[1][0] >= patch[1][1] ||
-                -M_PI / dx - patch[1][0] > threshold ||
-                patch[1][1] - (M_PI / dx - dk) > threshold) {
+            if (patch[1][0] >= patch[1][1] || kmin - patch[1][0] > threshold ||
+                patch[1][1] - kmax > threshold) {
                 std::cout
                     << WARNINGTAG(
                            "Wrong k interval in patch...Reset to entire domain")
                     << std::endl;
-                idk_start = 0;
-                idk_end = N - 1;
+                patch[1][0] = kmin;
+                patch[1][1] = kmax;
             }
+
+            // index offset relative to the common lower boundary
+            idx_start = std::abs(xmin - patch[0][0]) / dx;
+            int idk_start = std::abs(kmin - patch[1][0]) / dk;
+
+            int idx_end = std::abs(xmin - patch[0][1]) / dx;
+            int idk_end = std::abs(kmin - patch[1][1]) / dk;
 
             // everything is +1 to get number of elements, and not their
             // distance
             const int Nx = idx_end - idx_start + 1;
             const int Nk = idk_end - idk_start + 1;
 
-            idx.resize(Nx);
-            std::iota(idx.begin(), idx.end(), -N / 2 + idx_start);
-            idk.resize(Nk);
-            std::iota(idk.begin(), idk.end(), -N / 2 + idk_start);
+            x = xmin + dx * linspace(Nx, idx_start, idx_end);
+            k = kmin + dk * linspace(Nk, idk_start, idk_end);
+
             husimi_f.resize(Nk, Nx);
 
             // Store gaussian kernel at most (floor) inside
@@ -177,13 +198,15 @@ class PhaseSpaceDistribution : public ObservableFunctor {
             int N_kernel = floor(16 * sigma_x / dx);
             N_kernel = N_kernel % 2 ? N_kernel : N_kernel + 1;
             double L_kernel = (N_kernel - 1) * dx;
+            auto xk = linspace(N_kernel, -L_kernel / 2, L_kernel / 2);
 
             ws = convolution_ws<std::complex<double>>(linear, Nx, N_kernel);
 
-            auto x = linspace(N_kernel, -L_kernel / 2, L_kernel / 2);
             auto& gaussian = ws.kernel_padded;
+            // Gaussian smoothing kernel accoriding to fH defintion. We multiply
+            // with dx to approximate the continuous convolution
             gaussian = dx / std::pow(2 * M_PI * sigma_x * sigma_x, 0.25) *
-                       exp(-x * x / (4 * sigma_x * sigma_x));
+                       exp(-xk * xk / (4 * sigma_x * sigma_x));
         } else {
             iaf.resize(N, N);
             wigner_f.resize(N, N);

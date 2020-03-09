@@ -1,8 +1,9 @@
 #include <gtest/gtest.h>
 #include <boost/variant.hpp>
 #include <fstream>
-#include "gtest/gtest-param-test.h"
+#include <limits>
 
+#include "blaze/math/dense/DynamicMatrix.h"
 #include "convolution_functions.h"
 #include "cosmology.h"
 #include "observables_common.h"
@@ -13,12 +14,13 @@ using ObservableMap =
     std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>;
 
 namespace {
-// This test suite tests the implementation of Wehrl's entropy defined as:
+// This test suite tests the implementation of the Husimi Distribution defined
+// as:
 //
-//                      S[f] = - int dx dk f log f
+// f(x,k) =
+//   | 1/(2*pi*s^2)^(1/4) int dx' dk exp(-(x-x')^2/(4s^2) - ikx') psi(x') |^2
 //
-// with f as Husimi function.
-class EntropyTest
+class HusimiTest
     : public testing::TestWithParam<std::tuple<int, double, double>> {
    protected:
     void SetUp() override {
@@ -28,6 +30,7 @@ class EntropyTest
         // Box setup
         p["Simulation"]["N"] = N;
         p["Simulation"]["L"] = L;
+        state.psi.resize(N);
 
         // Cosmology setup
         p["Cosmology"]["model"] = 1;
@@ -37,14 +40,12 @@ class EntropyTest
         a_of_t.close();
         cosmo = Cosmology(p["Cosmology"]);
 
-        // Observable setup
-        const std::string name = "Entropy";
-        p["Observables"]["PhaseSpaceDistribution"]["linear_convolution"] =
-            linear;
-        p["Observables"]["PhaseSpaceDistribution"]["sigma_x"] = sigma_x;
-        p["Observables"]["PhaseSpaceDistribution"]["patch"] = {};
+        // observable setup
+        const std::string name = "PhaseSpaceDistribution";
         p["Observables"][name]["compute_at"] = {0};
-
+        p["Observables"][name]["linear_convolution"] = linear;
+        p["Observables"][name]["sigma_x"] = sigma_x;
+        p["Observables"][name]["patch"] = {};
         obs[name] = ObservableFunctor::make("Observable::" + name, p, cosmo);
     }
     Parameters p;
@@ -58,11 +59,15 @@ class EntropyTest
     bool linear;
 };
 
-// It can be shown that
-//                                 S(f_H) >= 1
-// for any f_H. We test this by computing S for a couple of smoothed random psis
+// Husimis distribution is non-negative definite and bounded. For unit norm psi
+// one can show:
+//                              0 <= f <= 1/pi
+// for any f_H. Since we add a small offset to f this becomes:
+//                            eps <= f <= 1/pi + eps
+// We test this by computing f for a couple of smoothed random psis
 // which are localized and have unit norm.
-TEST_P(EntropyTest, WehrlsConjecture) {
+TEST_P(HusimiTest, fIsBounded) {
+    const double eps = std::numeric_limits<double>::min();
     const int N_kernel = 10;
     convolution_ws<std::complex<double>> ws(false, N, N_kernel);
 
@@ -83,33 +88,47 @@ TEST_P(EntropyTest, WehrlsConjecture) {
     state.psi = ws.signal_padded / norm;
     ASSERT_NEAR(std::sqrt(dx) * std::real(l2Norm(state.psi)), 1, 1e-14);
 
-    ObservableFunctor* entropy = obs["Entropy"].get();
-    auto result = entropy->compute(state, obs);
-    const DynamicVector<double>& S =
-        boost::get<const DynamicVector<double>&>(result);
+    ObservableFunctor* husimi = obs["PhaseSpaceDistribution"].get();
+    auto result = husimi->compute(state, obs);
+    const DynamicMatrix<double>& f =
+        boost::get<const DynamicMatrix<double>&>(result);
 
-    EXPECT_GE(S[0], 1);
+    EXPECT_LE(eps, min(f));
+    EXPECT_LE(max(f), eps + 1 / M_PI);
 }
 
 // For psi(x) as defined below we have:
-//                  S = - int dx dk f log f = 2 pi
+//          f(x,k) = exp(-(sigma_x*k)^2*exp(-x^2/(4sigma^2))
 // analytically.
-TEST_P(EntropyTest, GaussPsiEntropyIsTwoPi) {
+TEST_P(HusimiTest, IsGaussian) {
     const double tolerance = 1e-6;
-    state.psi.resize(N);
-    auto x = linspace(N, -L / 2, L / 2 - L / N);
+    const double dx = L / N;
+    const double dk = 2 * M_PI / L;
+
+    // Total x-k grid (see dicussion in observables/phasespace_distribution.cc)
+    const double xmin = -L / 2;
+    const double xmax = -xmin - dx;
+    const double kmin = -dk * (N / 2);
+    const double kmax = (N % 2) ? -kmin : -kmin - dk;
+
+    auto x = linspace(N, xmin, xmax);
+    auto k = linspace(N, kmin, kmax);
+
     state.psi = std::pow(2 * M_PI * sigma_x * sigma_x, -0.25) *
                 exp(-x * x / (4 * sigma_x * sigma_x));
 
-    ObservableFunctor* entropy = obs["Entropy"].get();
-    auto result = entropy->compute(state, obs);
-    const DynamicVector<double>& S =
-        boost::get<const DynamicVector<double>&>(result);
+    // Reference solution (see above)
+    auto f_ref = exp(-sigma_x * sigma_x * k * k) *
+                 trans(exp(-0.25 / (sigma_x * sigma_x) * x * x));
 
-    EXPECT_NEAR(S[0], 2 * M_PI, tolerance);
+    ObservableFunctor* husimi = obs["PhaseSpaceDistribution"].get();
+    auto result = husimi->compute(state, obs);
+    const DynamicMatrix<double>& f =
+        boost::get<const DynamicMatrix<double>&>(result);
+    EXPECT_NEAR(maxNorm(f - f_ref), 0, tolerance);
 }
 
-INSTANTIATE_TEST_SUITE_P(Wehrl, EntropyTest,
+INSTANTIATE_TEST_SUITE_P(PhaseSpace, HusimiTest,
                          testing::Combine(testing::Values(1024, 1025, 2048,
                                                           2049),
                                           testing::Values(100, 200),

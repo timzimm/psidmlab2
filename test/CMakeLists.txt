@@ -19,4 +19,13 @@ target_sources(entropy
             ../src/observables/phasespace_distribution.cc
 )
 
-gtest_discover_tests(entropy)
+add_executable(phasespace phasespace_distribution.cc)
+target_sources(phasespace
+    PRIVATE ../src/cosmology.cc 
+            ../src/state.cc
+            ../src/fftw.cc
+            ../src/convolution_functions.cc
+            ../src/observables/phasespace_distribution.cc
+)
+
+gtest_discover_tests(entropy phasespace)
