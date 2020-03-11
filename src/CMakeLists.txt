@@ -4,6 +4,7 @@ add_executable(psidm main.cc)
 
 target_sources(psidm
     PRIVATE state.cc 
+            domain.cc 
             fftw.cc 
             cosmology.cc
             ic.cc
