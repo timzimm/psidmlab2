@@ -30,4 +30,12 @@ target_sources(phasespace
             ../src/observables/phasespace_distribution.cc
 )
 
-gtest_discover_tests(entropy phasespace)
+add_executable(poisson_epsilon poisson_fft_epsilon.cc)
+target_sources(poisson_epsilon
+    PRIVATE ../src/interaction/poisson_fft_epsilon.cc
+            ../src/state.cc
+            ../src/domain.cc
+            ../src/fftw.cc
+)
+
+gtest_discover_tests(entropy phasespacem poisson_epsilon)
