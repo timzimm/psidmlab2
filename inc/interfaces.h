@@ -3,6 +3,8 @@
 #include "factory.h"
 #include "state.h"
 
+#include <blaze/math/DynamicMatrix.h>  // variant option
+#include <blaze/math/DynamicVector.h>  // variant option
 #include <boost/variant.hpp>  // for the return type of Observable::compute()
 
 // This header defines all interfaces of

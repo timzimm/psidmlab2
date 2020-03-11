@@ -18,7 +18,7 @@ using namespace boost::units::si::constants::codata;
 BOOST_UNITS_STATIC_CONSTANT(parsec, astronomical::parsec_base_unit::unit_type);
 
 Cosmology::Cosmology(const Parameters& p)
-    : model{static_cast<CosmoModel>(p["model"])},
+    : model{static_cast<CosmoModel>(p["Cosmology"]["model"])},
       omega_m0(0),
       hubble(0),
       mu(0),
@@ -28,15 +28,16 @@ Cosmology::Cosmology(const Parameters& p)
       A(0),
       a_grid{},
       tau_a_map{} {
+    auto p_cosmo = p["Cosmology"];
     if (model == CosmoModel::Dynamic) {
         std::cout << INFOTAG("Initialize time lookup table from cosmology...")
                   << std::flush;
-        omega_m0 = p["omega_m0"];
-        hubble = p["h"];
-        mu = p["mu"];
-        A = p["a_grid_N"];
+        omega_m0 = p_cosmo["omega_m0"];
+        hubble = p_cosmo["h"];
+        mu = p_cosmo["mu"];
+        A = p_cosmo["a_grid_N"];
 
-        a_start = a_of_z(p["z_start"]);
+        a_start = a_of_z(p_cosmo["z_start"]);
         a_end = 1;
         delta_a = (a_end - a_start) / (A - 1);
 
@@ -58,7 +59,7 @@ Cosmology::Cosmology(const Parameters& p)
     } else if (model == CosmoModel::Artificial) {
         std::cout << INFOTAG("Initialize time lookup table from file...")
                   << std::flush;
-        std::ifstream a_file{p["scalefactor_file"].get<std::string>()};
+        std::ifstream a_file{p_cosmo["scalefactor_file"].get<std::string>()};
         if (!a_file) {
             std::cout << ERRORTAG("scalefactor file not found") << std::endl;
             exit(1);

@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
     // Load parameters from file
     std::ifstream(argv[1]) >> param;
 
-    const Cosmology cosmo(param["Cosmology"]);
+    const Cosmology cosmo(param);
     param << cosmo;
 
     // Holds psi, V, n, tau
