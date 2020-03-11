@@ -7,8 +7,7 @@ class EntropyDensity : public ObservableFunctor {
     const Parameters& p;
     const Cosmology& cosmo;
     const bool husimi;
-    const int N;
-    const double dk;
+    const Domain box;
     double t_prev;
     DynamicVector<double> s;
 
@@ -17,8 +16,7 @@ class EntropyDensity : public ObservableFunctor {
         : p(p_),
           cosmo(cosmo_),
           husimi{p["Observables"]["PhaseSpaceDistribution"]["sigma_x"] > 0},
-          N{p["Simulation"]["N"]},
-          dk{2 * M_PI / p["Simulation"]["L"].get<double>()},
+          box(p),
           t_prev(-1),
           s(1) {}
 
@@ -33,7 +31,7 @@ class EntropyDensity : public ObservableFunctor {
             // is very accurate.
             // We collapse the matrix columnwise. The result is a row vector.
             // Transpose it to get a column vector
-            return -dk * trans(sum<columnwise>(rho % log(rho)));
+            return -box.dk * trans(sum<columnwise>(rho % log(rho)));
         };
         if (t_prev < state.tau) {
             t_prev = state.tau;
@@ -67,19 +65,13 @@ class EntropyDensity : public ObservableFunctor {
 class Entropy : public ObservableFunctor {
     const Parameters& p;
     const Cosmology& cosmo;
-    const int N;
-    const double dx;
+    const Domain box;
     double t_prev;
     DynamicVector<double> S;
 
    public:
     Entropy(const Parameters& p_, const Cosmology& cosmo_)
-        : p(p_),
-          cosmo(cosmo_),
-          N{p["Simulation"]["N"]},
-          dx{p["Simulation"]["L"].get<double>() / N},
-          t_prev(-1),
-          S(1) {}
+        : p(p_), cosmo(cosmo_), box(p), t_prev(-1), S(1) {}
 
     ReturnType compute(
         const SimState& state,
@@ -87,7 +79,7 @@ class Entropy : public ObservableFunctor {
             obs) {
         // Trapezodial integration in x-space
         auto integrate_density = [&](const auto& entropy_density) {
-            return dx * sum(entropy_density);
+            return box.dx * sum(entropy_density);
         };
         if (t_prev < state.tau) {
             t_prev = state.tau;

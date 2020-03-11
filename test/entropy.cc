@@ -3,9 +3,12 @@
 #include <fstream>
 #include "gtest/gtest-param-test.h"
 
-#include "convolution_functions.h"
+#include "convolution_functions.h"  //for psi construction
 #include "cosmology.h"
-#include "observables_common.h"
+#include "domain.h"
+#include "interfaces.h"
+#include "parameters.h"
+#include "state.h"
 
 using namespace blaze;
 
@@ -21,41 +24,48 @@ namespace {
 class EntropyTest
     : public testing::TestWithParam<std::tuple<int, double, double>> {
    protected:
-    void SetUp() override {
-        std::tie(N, L, sigma_x) = GetParam();
-        dx = L / N;
-
-        // Box setup
-        p["Simulation"]["N"] = N;
-        p["Simulation"]["L"] = L;
-
-        // Cosmology setup
-        p["Cosmology"]["model"] = 1;
-        p["Cosmology"]["scalefactor_file"] = "./a_of_t.txt";
+    EntropyTest()
+        // Part of parameter file required to carry out the test
+        : sigma_x(std::get<2>(GetParam())),
+          p({{"Simulation",  // Remove when everything uses Domain
+              {
+                  {"N", std::get<0>(GetParam())},
+                  {"L", std::get<1>(GetParam())},
+              }},
+             {"Domain",
+              {
+                  {"N", std::get<0>(GetParam())},
+                  {"L", std::get<1>(GetParam())},
+              }},
+             {"Cosmology",
+              {
+                  {"model", 1},
+                  {"scalefactor_file", "./a_of_t.txt"},
+              }},
+             {"Observables",
+              {{"PhaseSpaceDistribution",
+                {{"linear_convolution", false},
+                 {"sigma_x", sigma_x},
+                 {"compute_at", {0}},
+                 {"patch", {}}}}}}}),
+          cosmo(p),
+          box(p) {
+        // Write a_of_t file to directory
         std::ofstream a_of_t("a_of_t.txt");
         a_of_t << "0\t0\n";
         a_of_t.close();
-        cosmo = Cosmology(p["Cosmology"]);
 
-        // Observable setup
-        const std::string name = "Entropy";
-        p["Observables"]["PhaseSpaceDistribution"]["linear_convolution"] =
-            linear;
-        p["Observables"]["PhaseSpaceDistribution"]["sigma_x"] = sigma_x;
-        p["Observables"]["PhaseSpaceDistribution"]["patch"] = {};
-        p["Observables"][name]["compute_at"] = {0};
-
-        obs[name] = ObservableFunctor::make("Observable::" + name, p, cosmo);
+        // Allocate the entropy observable
+        obs["Entropy"] =
+            ObservableFunctor::make("Observable::Entropy", p, cosmo);
     }
-    Parameters p;
+    const double sigma_x;
+    const Parameters p;
+    const Cosmology cosmo;
+    const Domain box;
+
     SimState state;
-    Cosmology cosmo;
     ObservableMap obs;
-    int N;
-    double L;
-    double dx;
-    double sigma_x;
-    bool linear;
 };
 
 // It can be shown that
@@ -64,6 +74,9 @@ class EntropyTest
 // which are localized and have unit norm.
 TEST_P(EntropyTest, WehrlsConjecture) {
     const int N_kernel = 10;
+    const int N = box.N;
+    const double dx = box.dx;
+
     convolution_ws<std::complex<double>> ws(false, N, N_kernel);
 
     // Simple box filter of length N_kernel * dx
@@ -96,6 +109,9 @@ TEST_P(EntropyTest, WehrlsConjecture) {
 // analytically.
 TEST_P(EntropyTest, GaussPsiEntropyIsTwoPi) {
     const double tolerance = 1e-6;
+    const int N = box.N;
+    const double L = box.L;
+
     state.psi.resize(N);
     auto x = linspace(N, -L / 2, L / 2 - L / N);
     state.psi = std::pow(2 * M_PI * sigma_x * sigma_x, -0.25) *

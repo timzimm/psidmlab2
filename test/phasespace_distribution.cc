@@ -3,10 +3,12 @@
 #include <fstream>
 #include <limits>
 
-#include "blaze/math/dense/DynamicMatrix.h"
-#include "convolution_functions.h"
+#include "convolution_functions.h"  //for psi construction
 #include "cosmology.h"
-#include "observables_common.h"
+#include "domain.h"
+#include "interfaces.h"  //we want to test observables
+#include "parameters.h"
+#include "state.h"
 
 using namespace blaze;
 
@@ -23,40 +25,49 @@ namespace {
 class HusimiTest
     : public testing::TestWithParam<std::tuple<int, double, double>> {
    protected:
-    void SetUp() override {
-        std::tie(N, L, sigma_x) = GetParam();
-        dx = L / N;
-
-        // Box setup
-        p["Simulation"]["N"] = N;
-        p["Simulation"]["L"] = L;
-        state.psi.resize(N);
-
-        // Cosmology setup
-        p["Cosmology"]["model"] = 1;
-        p["Cosmology"]["scalefactor_file"] = "./a_of_t.txt";
+    HusimiTest()
+        // Part of parameter file required to carry out the test
+        : sigma_x(std::get<2>(GetParam())),
+          p({{"Simulation",  // Remove when everything uses Domain
+              {
+                  {"N", std::get<0>(GetParam())},
+                  {"L", std::get<1>(GetParam())},
+              }},
+             {"Domain",
+              {
+                  {"N", std::get<0>(GetParam())},
+                  {"L", std::get<1>(GetParam())},
+              }},
+             {"Cosmology",
+              {
+                  {"model", 1},
+                  {"scalefactor_file", "./a_of_t.txt"},
+              }},
+             {"Observables",
+              {{"PhaseSpaceDistribution",
+                {{"linear_convolution", false},
+                 {"sigma_x", sigma_x},
+                 {"compute_at", {0}},
+                 {"patch", {}}}}}}}),
+          cosmo(p),
+          box(p) {
+        // Write a_of_t file to directory
         std::ofstream a_of_t("a_of_t.txt");
         a_of_t << "0\t0\n";
         a_of_t.close();
-        cosmo = Cosmology(p["Cosmology"]);
 
-        // observable setup
-        const std::string name = "PhaseSpaceDistribution";
-        p["Observables"][name]["compute_at"] = {0};
-        p["Observables"][name]["linear_convolution"] = linear;
-        p["Observables"][name]["sigma_x"] = sigma_x;
-        p["Observables"][name]["patch"] = {};
-        obs[name] = ObservableFunctor::make("Observable::" + name, p, cosmo);
+        // Allocate the entropy observable
+        obs["PhaseSpaceDistribution"] = ObservableFunctor::make(
+            "Observable::PhaseSpaceDistribution", p, cosmo);
     }
-    Parameters p;
+
+    const double sigma_x;
+    const Parameters p;
+    const Cosmology cosmo;
+    const Domain box;
+
     SimState state;
-    Cosmology cosmo;
     ObservableMap obs;
-    int N;
-    double L;
-    double dx;
-    double sigma_x;
-    bool linear;
 };
 
 // Husimis distribution is non-negative definite and bounded. For unit norm psi
@@ -69,6 +80,9 @@ class HusimiTest
 TEST_P(HusimiTest, fIsBounded) {
     const double eps = std::numeric_limits<double>::min();
     const int N_kernel = 10;
+    const int N = box.N;
+    const double dx = box.dx;
+
     convolution_ws<std::complex<double>> ws(false, N, N_kernel);
 
     // Simple box filter of length N_kernel * dx
@@ -102,17 +116,9 @@ TEST_P(HusimiTest, fIsBounded) {
 // analytically.
 TEST_P(HusimiTest, IsGaussian) {
     const double tolerance = 1e-6;
-    const double dx = L / N;
-    const double dk = 2 * M_PI / L;
 
-    // Total x-k grid (see dicussion in observables/phasespace_distribution.cc)
-    const double xmin = -L / 2;
-    const double xmax = -xmin - dx;
-    const double kmin = -dk * (N / 2);
-    const double kmax = (N % 2) ? -kmin : -kmin - dk;
-
-    auto x = linspace(N, xmin, xmax);
-    auto k = linspace(N, kmin, kmax);
+    auto x = linspace(box.N, box.xmin, box.xmax);
+    auto k = linspace(box.N, box.kmin, box.kmax);
 
     state.psi = std::pow(2 * M_PI * sigma_x * sigma_x, -0.25) *
                 exp(-x * x / (4 * sigma_x * sigma_x));
