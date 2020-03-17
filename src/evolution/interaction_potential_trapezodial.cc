@@ -13,9 +13,9 @@ using namespace std::complex_literals;
 InteractionPotentialTrapezodial::InteractionPotentialTrapezodial(
     const Parameters& p, const SimState& state, const Cosmology& cosmo_)
     : DefaultDriver(p),
-      cosmo{cosmo_},
-      N{p["Simulation"]["N"]},
-      pot{Interaction::make(p["Simulation"]["potential"], p, state)},
+      cosmo(cosmo_),
+      box(p),
+      pot{Interaction::make(p["Simulation"]["interaction"]["name"], p, state)},
       pot_external(0) {
     try {
         std::ifstream pot_file{p["Simulation"]["stepper"]["external_potential"]
@@ -28,12 +28,12 @@ InteractionPotentialTrapezodial::InteractionPotentialTrapezodial(
         double dataN = std::count(std::istreambuf_iterator<char>(pot_file),
                                   std::istreambuf_iterator<char>(), '\n');
         pot_file.seekg(0);
-        if (dataN != N) {
+        if (dataN != box.N) {
             std::cout << ERRORTAG("N from external potential differs")
                       << std::endl;
             exit(1);
         }
-        pot_external.resize(N);
+        pot_external.resize(box.N);
         fill_from_file(pot_file, pot_external);
     } catch (nlohmann::detail::type_error) {
     }
@@ -50,7 +50,7 @@ void InteractionPotentialTrapezodial::step(SimState& state,
     state.transform(SimState::Representation::Position);
     const double a_half = cosmo.a_of_tau(state.tau + dt / 2);
     pot->solve(state);
-    if (pot_external.size() == N) state.V += pot_external;
+    if (pot_external.size() == box.N) state.V += pot_external;
     state.psi *= exp(-1.0i * a_half * state.V * dt);
 
     state.tau += dt;

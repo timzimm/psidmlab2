@@ -1,6 +1,7 @@
 #ifndef __SCHROEDINGER_INTERACTION_POTENTIAL_TRAPEZODIAL__
 #define __SCHROEDINGER_INTERACTION_POTENTIAL_TRAPEZODIAL__
 
+#include "domain.h"
 #include "driver.h"
 
 #include <fstream>
@@ -17,7 +18,7 @@ namespace Schroedinger {
 class InteractionPotentialTrapezodial
     : public DefaultDriver<InteractionPotentialTrapezodial> {
     const Cosmology& cosmo;
-    int N;
+    const Domain box;
     std::unique_ptr<Interaction> pot;
     blaze::DynamicVector<double> pot_external;
 

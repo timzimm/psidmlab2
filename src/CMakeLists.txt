@@ -10,6 +10,7 @@ target_sources(psidm
             ic.cc
             convolution_functions.cc
             interaction/poisson_fft.cc
+            interaction/poisson_fft_epsilon.cc
             evolution/kinetic.cc
             evolution/interaction_potential_trapezodial.cc
             evolution/concrete_splittings.cc

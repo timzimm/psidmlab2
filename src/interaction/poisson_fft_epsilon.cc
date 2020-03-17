@@ -2,8 +2,6 @@
 #include "parameters.h"
 #include "state.h"
 
-#include <cassert>
-
 namespace Poisson {
 FFTEpsilon::FFTEpsilon(const Parameters &p, const SimState &state)
     : box(p),
@@ -83,5 +81,6 @@ void FFTEpsilon::solve(blaze::DynamicVector<double> &V,
     // Strip of padding
     V.resize(box.N);
 }
+REGISTER(FFTEpsilon);
 
 }  // namespace Poisson

@@ -31,7 +31,8 @@ class EntropyDensity : public ObservableFunctor {
             // is very accurate.
             // We collapse the matrix columnwise. The result is a row vector.
             // Transpose it to get a column vector
-            return -box.dk * trans(sum<columnwise>(rho % log(rho)));
+            return -box.dk / (2 * M_PI) *
+                   trans(sum<columnwise>(rho % log(rho)));
         };
         if (t_prev < state.tau) {
             t_prev = state.tau;

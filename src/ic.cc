@@ -20,10 +20,8 @@ using namespace blaze;
 
 ICGenerator::ICGenerator(const Parameters& p)
     : type{static_cast<ICType>(p["Initial Conditions"]["ic_type"])},
-      N{p["Simulation"]["N"]},
       data_N{0},
-      L{p["Simulation"]["L"]},
-      dx{L / N},
+      box{p},
       seed{p["Initial Conditions"]["seed"]},
       compute_velocity{p["Initial Conditions"]["compute_velocity"]},
       param{},
@@ -35,7 +33,7 @@ ICGenerator::ICGenerator(const Parameters& p)
             ic_file = std::ifstream(filename);
             data_N = std::count(std::istreambuf_iterator<char>(ic_file),
                                 std::istreambuf_iterator<char>(), '\n');
-            if (data_N != N) {
+            if (data_N != box.N) {
                 std::cerr << ERRORTAG("#lines in source_file(" << data_N
                                                                << ") != N")
                           << std::endl;
@@ -125,7 +123,7 @@ void ICGenerator::psi_from_state(SimState& state) const {
                                [](const double r, const double i) {
                                    return std::complex<double>(r, i);
                                });
-        state.V.resize(N);
+        state.V.resize(box.N);
         state.tau = file.read_scalar_attribute<double>(*psi0, "tau");
         state.n = file.read_scalar_attribute<unsigned int>(*psi0, "n");
     } else {
@@ -135,26 +133,30 @@ void ICGenerator::psi_from_state(SimState& state) const {
 }
 
 void ICGenerator::real_imag_from_file(SimState& state) const {
-    state.psi.resize(N);
-    state.V.resize(N);
+    state.psi.resize(box.N);
+    state.V.resize(box.N);
 
     fill_from_file(ic_file, state.psi);
 }
 
 void ICGenerator::modulus_phase_from_file(SimState& state) const {
-    state.psi.resize(N);
-    state.V.resize(N);
+    state.psi.resize(box.N);
+    state.V.resize(box.N);
 
     fill_from_file(ic_file, state.psi);
     state.psi = map(state.psi, [](std::complex<double> p) {
         return std::polar(p.real(), p.imag());
     });
+    if (isnan(state.psi)) {
+        std::cerr << ERRORTAG("Not a valid polar representation") << std::endl;
+        exit(1);
+    }
 }
 
 void ICGenerator::delta_from_power(SimState& state,
                                    const Cosmology& cosmo) const {
-    state.psi.resize(N);
-    state.V.resize(N);
+    state.psi.resize(box.N);
+    state.V.resize(box.N);
 
     std::vector<double> k_data(data_N);
     std::vector<double> powerspectrum(data_N);
@@ -181,12 +183,12 @@ void ICGenerator::delta_from_power(SimState& state,
     };
 
     // Store fourier representation of delta in state.psis (complex vector)
-    auto delta_k = subvector(state.psi, 0, N / 2 + 1);
-    auto k = subvector(state.V, 0, N / 2 + 1);
+    auto delta_k = subvector(state.psi, 0, box.N / 2 + 1);
+    auto k = subvector(state.V, 0, box.N / 2 + 1);
     std::iota(k.begin(), k.end(), 0);
 
     // physical box size in Mpc h-1
-    const double L_phys = cosmo.x_of_chi(L) / 1e6;
+    const double L_phys = cosmo.x_of_chi(box.L) / 1e6;
     k *= 2 * M_PI / L_phys;
 
     // Independent number generators for modulus and phase.
@@ -213,9 +215,7 @@ void ICGenerator::delta_from_power(SimState& state,
     auto in = reinterpret_cast<fftw_complex*>(delta_k.data());
     // Store delta in V for convenience (real vector vs complex vector);
     fftw_plan_ptr c2r(
-        fftw_plan_dft_c2r_1d(N, in, state.V.data(), FFTW_ESTIMATE));
+        fftw_plan_dft_c2r_1d(box.N, in, state.V.data(), FFTW_ESTIMATE));
     fftw_execute(c2r.get());
     fftw_destroy_plan(c2r.get());
 }
-
-ICGenerator::~ICGenerator() = default;

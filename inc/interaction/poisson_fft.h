@@ -1,6 +1,7 @@
 #ifndef __POISSON_FFT__
 #define __POISSON_FFT__
 
+#include "domain.h"
 #include "fftw.h"
 #include "interfaces.h"
 
@@ -11,8 +12,7 @@
 namespace Poisson {
 
 class FFT : public Interaction {
-    const size_t N;
-    const double L;
+    const Domain box;
     fftw_plan_ptr fwd;
     fftw_plan_ptr bwd;
     double *real_ptr;

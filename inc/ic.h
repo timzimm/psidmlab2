@@ -1,5 +1,6 @@
 #ifndef __IC__
 #define __IC__
+#include "domain.h"
 #include "parameters.h"
 
 #include <cassert>
@@ -25,13 +26,9 @@ class ICGenerator {
     ICGenerator(const Parameters& param);
     void generate(SimState& state, const Cosmology&) const;
 
-    ~ICGenerator();
-
    private:
-    int N;
     int data_N;
-    double L;
-    double dx;
+    const Domain box;
     int seed;
     bool compute_velocity;
     Parameters param;  // This is awfull!

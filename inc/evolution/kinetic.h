@@ -1,6 +1,7 @@
 #ifndef __SCHROEDINGER_KINETIC__
 #define __SCHROEDINGER_KINETIC__
 
+#include "domain.h"
 #include "driver.h"
 
 class Cosmology;
@@ -12,9 +13,8 @@ namespace Schroedinger {
 // assuming periodic boundary conditions.
 
 class Kinetic : public DefaultDriver<Kinetic> {
+    const Domain box;
     mutable double dt_last;
-    const int N;
-    const double L;
     blaze::DynamicVector<double> kx2;
     mutable blaze::DynamicVector<std::complex<double>> U;
 

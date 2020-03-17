@@ -6,12 +6,13 @@ namespace Observable {
 // Takes the complex wavefunction stored in state and converts it into a
 // N x 2 real matrix
 class WaveFunction : public ObservableFunctor {
+    const Domain box;
     double t_prev;
     DynamicMatrix<double> psi_re_im;
 
    public:
     WaveFunction(const Parameters& p, const Cosmology&)
-        : t_prev(-1), psi_re_im{p["Simulation"]["N"], 2} {};
+        : box(p), t_prev(-1), psi_re_im(box.N, 2){};
 
     ReturnType compute(
         const SimState& state,
