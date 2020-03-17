@@ -45,12 +45,10 @@ int main(int argc, char **argv) {
     // Populate simulation state
     ICGenerator ic(param);
     ic.generate(state, cosmo);
-    state >> param;
 
-    const std::string potential = param["Simulation"]["potential"];
+    const std::string potential = param["Simulation"]["interaction"]["name"];
     auto pot = Interaction::make(potential, param, state);
 
-    // This defines the PDE to integrate as well as its discretization
     const std::string stepper_name = param["Simulation"]["stepper"]["name"];
     auto stepper = TimeEvolution::make(stepper_name, param, state, cosmo);
 

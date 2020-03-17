@@ -1,7 +1,10 @@
 #include "state.h"
+#include "blaze/math/functors/L2Norm.h"
 #include "cosmology.h"
 #include "fftw3.h"
 #include "parameters.h"
+
+#define RENORMALIZATION_THRESHOLD 1000
 
 SimState::SimState()
     : n(0u),
@@ -12,6 +15,8 @@ SimState::SimState()
       position_to_momentum(nullptr),
       momentum_to_position(nullptr),
       N_plan(0),
+      N_transform(0),
+      norm(0),
       psi_ptr(nullptr) {}
 
 void SimState::transform(const SimState::Representation target) {
@@ -36,6 +41,9 @@ void SimState::transform(const SimState::Representation target) {
             make_fftw_plan_dft(N_plan, in, in, FFTW_FORWARD, FFTW_MEASURE);
         momentum_to_position =
             make_fftw_plan_dft(N_plan, in, in, FFTW_BACKWARD, FFTW_MEASURE);
+
+        // Cache the norm of the state for which new plans are constructed
+        norm = std::real(blaze::l2Norm(psi));
     }
 
     // In particular if we have NOT (i) and NOT (ii) (because the raw arrays are
@@ -43,17 +51,20 @@ void SimState::transform(const SimState::Representation target) {
     // alignment ) we can reuse the preexisting plan with the new-array
     // interface
     if (target == Representation::Momentum) {
+        N_transform++;
         fftw_execute_dft(position_to_momentum.get(), in, in);
         // FFTW transforms are denormalized
         psi /= N_plan;
     } else {
+        N_transform++;
         fftw_execute_dft(momentum_to_position.get(), in, in);
+        // Renormalize state to fight numerical errors that crop up after many
+        // subsequent FFTs.
+        if (N_transform > RENORMALIZATION_THRESHOLD) {
+            N_transform = 0;
+            psi *= norm / std::real(blaze::l2Norm(psi));
+        }
     }
 
     representation = target;
 };
-
-void operator>>(const SimState& state, Parameters& p) {
-    p["Simulation"]["N"] = state.psi.size();
-}
-
