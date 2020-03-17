@@ -77,7 +77,7 @@ class HusimiTest
 //                            eps <= f <= 1/pi + eps
 // We test this by computing f for a couple of smoothed random psis
 // which are localized and have unit norm.
-TEST_P(HusimiTest, fIsBounded) {
+TEST_P(HusimiTest, IsBounded) {
     const double eps = std::numeric_limits<double>::min();
     const int N_kernel = 10;
     const int N = box.N;
@@ -132,6 +132,36 @@ TEST_P(HusimiTest, IsGaussian) {
     const DynamicMatrix<double>& f =
         boost::get<const DynamicMatrix<double>&>(result);
     EXPECT_NEAR(maxNorm(f - f_ref), 0, tolerance);
+}
+
+// For our application psi is noramlized as follows
+//              int dx |psi^2| = L
+// Check if the Husimi function obeys the same normalization
+// if integrated over x and k, which it has to analytically.
+TEST_P(HusimiTest, NormalizationAsPsi) {
+    const double tolerance = 1e-6;
+
+    auto x = linspace(box.N, box.xmin, box.xmax);
+    auto k = linspace(box.N, box.kmin, box.kmax);
+
+    state.psi = std::pow(2 * M_PI * sigma_x * sigma_x, -0.25) *
+                exp(-x * x / (4 * sigma_x * sigma_x));
+    double norm =
+        sqrt(box.L) / sqrt(box.dx * sum(real(conj(state.psi) * state.psi)));
+    state.psi *= norm;
+
+    // int dx |psi^2| = L ?
+    EXPECT_NEAR(box.L, box.dx * sum(real(conj(state.psi) * state.psi)),
+                tolerance);
+
+    ObservableFunctor* husimi = obs["PhaseSpaceDistribution"].get();
+    auto result = husimi->compute(state, obs);
+    const DynamicMatrix<double>& f =
+        boost::get<const DynamicMatrix<double>&>(result);
+    double norm_f = 1.0 / (2 * M_PI) * box.dx * box.dk * sum(f);
+
+    // int dx dk/2pi fH = L ?
+    EXPECT_NEAR(norm_f, box.L, tolerance);
 }
 
 INSTANTIATE_TEST_SUITE_P(PhaseSpace, HusimiTest,

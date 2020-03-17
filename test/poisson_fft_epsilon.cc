@@ -14,9 +14,6 @@
 
 using namespace blaze;
 
-using ObservableMap =
-    std::unordered_map<std::string, std::unique_ptr<ObservableFunctor>>;
-
 namespace {
 // This test suite tests the implementation of the Poisson FFT class with
 // finite range

@@ -48,12 +48,12 @@ class EntropyTest
                  {"sigma_x", sigma_x},
                  {"compute_at", {0}},
                  {"patch", {}}}}}}}),
-          cosmo(p),
           box(p) {
         // Write a_of_t file to directory
         std::ofstream a_of_t("a_of_t.txt");
         a_of_t << "0\t0\n";
         a_of_t.close();
+        cosmo = Cosmology(p);
 
         // Allocate the entropy observable
         obs["Entropy"] =
@@ -61,16 +61,17 @@ class EntropyTest
     }
     const double sigma_x;
     const Parameters p;
-    const Cosmology cosmo;
     const Domain box;
 
+    Cosmology cosmo;
     SimState state;
     ObservableMap obs;
 };
 
 // It can be shown that
 //                                 S(f_H) >= 1
-// for any f_H. We test this by computing S for a couple of smoothed random psis
+// for any f_H normalized to 1.
+// We test this by computing S for a couple of smoothed random psis
 // which are localized and have unit norm.
 TEST_P(EntropyTest, WehrlsConjecture) {
     const int N_kernel = 10;
@@ -105,15 +106,15 @@ TEST_P(EntropyTest, WehrlsConjecture) {
 }
 
 // For psi(x) as defined below we have:
-//                  S = - int dx dk f log f = 2 pi
+//              S = - int dx dk/2pi f log f = 1
 // analytically.
-TEST_P(EntropyTest, GaussPsiEntropyIsTwoPi) {
+TEST_P(EntropyTest, GaussPsiEntropyIsUnity) {
     const double tolerance = 1e-6;
     const int N = box.N;
     const double L = box.L;
 
     state.psi.resize(N);
-    auto x = linspace(N, -L / 2, L / 2 - L / N);
+    auto x = linspace(N, box.xmin, box.xmax);
     state.psi = std::pow(2 * M_PI * sigma_x * sigma_x, -0.25) *
                 exp(-x * x / (4 * sigma_x * sigma_x));
 
@@ -122,7 +123,32 @@ TEST_P(EntropyTest, GaussPsiEntropyIsTwoPi) {
     const DynamicVector<double>& S =
         boost::get<const DynamicVector<double>&>(result);
 
-    EXPECT_NEAR(S[0], 2 * M_PI, tolerance);
+    EXPECT_NEAR(S[0], 1, tolerance);
+}
+
+TEST_P(EntropyTest, AbnormalNormalization) {
+    const double tolerance = 1e-6;
+    const int N = box.N;
+    const double L = box.L;
+
+    state.psi.resize(N);
+    auto x = linspace(N, box.xmin, box.xmax);
+    state.psi = std::pow(2 * M_PI * sigma_x * sigma_x, -0.25) *
+                exp(-x * x / (4 * sigma_x * sigma_x));
+    double norm =
+        sqrt(box.L) / sqrt(box.dx * sum(real(conj(state.psi) * state.psi)));
+    state.psi *= norm;
+
+    // int dx |psi^2| = L ?
+    EXPECT_NEAR(box.L, box.dx * sum(real(conj(state.psi) * state.psi)),
+                tolerance);
+
+    ObservableFunctor* entropy = obs["Entropy"].get();
+    auto result = entropy->compute(state, obs);
+    const DynamicVector<double>& S =
+        boost::get<const DynamicVector<double>&>(result);
+
+    EXPECT_NEAR(1.0 / box.L * (S[0] + box.L * log(box.L)), 1, tolerance);
 }
 
 INSTANTIATE_TEST_SUITE_P(Wehrl, EntropyTest,
@@ -130,4 +156,5 @@ INSTANTIATE_TEST_SUITE_P(Wehrl, EntropyTest,
                                                           2049),
                                           testing::Values(100, 200),
                                           testing::Values(0.25, 0.5, 0.75)));
+
 }  // namespace

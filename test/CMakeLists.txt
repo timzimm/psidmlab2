@@ -30,12 +30,28 @@ target_sources(phasespace
             ../src/observables/phasespace_distribution.cc
 )
 
-add_executable(poisson_epsilon poisson_fft_epsilon.cc)
-target_sources(poisson_epsilon
+add_executable(poisson_fft_epsilon poisson_fft_epsilon.cc)
+target_sources(poisson_fft_epsilon
     PRIVATE ../src/interaction/poisson_fft_epsilon.cc
             ../src/state.cc
             ../src/domain.cc
             ../src/fftw.cc
 )
 
-gtest_discover_tests(entropy phasespacem poisson_epsilon)
+add_executable(poisson_fft poisson_fft.cc)
+target_sources(poisson_fft
+    PRIVATE ../src/interaction/poisson_fft.cc
+            ../src/state.cc
+            ../src/domain.cc
+            ../src/fftw.cc
+)
+
+add_executable(state state.cc)
+target_sources(state
+    PRIVATE ../src/state.cc
+            ../src/domain.cc
+            ../src/convolution_functions.cc
+            ../src/fftw.cc
+)
+
+gtest_discover_tests(entropy phasespace poisson_fft poisson_fft_epsilon state)
