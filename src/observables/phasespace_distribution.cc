@@ -172,6 +172,11 @@ class PhaseSpaceDistribution : public ObservableFunctor {
             // for symmetry of the kernel around x=0.
             int N_kernel = floor(16 * sigma_x / box.dx);
             N_kernel = N_kernel % 2 ? N_kernel : N_kernel + 1;
+            if (N_kernel > box.N) {
+                std::cerr << ERRORTAG("Smoothing scale is too large")
+                          << std::endl;
+                exit(1);
+            }
             double L_kernel = (N_kernel - 1) * box.dx;
             auto xk = linspace(N_kernel, -L_kernel / 2, L_kernel / 2);
 
