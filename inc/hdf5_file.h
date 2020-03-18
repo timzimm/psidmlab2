@@ -399,12 +399,19 @@ class HDF5File {
 
     // Return vector of absolute paths to all object names linked to root
     // Behaves like UNIX ls /some/path
-    std::vector<std::string> ls(const std::string& root) const {
+    std::vector<std::string> ls(const std::string& path) const {
         std::vector<std::string> content;
         // Does root even exist?
-        if (!H5Lexists(file, root.c_str(), H5P_DEFAULT)) {
-            return content;
+        size_t end = 0;
+        std::string subpath = "/";
+        while ((end = path.find("/", end + 1)) != std::string::npos) {
+            subpath = path.substr(0, end);
+            auto exists = H5Lexists(file, subpath.c_str(), H5P_DEFAULT);
+            if (!exists) return {};
         }
+        // Root exists, open it and iterate through its contents
+        const std::string root = subpath;
+
         hid_t root_obj = H5Oopen(file, root.c_str(), H5P_DEFAULT);
         auto push_back_names = [](hid_t, const char* name, const H5L_info_t*,
                                   void* data) {
@@ -418,6 +425,14 @@ class HDF5File {
         std::string newroot = (root == "/") ? "" : root;
         for (auto& s : content) {
             s = newroot + "/" + s;
+        }
+
+        if (path.back() != '/') {
+            auto res = std::find(content.begin(), content.end(), path);
+            if (res == content.end())
+                return {};
+            else
+                return {path};
         }
 
         H5Oclose(root_obj);

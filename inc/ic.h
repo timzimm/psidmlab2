@@ -6,6 +6,7 @@
 #include <cassert>
 #include <fstream>
 #include <memory>
+#include <queue>
 #include <string>
 
 // Forward Declarations
@@ -24,7 +25,8 @@ class ICGenerator {
    public:
     ICType type;
     ICGenerator(const Parameters& param);
-    void generate(SimState& state, const Cosmology&) const;
+    void generate(SimState& state, const Cosmology&,
+                  const double tau = 0) const;
 
    private:
     int data_N;
@@ -34,6 +36,7 @@ class ICGenerator {
     Parameters param;  // This is awfull!
     std::string filename;
     mutable std::ifstream ic_file;
+    mutable std::queue<std::string> psis;
 
     // init wavefunction ...
     // according to a matter power spectrum provided by file.
@@ -44,6 +47,7 @@ class ICGenerator {
     void modulus_phase_from_file(SimState& state) const;
 
     // restore wavefunction from previous simulation
-    void psi_from_state(SimState& state) const;
+    void psi_from_state(SimState& state, const Cosmology& cosmo,
+                        const double tau) const;
 };
 #endif

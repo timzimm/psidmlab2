@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <map>
 #include <numeric>
+#include <queue>
 #include <random>
 
 using namespace blaze;
@@ -48,6 +49,14 @@ ICGenerator::ICGenerator(const Parameters& p)
                 std::cerr << ERRORTAG("No valid HDF5 file found") << std::endl;
                 exit(1);
             }
+            HDF5File file(filename, HDF5File::Access::Read);
+
+            std::vector<std::string> paths = file.ls("/WaveFunction/");
+            if (paths.size() == 0) {
+                std::cerr << ERRORTAG("No wavefunction found.") << std::endl;
+                exit(1);
+            }
+            for (auto& path : paths) psis.push(path);
             break;
         }
         default:
@@ -55,7 +64,8 @@ ICGenerator::ICGenerator(const Parameters& p)
     };
 }
 
-void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
+void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
+                           const double tau) const {
     // modulus initialization
     switch (type) {
         case ICType::ExternalRealImag:
@@ -77,8 +87,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
         case ICType::PreviousSimulation:
             std::cout << INFOTAG("Load psi0 from last stored state")
                       << std::flush;
-            psi_from_state(state);
-            std::cout << " ... done" << std::endl;
+            psi_from_state(state, cosmo, tau);
     }
 
     // Velocity Initialization
@@ -110,25 +119,38 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo) const {
         }
     }
 }
-void ICGenerator::psi_from_state(SimState& state) const {
-    // Determine last available wavefunction
+
+// Populate SimState with stored wavefunction if the requested tau greater than
+// the stored tau.
+void ICGenerator::psi_from_state(SimState& state, const Cosmology& cosmo,
+                                 const double tau) const {
     HDF5File file(filename, HDF5File::Access::Read);
-    std::vector<std::string> psis = file.ls("/WaveFunction");
-    auto psi0 = std::max_element(psis.begin(), psis.end());
-    if (psi0 != psis.end()) {
-        auto psi0_matrix = file.read_matrix(*psi0);
-        // Populate simualation state.
-        state.psi = blaze::map(blaze::column(psi0_matrix, 0),
-                               blaze::column(psi0_matrix, 1),
-                               [](const double r, const double i) {
-                                   return std::complex<double>(r, i);
-                               });
-        state.V.resize(box.N);
-        state.tau = file.read_scalar_attribute<double>(*psi0, "tau");
-        state.n = file.read_scalar_attribute<unsigned int>(*psi0, "n");
+    if (psis.size() > 0) {
+        std::string path_to_next_psi = psis.front();
+        double next_tau =
+            file.read_scalar_attribute<double>(path_to_next_psi, "tau");
+        if (next_tau <= tau) {
+            psis.pop();
+            state.tau = next_tau;
+            state.n =
+                file.read_scalar_attribute<unsigned int>(path_to_next_psi, "n");
+
+            auto psi_matrix = file.read_matrix(path_to_next_psi);
+            // Populate simualation state.
+            state.psi = blaze::map(blaze::column(psi_matrix, 0),
+                                   blaze::column(psi_matrix, 1),
+                                   [](const double r, const double i) {
+                                       return std::complex<double>(r, i);
+                                   });
+            state.V.resize(box.N);
+            std::cout << " @ z = "
+                      << Cosmology::z_of_a(cosmo.a_of_tau(state.tau))
+                      << " ... done" << std::endl;
+        } else {
+            std::cout << " ... no fitting state found. Integrate." << std::endl;
+        }
     } else {
-        std::cerr << ERRORTAG("No wavefunction found.") << std::endl;
-        exit(1);
+        std::cout << " ... file exhausted. Integrate." << std::endl;
     }
 }
 

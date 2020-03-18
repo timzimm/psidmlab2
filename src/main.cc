@@ -42,7 +42,6 @@ int main(int argc, char **argv) {
 
     // Holds psi, V, n, tau
     SimState state;
-    // Populate simulation state
     ICGenerator ic(param);
     ic.generate(state, cosmo);
 
@@ -103,12 +102,14 @@ int main(int argc, char **argv) {
                                    std::begin(timepoints), tau_of_z);
                 }
                 // Drop all time points that state already visisted (due to ii)
+                /*
                 timepoints.erase(
                     std::remove_if(timepoints.begin(), timepoints.end(),
                                    [&state](const double t) {
                                        return t <= state.tau && state.tau > 0;
                                    }),
                     timepoints.end());
+                */
 
                 time_point_union.insert(timepoints.begin(), timepoints.end());
             }
@@ -167,7 +168,21 @@ int main(int argc, char **argv) {
     const auto start = high_resolution_clock::now();
     while (!checkpoints.empty()) {
         auto &[checkpoint_time, obs_at_checkpoint] = checkpoints.top();
-        stepper->integrate(state, checkpoint_time);
+        const double a = cosmo.a_of_tau(checkpoint_time);
+        const double z = (a != 0) ? Cosmology::z_of_a(a) : 0;
+
+        if (ic.type == ICType::PreviousSimulation) {
+            // Get existing state closest to checkpoint time
+            ic.generate(state, cosmo, checkpoint_time);
+        }
+        // Integrate from state.tau to checkpoint_time - if necessary
+        if (abs(state.tau - checkpoint_time) > 1e-10) {
+            std::cout << INFOTAG("Integrate up to tau/z = ")
+                      << ((cosmo == CosmoModel::Artificial) ? checkpoint_time
+                                                            : z)
+                      << std::endl;
+            stepper->integrate(state, checkpoint_time);
+        }
         // Depending on the stepper a retransformation to real space might be
         // necessary. If not, transform acts as identity.
         state.transform(SimState::Representation::Position);
@@ -175,31 +190,32 @@ int main(int argc, char **argv) {
         // and only state.psis is correct. Thus, we recalculate the potential.
         pot->solve(state);
 
-        const double a = cosmo.a_of_tau(checkpoint_time);
-        const double z = (a != 0) ? Cosmology::z_of_a(a) : 0;
+        // At this point the simulation state at checkpoint_time is known and
+        // observables can be computed
         std::cout << INFOTAG("Save observables @ tau/z = ")
                   << ((cosmo == CosmoModel::Artificial) ? checkpoint_time : z)
-                  << std::flush;
+                  << std::endl;
         for (auto [name, obs_ptr] : obs_at_checkpoint) {
             // Construct path to dataset
             auto ds_name = std::to_string(state.n);
             ds_name.insert(ds_name.begin(), 10 - ds_name.length(), '0');
             path_to_ds = "/" + name + "/" + ds_name;
+            // Check if observable was already computed by previous run
+            if (file.ls(path_to_ds).size() == 0) {
+                // Computes the observable variant (i.e. some matrix/vector)
+                auto res = obs_ptr->compute(state, observables);
+                //            ^                       ^
+                //            |       owning ---------|
+                //            |---- non-owning
+                boost::apply_visitor(write_variant, res);
 
-            // Computes the observable variant (i.e. some matrix/vector)
-            auto res = obs_ptr->compute(state, observables);
-            //            ^                       ^
-            //            |       owning ---------|
-            //            |---- non-owning
-            boost::apply_visitor(write_variant, res);
-
-            // Supplement informations to the observable
-            file.write_scalar_attribute(path_to_ds, "tau", state.tau);
-            file.write_scalar_attribute(path_to_ds, "a", a);
-            file.write_scalar_attribute(path_to_ds, "z", z);
-            file.write_scalar_attribute(path_to_ds, "n", state.n);
+                // Supplement informations to the observable
+                file.write_scalar_attribute(path_to_ds, "tau", state.tau);
+                file.write_scalar_attribute(path_to_ds, "a", a);
+                file.write_scalar_attribute(path_to_ds, "z", z);
+                file.write_scalar_attribute(path_to_ds, "n", state.n);
+            }
         }
-        std::cout << " ... done" << std::endl;
         checkpoints.pop();
     }
 
