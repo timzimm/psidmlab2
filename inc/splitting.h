@@ -91,7 +91,6 @@ class SRKN : public DefaultDriver<SRKN<FlowMapA, FlowMapB>> {
     void step(SimState& state, const double dt) const {
         const double t = state.tau;
         const int n = state.n;
-        std::cout.precision(16);
         for (int stage = 0; stage < a.size(); ++stage) {
             phiB.step(state, b[stage] * dt);
             state.tau = t;
