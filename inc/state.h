@@ -1,5 +1,6 @@
 #ifndef __STATE__
 #define __STATE__
+#include "domain.h"
 #include "fftw.h"
 
 #include <blaze/math/DynamicVector.h>
@@ -12,12 +13,13 @@ struct SimState {
 
     unsigned int n;  // time step number
     double tau;      // current time
+    double tau_aux;  // auxillary time
     blaze::DynamicVector<double> V;
 
     blaze::DynamicVector<std::complex<double>> psi;
 
     void transform(const Representation target);
-    SimState();
+    SimState(const Domain &box);
 
    private:
     Representation representation;
@@ -31,6 +33,9 @@ struct SimState {
 
 inline decltype(auto) delta_from(const SimState &state) {
     return real(conj(state.psi) * state.psi) - 1;
+}
+inline decltype(auto) rho_from(const SimState &state) {
+    return real(conj(state.psi) * state.psi);
 }
 
 #endif

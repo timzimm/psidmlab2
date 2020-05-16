@@ -8,9 +8,17 @@ class Cosmology;
 
 namespace Schroedinger {
 
-// Exact time evolution operator for the free Schroedinger equation:
-//          i del_t psi = -1/2 del^2_x psi
-// assuming periodic boundary conditions.
+// Exact time evolution operator for the equation:
+//
+//                  i ∂_t psi = -1/2 ∂^2_x psi
+//                    ∂_t v   = 1
+//
+// assuming PERIODIC BOUNDARY CONDITIONS. The time evolution operator reads:
+//
+// U(t, ∆t) (psi) = ( ƒ^{-1} exp(-i/2 * k^2 * ∆t) ƒ )
+//          (v)     (          v + ∆t               )
+//
+// with ƒ as DCT operator.
 
 class Kinetic : public DefaultDriver<Kinetic> {
     const Domain box;

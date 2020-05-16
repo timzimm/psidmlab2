@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "domain.h"
-#include "interaction/poisson_fft_epsilon.h"
+#include "interaction/screened_poisson_fft.h"
 #include "parameters.h"
 #include "parameters_fwd.h"
 #include "state.h"
@@ -15,15 +15,14 @@
 using namespace blaze;
 
 namespace {
-// This test suite tests the implementation of the Poisson FFT class with
-// finite range
+// This test suite tests the implementation of the screened Poisson FFT class
 //
 //              del^2_x V(x) - epsilon^2 V(x) = f(x) + PBC
 //
-class PoissonFFTEpsilonFixture
+class ScreenedPoissonFFTFixture
     : public testing::TestWithParam<std::tuple<int, double>> {
    protected:
-    PoissonFFTEpsilonFixture()
+    ScreenedPoissonFFTFixture()
         // Part of parameter file required to carry out the test
         : p({{"Domain",
               {{"N", std::get<0>(GetParam())}, {"L", std::get<1>(GetParam())}}},
@@ -49,7 +48,7 @@ class PoissonFFTEpsilonFixture
     const Domain box;
 
     SimState state;
-    Poisson::FFTEpsilon solver;
+    ScreenedPoisson::FFT solver;
     blaze::DynamicVector<double> f;
     blaze::DynamicVector<double> V_ref;
 };  // namespace
@@ -64,7 +63,7 @@ TEST(PoissonFFTEpsilonTest, ErrorDecays) {
                         {"Simulation", {{"interaction", {{"epsilon", 1}}}}}};
         SimState state;
         Domain box(p);
-        Poisson::FFTEpsilon solver(p, state);
+        ScreenedPoisson::FFT solver(p, state);
         auto sinx = sin(linspace(box.N, box.xmin, box.xmax));
         DynamicVector<double> f = -exp(sinx) * (sinx * sinx + sinx);
         DynamicVector<double> V_ref = exp(sinx);
@@ -81,14 +80,14 @@ TEST(PoissonFFTEpsilonTest, ErrorDecays) {
     error_file.close();
 }
 
-TEST_P(PoissonFFTEpsilonFixture, AnalyticalvsInPlace) {
+TEST_P(ScreenedPoissonFFTFixture, AnalyticalvsInPlace) {
     const double tolerance = 1e-6;
     solver.solve(f, f);
     // Result correct?
     EXPECT_NEAR(maxNorm(f - V_ref), 0, tolerance);
 }
 
-TEST_P(PoissonFFTEpsilonFixture, AnalyticalvsOutOfPlace) {
+TEST_P(ScreenedPoissonFFTFixture, AnalyticalvsOutOfPlace) {
     const double tolerance = 1e-6;
     DynamicVector<double> V(box.N);
     DynamicVector<double> f_copy = f;
@@ -99,12 +98,12 @@ TEST_P(PoissonFFTEpsilonFixture, AnalyticalvsOutOfPlace) {
     EXPECT_EQ(f_copy, f);
 }
 
-INSTANTIATE_TEST_SUITE_P(PowerOf2N, PoissonFFTEpsilonFixture,
+INSTANTIATE_TEST_SUITE_P(PowerOf2N, ScreenedPoissonFFTFixture,
                          testing::Combine(testing::Values(256, 512, 1024, 2048,
                                                           4096),
                                           testing::Values(1.0, 2 * M_PI, 13)));
 
-INSTANTIATE_TEST_SUITE_P(OddN, PoissonFFTEpsilonFixture,
+INSTANTIATE_TEST_SUITE_P(OddN, ScreenedPoissonFFTFixture,
                          testing::Combine(testing::Values(15, 17, 193, 1881),
                                           testing::Values(1.0, 2 * M_PI, 13)));
 

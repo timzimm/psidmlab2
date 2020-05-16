@@ -2,7 +2,7 @@ enable_testing()
 find_package(GTest MODULE REQUIRED)
  
 link_libraries(GTest::GTest GTest::Main Boost::boost blaze::blaze
-               nlohmann_json::nlohmann_json
+               nlohmann_json::nlohmann_json GSL::gsl
 )
 
 if(NOT DEFINED ENV{MKLROOT})
@@ -30,17 +30,9 @@ target_sources(phasespace
             ../src/observables/phasespace_distribution.cc
 )
 
-add_executable(poisson_fft_epsilon poisson_fft_epsilon.cc)
-target_sources(poisson_fft_epsilon
-    PRIVATE ../src/interaction/poisson_fft_epsilon.cc
-            ../src/state.cc
-            ../src/domain.cc
-            ../src/fftw.cc
-)
-
-add_executable(poisson_fft poisson_fft.cc)
-target_sources(poisson_fft
-    PRIVATE ../src/interaction/poisson_fft.cc
+add_executable(periodic_convolution periodic_convolution.cc)
+target_sources(periodic_convolution
+    PRIVATE ../src/interaction/periodic_convolution.cc
             ../src/state.cc
             ../src/domain.cc
             ../src/fftw.cc
@@ -54,4 +46,4 @@ target_sources(state
             ../src/fftw.cc
 )
 
-gtest_discover_tests(entropy phasespace poisson_fft poisson_fft_epsilon state)
+gtest_discover_tests(entropy phasespace periodic_convolution state)

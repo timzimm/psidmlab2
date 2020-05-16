@@ -5,23 +5,23 @@
 #include "parameters.h"
 
 template <typename FlowMapA, typename FlowMapB>
-class SRKN : public DefaultDriver<SRKN<FlowMapA, FlowMapB>> {
-    // Subproblem Integrators (A, B possible nonlinear)
-    FlowMapA phiA;  // integrator for del_t psi = A psi
-    FlowMapB phiB;  // integrator for del_t psi = B psi
-    int order;
+class PRK : public DefaultDriver<PRK<FlowMapA, FlowMapB>> {
+    // Subproblem time evolution operators (A, B possible nonlinear)
+    FlowMapA phiA;  // integrator for del_t psi = A(psi)
+    FlowMapB phiB;  // integrator for del_t psi = B(psi)
+    const int order;
     blaze::DynamicVector<double> a;
     blaze::DynamicVector<double> b;
-    bool stable;
+    const bool stable;
     double dt;
 
    public:
-    SRKN(const Parameters& p, const SimState& state, const Cosmology& cosmo_)
-        : DefaultDriver<SRKN<FlowMapA, FlowMapB>>(p),
+    PRK(const Parameters& p, const SimState& state, const Cosmology& cosmo_)
+        : DefaultDriver<PRK<FlowMapA, FlowMapB>>(p),
           phiA(p, state, cosmo_),
           phiB(p, state, cosmo_),
-          order{p["Simulation"]["stepper"]["order"].get<int>()},
-          stable{p["Simulation"]["driver"]["stable"].get<bool>()},
+          order{p["Simulation"]["stepper"]["order"]},
+          stable{p["Simulation"]["driver"]["stable"]},
           dt{p["Simulation"]["driver"]["dtau"].get<double>()} {
         switch (order) {
             case 2:
@@ -30,51 +30,18 @@ class SRKN : public DefaultDriver<SRKN<FlowMapA, FlowMapB>> {
                 a = {1};
                 break;
             case 4:
-                // Blanes, Moan SRKN_6 BAB splitting
-                b = {.0829844064174052,
-                     .39630980149836,
-                     -.0390563049223486,
-                     0,
-                     0,
-                     0,
-                     0};
-                b[3] = 1 - 2 * (b[0] + b[1] + b[2]);
-                subvector(b, 4, 3) = reverse(subvector(b, 0, 3));
-
-                a = {0.2452989571842710, 0.6048726657110800, 0, 0, 0, 0};
-                a[2] = 0.5 - (a[0] + a[1]);
-                subvector(a, 3, 3) = reverse(subvector(a, 0, 3));
-                break;
-            case 6:
-                // Blanes, Moan SRKN_11 BAB splitting
-                b = {.0414649985182624,
-                     .198128671918067,
-                     -.0400061921041533,
-                     .0752539843015807,
-                     -.0115113874206879,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0};
-                b[5] = 0.5 - (b[0] + b[1] + b[2] + b[3] + b[4]);
-                subvector(b, 5, 6) = reverse(subvector(b, 0, 6));
-
-                a = {.123229775946271,
-                     .290553797799558,
-                     -.127049212625417,
-                     -.246331761062075,
-                     .357208872795928,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0,
-                     0};
-                a[5] = 1 - 2 * (a[0] + a[1] + a[2] + a[3] + a[4]);
-                subvector(a, 6, 5) = reverse(subvector(b, 0, 5));
+                // Blanes, Moan symmetric PRK splitting
+                a = {
+                    0.209515106613361891,  -0.143851773179818077,
+                    0.434336666566456186,  0.434336666566456186,
+                    -0.143851773179818077, 0.209515106613361891,
+                };
+                b = {
+                    0.0792036964311954608,  0.353172906049773948,
+                    -0.0420650803577191948, 0.219376955753499572,
+                    -0.0420650803577191948, 0.353172906049773948,
+                    0.0792036964311954608,
+                };
                 break;
             default:
                 std::cout << ERRORTAG("Order not supported") << std::endl;
@@ -94,10 +61,8 @@ class SRKN : public DefaultDriver<SRKN<FlowMapA, FlowMapB>> {
         for (int stage = 0; stage < a.size(); ++stage) {
             phiB.step(state, b[stage] * dt);
             state.tau = t;
-            state.n = n;
             phiA.step(state, a[stage] * dt);
             state.tau = t;
-            state.n = n;
         }
 
         phiB.step(state, b[b.size() - 1] * dt);
@@ -158,7 +123,7 @@ class SRKN : public DefaultDriver<SRKN<FlowMapA, FlowMapB>> {
         }
     }
     */
-    REGISTER(SRKN)
+    REGISTER(PRK)
 };
 
 #endif

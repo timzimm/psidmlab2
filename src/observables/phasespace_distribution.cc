@@ -1,4 +1,5 @@
 #include <observables_common.h>
+#include <cmath>
 #include <cstdlib>
 #include <limits>
 #include "logging.h"
@@ -151,14 +152,15 @@ class PhaseSpaceDistribution : public ObservableFunctor {
             }
 
             // index offset relative to the common lower boundary
-            idx_start = std::abs(box.xmin - patch[0][0]) / box.dx;
-            int idk_start = std::abs(box.kmin - patch[1][0]) / box.dk;
+            idx_start = static_cast<int>(
+                std::abs(box.xmin - patch[0][0]) / box.dx + 0.5);
+            int idk_start = static_cast<int>(
+                std::abs(box.kmin - patch[1][0]) / box.dk + 0.5);
+            int idx_end = static_cast<int>(
+                std::abs(box.xmin - patch[0][1]) / box.dx + 0.5);
+            int idk_end = static_cast<int>(
+                std::abs(box.kmin - patch[1][1]) / box.dk + 0.5);
 
-            int idx_end = std::abs(box.xmin - patch[0][1]) / box.dx;
-            int idk_end = std::abs(box.kmin - patch[1][1]) / box.dk;
-
-            // everything is +1 to get number of elements, and not their
-            // distance
             const int Nx = idx_end - idx_start + 1;
             const int Nk = idk_end - idk_start + 1;
 

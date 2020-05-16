@@ -3,10 +3,8 @@
 #include "domain.h"
 #include "parameters.h"
 
-#include <cassert>
 #include <fstream>
 #include <memory>
-#include <queue>
 #include <string>
 
 // Forward Declarations
@@ -36,7 +34,8 @@ class ICGenerator {
     Parameters param;  // This is awfull!
     std::string filename;
     mutable std::ifstream ic_file;
-    mutable std::queue<std::string> psis;
+    mutable std::vector<std::string> psis;
+    mutable std::vector<double> known_tau;
 
     // init wavefunction ...
     // according to a matter power spectrum provided by file.

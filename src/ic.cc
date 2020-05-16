@@ -1,5 +1,5 @@
 #include "ic.h"
-#include "blaze/math/typetraits/Size.h"
+#include "config.h"
 #include "cosmology.h"
 #include "fftw.h"
 #include "hdf5_file.h"
@@ -12,9 +12,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <map>
 #include <numeric>
-#include <queue>
 #include <random>
 
 using namespace blaze;
@@ -56,7 +56,11 @@ ICGenerator::ICGenerator(const Parameters& p)
                 std::cerr << ERRORTAG("No wavefunction found.") << std::endl;
                 exit(1);
             }
-            for (auto& path : paths) psis.push(path);
+            for (auto& path : paths) {
+                psis.push_back(path);
+                auto tau = file.read_scalar_attribute<double>(path, "tau");
+                known_tau.push_back(tau);
+            }
             break;
         }
         default:
@@ -85,8 +89,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
             std::cout << " ... done" << std::endl;
             break;
         case ICType::PreviousSimulation:
-            std::cout << INFOTAG("Load psi0 from last stored state")
-                      << std::flush;
+            std::cout << INFOTAG("Load psi from state") << std::flush;
             psi_from_state(state, cosmo, tau);
     }
 
@@ -124,47 +127,69 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
 // the stored tau.
 void ICGenerator::psi_from_state(SimState& state, const Cosmology& cosmo,
                                  const double tau) const {
-    HDF5File file(filename, HDF5File::Access::Read);
-    if (psis.size() > 0) {
-        std::string path_to_next_psi = psis.front();
-        double next_tau =
-            file.read_scalar_attribute<double>(path_to_next_psi, "tau");
-        if (next_tau <= tau) {
-            psis.pop();
-            state.tau = next_tau;
-            state.n =
-                file.read_scalar_attribute<unsigned int>(path_to_next_psi, "n");
-
-            auto psi_matrix = file.read_matrix(path_to_next_psi);
-            // Populate simualation state.
-            state.psi = blaze::map(blaze::column(psi_matrix, 0),
-                                   blaze::column(psi_matrix, 1),
-                                   [](const double r, const double i) {
-                                       return std::complex<double>(r, i);
-                                   });
-            state.V.resize(box.N);
-            std::cout << " @ z = "
-                      << Cosmology::z_of_a(cosmo.a_of_tau(state.tau))
-                      << " ... done" << std::endl;
-        } else {
-            std::cout << " ... no fitting state found. Integrate." << std::endl;
-        }
-    } else {
-        std::cout << " ... file exhausted. Integrate." << std::endl;
+    static bool quick_exit = false;
+    if (quick_exit) {
+        return;
     }
+
+    HDF5File file(filename, HDF5File::Access::Read);
+    // Find next stored tau greater or equal to the requested tau - epsilon
+    auto tau_up_iter =
+        std::lower_bound(known_tau.begin(), known_tau.end(),
+                         tau - PSIDMLAB_MINIMUM_INTEGRATION_STEP);
+
+    double next_tau;
+    std::string path_to_next_psi;
+    // (i) Simulation Resumed:
+    // Requested tau is beyond the last stored psi. In this case we
+    // load the last state and make sure we exit immediatly if this function
+    // will be called again.
+    if (tau_up_iter == known_tau.end()) {
+        next_tau = known_tau.back();
+        path_to_next_psi = psis.back();
+        quick_exit = true;
+        // (ii) Simulation Refinement:
+        // Requested tau lies within the time grid of known states. In this case
+        // we load the state with largest state.tau <= tau to resume the
+        // integration from.
+    } else {
+        double tau_up = *tau_up_iter;
+        size_t idx_to_tau_up = std::distance(known_tau.begin(), tau_up_iter);
+        double tau_low = *(tau_up_iter - 1);
+        // Load upper bound if difference is so small (but possibbly negative)
+        // that we would not integrate anyways. This happens if new
+        // observables are computed at values of tau where the wavefunction is
+        // already known
+        if (std::abs(tau_up - tau) < PSIDMLAB_MINIMUM_INTEGRATION_STEP) {
+            next_tau = tau_up;
+            path_to_next_psi = psis[idx_to_tau_up];
+            // Load lower bound if observables need to be stored at
+            // values of tau at which no psi was previously stored.
+        } else {
+            next_tau = tau_low;
+            path_to_next_psi = psis[idx_to_tau_up - 1];
+        }
+    }
+    state.tau = next_tau;
+    state.n = file.read_scalar_attribute<unsigned int>(path_to_next_psi, "n");
+
+    auto psi_matrix = file.read_matrix(path_to_next_psi);
+    // Populate simualation state.
+    state.psi =
+        blaze::map(blaze::column(psi_matrix, 0), blaze::column(psi_matrix, 1),
+                   [](const double r, const double i) {
+                       return std::complex<double>(r, i);
+                   });
+    state.V.resize(box.N);
+    std::cout << " @ z = " << Cosmology::z_of_a(cosmo.a_of_tau(state.tau))
+              << ", t = " << state.tau << " ... done" << std::endl;
 }
 
 void ICGenerator::real_imag_from_file(SimState& state) const {
-    state.psi.resize(box.N);
-    state.V.resize(box.N);
-
     fill_from_file(ic_file, state.psi);
 }
 
 void ICGenerator::modulus_phase_from_file(SimState& state) const {
-    state.psi.resize(box.N);
-    state.V.resize(box.N);
-
     fill_from_file(ic_file, state.psi);
     state.psi = map(state.psi, [](std::complex<double> p) {
         return std::polar(p.real(), p.imag());
@@ -177,9 +202,6 @@ void ICGenerator::modulus_phase_from_file(SimState& state) const {
 
 void ICGenerator::delta_from_power(SimState& state,
                                    const Cosmology& cosmo) const {
-    state.psi.resize(box.N);
-    state.V.resize(box.N);
-
     std::vector<double> k_data(data_N);
     std::vector<double> powerspectrum(data_N);
     std::map<double, double> discrete_P;

@@ -9,10 +9,16 @@ target_sources(psidm
             cosmology.cc
             ic.cc
             convolution_functions.cc
-            interaction/poisson_fft.cc
-            interaction/poisson_fft_epsilon.cc
+            interaction/poisson_fc.cc
+            interaction/screened_poisson_fc.cc
+            interaction/periodic_convolution.cc
+            interaction/nonlocal_gp.cc
             evolution/kinetic.cc
-            evolution/interaction_potential_trapezodial.cc
+            evolution/bfsp.cc
+            evolution/bffp.cc
+            evolution/interaction_potential.cc
+            evolution/interaction_potential_magnus.cc
+            evolution/interaction_potential_cap_trapezodial.cc
             evolution/concrete_splittings.cc
             "${OBSERVABLES_CXX}"
 )
@@ -50,6 +56,7 @@ target_link_libraries(psidm
             hdf5::hdf5-static 
             hdf5::hdf5_hl-static
             nlohmann_json::nlohmann_json
+            GSL::gsl
 )
 
 if(NOT DEFINED ENV{MKLROOT})

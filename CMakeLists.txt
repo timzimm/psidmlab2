@@ -12,6 +12,7 @@ find_package(Boost REQUIRED)
 find_package(hdf5 CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(blaze CONFIG REQUIRED)
+find_package(GSL REQUIRED)
 
 # MKL ships with FFTW3 wrappers. In this case we can omit the external FFTW
 # dependency. Note that MKL does not provide all the functionality of FFTW.

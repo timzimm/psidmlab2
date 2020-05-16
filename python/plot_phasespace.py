@@ -21,23 +21,23 @@ def phasespace(file, time, p=None):
     else:
         time_file = np.array([f.attrs['z'][0] for f in fs.values()])
 
-    fs = [fs[ds_names[np.argmin(np.abs(time_file - t))]] for t
+    fs = [np.array(fs[ds_names[np.argmin(np.abs(time_file - t))]]) for t
                        in time]
 
     return fs
 
 if __name__ == "__main__":
-    file = h5py.File(sys.argv[1], 'r')
+    p = None
+    dists = None
     time = np.float64(sys.argv[2:])
-    print(time)
-
-    param_string = file['/'].attrs['parameters'][0].decode("ascii")
-    p = json.loads(param_string)
+    with h5py.File(sys.argv[1], 'r') as file:
+        param_string = file['/'].attrs['parameters'][0].decode("ascii")
+        p = json.loads(param_string)
+        dists = np.array(phasespace(file, time, p))
 
     L = int(p["Simulation"]["L"])
     N = int(p["Simulation"]["N"])
     sigma_x = float(p["Observables"]["PhaseSpaceDistribution"]["sigma_x"])
-    dists = np.array(phasespace(file, time, p))
 
     fig,ax = plt.subplots()
     cm = sns.diverging_palette(240, 10, n=9, as_cmap=True)
@@ -45,13 +45,20 @@ if __name__ == "__main__":
     for i in range(len(time)):
         dist = dists[i,:,:]
         dist /= np.max(dist)
+        print(np.all(dist>0))
 
-        patch = np.array(p["Observables"]["PhaseSpaceDistribution"]["patch"])
-        Lx = patch[0,1] - patch[0,0]
-        Lk = patch[1,1] - patch[1,0]
+        patch = np.empty((2,2))
+        patch[0,0] = -L/2
+        patch[0,1] = -patch[0,0] - L/N
+        patch[1,0] = -N*np.pi/L
+        patch[1,1] = -patch[1,0] - 2*np.pi/L
+        # patch = np.array(p["Observables"]["PhaseSpaceDistribution"]["patch"])
+        # Lx = patch[0,1] - patch[0,0]
+        # Lk = patch[1,1] - patch[1,0]
 
-        k = np.linspace(-Lk/2, Lk/2, dist.shape[0], endpoint=False)
-        x = np.linspace(-Lx/2, Lx/2, dist.shape[1], endpoint=False)
+        x = np.linspace(patch[0,0], patch[0,1], dist.shape[1])
+        k = np.linspace(patch[1,0], patch[1,1], dist.shape[0])
+
         X, K = np.meshgrid(x,k)
         dist = np.clip(dist,0.001,1)
         dist[dist <= 0.001] = None

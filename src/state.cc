@@ -1,14 +1,14 @@
 #include "state.h"
 #include "blaze/math/functors/L2Norm.h"
+#include "config.h"
 #include "cosmology.h"
 #include "fftw3.h"
 #include "parameters.h"
 
-#define RENORMALIZATION_THRESHOLD 1000
-
-SimState::SimState()
+SimState::SimState(const Domain& box)
     : n(0u),
       tau(0),
+      tau_aux(0),
       V(0ul),
       psi(0ul),
       representation(Representation::Position),
@@ -17,7 +17,12 @@ SimState::SimState()
       N_plan(0),
       N_transform(0),
       norm(0),
-      psi_ptr(nullptr) {}
+      psi_ptr(nullptr) {
+    psi.reserve(box.N);
+    V.reserve(2 * (box.N / 2 + 1));
+    psi.resize(box.N);
+    V.resize(box.N);
+}
 
 void SimState::transform(const SimState::Representation target) {
     // Identity transform
@@ -60,7 +65,7 @@ void SimState::transform(const SimState::Representation target) {
         fftw_execute_dft(momentum_to_position.get(), in, in);
         // Renormalize state to fight numerical errors that crop up after many
         // subsequent FFTs.
-        if (N_transform > RENORMALIZATION_THRESHOLD) {
+        if (N_transform > PSIDMLAB_RENORMALIZATION_THRESHOLD) {
             N_transform = 0;
             psi *= norm / std::real(blaze::l2Norm(psi));
         }

@@ -1,16 +1,13 @@
 #ifndef __CONVOLUTION__
 #define __CONVOLUTION__
 
+#include "config.h"
 #include "fftw.h"
 
 #include <blaze/math/DynamicVector.h>
 #include <blaze/util/typetraits/IsComplexDouble.h>
 #include <blaze/util/typetraits/IsDouble.h>
 #include <complex>
-
-#ifndef THRESHOLD
-#define THRESHOLD 200
-#endif
 
 // Taken from from GSL. These routines compute the
 // optimal padding values to achieve maximum performance of FFTW for DFT
@@ -52,7 +49,7 @@ convolution_ws<T>::convolution_ws(const bool computeLinear_,
       N_kernel(N_kernel_),
       kernel_up_to_date(false),
       computeLinear(computeLinear_),
-      fast_convolution(N_kernel >= THRESHOLD),
+      fast_convolution(N_kernel >= PSIDMLAB_CONVOLUTION_THRESHOLD),
       P(0),
       kernel_padded(N_kernel),
       signal_padded(N_signal),

@@ -4,7 +4,7 @@ import json
 import h5py
 import sys
 
-def wavefunction(file, time, p=None):
+def wavefunction(file, time=None, p=None):
     """
     Given an HDF5 file and a list of time points this function returns 
     a list of complex numpy arrays psi for each requested time point
@@ -26,10 +26,17 @@ def wavefunction(file, time, p=None):
     else:
         time_file = np.array([psi.attrs['z'][0] for psi in psis.values()])
 
+
     psis_complex = []
-    for t in time:
-        psi_flat = np.ravel(psis[ds_names[np.argmin(np.abs(time_file - t))]])
-        psis_complex.append(psi_flat[::2] + 1.0j * psi_flat[1::2])
+    if(time is not None):
+        for t in time:
+            psi_flat = np.ravel(psis[ds_names[np.argmin(np.abs(time_file - t))]])
+            psis_complex.append(psi_flat[::2] + 1.0j * psi_flat[1::2])
+    else:
+        for name in ds_names:
+            psi_flat = np.ravel(psis[name])
+            psis_complex.append(psi_flat[::2] + 1.0j * psi_flat[1::2])
+
 
     return psis_complex
 
@@ -41,14 +48,13 @@ if __name__ == "__main__":
     param_string = file['/'].attrs['parameters'][0].decode("ascii")
     p = json.loads(param_string)
     psis = wavefunction(file, time, p)
-    N = p["Simulation"]["N"]
-    L = p["Simulation"]["L"]
-    x = np.linspace(-L/2,L/2,N)
+    N = p["Domain"]["N"]
+    L = p["Domain"]["L"]
+    x = np.linspace(-L/2,L/2,N, endpoint=False)
 
     fig, axs = plt.subplots(5, 1, sharex=True)
 
     for psi, t in zip(psis, time):
-        psi = np.ravel(psi)
         label = ""
         if(p["Cosmology"]["model"] == 1):
             label=r"$\tau = %.4f$" % t

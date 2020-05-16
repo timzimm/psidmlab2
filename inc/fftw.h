@@ -24,5 +24,9 @@ fftw_plan_ptr make_fftw_plan_dft_r2c(int N, const double* vin,
 // Complex-to-Real FFT
 fftw_plan_ptr make_fftw_plan_dft_c2r(int N, const fftw_complex* vin,
                                      const double* vout, unsigned flags);
+// Real-to-Real transform
+fftw_plan_ptr make_fftw_plan_r2r_1d(int n, const double* vin,
+                                    const double* vout, fftw_r2r_kind kind,
+                                    unsigned flags);
 
 #endif

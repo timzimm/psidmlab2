@@ -1,4 +1,4 @@
-#include "H5Fpublic.h"
+#include "config.h"
 #include "cosmology.h"
 #include "hdf5_file.h"
 #include "ic.h"
@@ -9,8 +9,9 @@
 #include <algorithm>
 #include <chrono>   //runtime measurement
 #include <fstream>  //loading the json file
-#include <queue>    //priority queue to select to next checkpoint
-#include <set>      //building the union of all checkpoints
+#include <limits>
+#include <queue>  //priority queue to select to next checkpoint
+#include <set>    //building the union of all checkpoints
 #include <unordered_map>
 #include <vector>
 
@@ -35,14 +36,20 @@ int main(int argc, char **argv) {
     // Parameter datastructure (a json file)
     Parameters param;
     // Load parameters from file
-    std::ifstream(argv[1]) >> param;
+    try {
+        std::ifstream(argv[1]) >> param;
+    } catch (...) {
+        std::cerr << ERRORTAG("Ill-formed json. Exit") << std::endl;
+        exit(1);
+    }
 
     const Cosmology cosmo(param);
     param << cosmo;
 
     // Holds psi, V, n, tau
-    SimState state;
+    SimState state(Domain{param});
     ICGenerator ic(param);
+    // Populate the psi array
     ic.generate(state, cosmo);
 
     const std::string potential = param["Simulation"]["interaction"]["name"];
@@ -50,6 +57,9 @@ int main(int argc, char **argv) {
 
     const std::string stepper_name = param["Simulation"]["stepper"]["name"];
     auto stepper = TimeEvolution::make(stepper_name, param, state, cosmo);
+
+    // Generate the initial potential to completely set up the initial condition
+    pot->solve(state);
 
     // Setup Analysis Functors
 
@@ -176,7 +186,8 @@ int main(int argc, char **argv) {
             ic.generate(state, cosmo, checkpoint_time);
         }
         // Integrate from state.tau to checkpoint_time - if necessary
-        if (abs(state.tau - checkpoint_time) > 1e-10) {
+        if (abs(state.tau - checkpoint_time) >
+            PSIDMLAB_MINIMUM_INTEGRATION_STEP) {
             std::cout << INFOTAG("Integrate up to tau/z = ")
                       << ((cosmo == CosmoModel::Artificial) ? checkpoint_time
                                                             : z)

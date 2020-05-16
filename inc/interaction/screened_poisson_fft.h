@@ -1,23 +1,23 @@
-#ifndef __POISSON_FFT__
-#define __POISSON_FFT__
+#ifndef __YUKAWA_FFT__
+#define __YUKAWA_FFT__
 
 #include "domain.h"
 #include "fftw.h"
 #include "interfaces.h"
-
-// Computes the solution to:
+// Computes the solution to the screened Poisson equation:
 //
-//                 ∂_xx V =  (|psi|^2 - 1)    x in [box.xmin, box.xmax]
+//       ∂_xx V -  epsilon^2 V =  |psi|^2 - 1   x in [box.xmin, box.xmax]
 //
 // with periodic boundary conditions for psi and V.
 //
-// Poisson Equation is solved by taking a discrete Fourier transformation of the
-// source, transforming its coefficient and taking its inverse FT.
+// The Equation is solved by taking a discrete Fourier transformation of
+// the source, transforming its coefficient and taking its inverse FT.
 
-namespace Poisson {
+namespace ScreenedPoisson {
 
 class FFT : public Interaction {
     const Domain box;
+    const double epsilon;
     fftw_plan_ptr fwd;
     fftw_plan_ptr bwd;
     double *real_ptr;
@@ -30,5 +30,5 @@ class FFT : public Interaction {
     REGISTER(FFT)
 };
 
-}  // namespace Poisson
+}  // namespace ScreenedPoisson
 #endif

@@ -5,13 +5,13 @@
 
 template <typename Derived>
 class DefaultDriver : public TimeEvolution {
-    bool stable;
+    const bool stable;
     double dt;
 
    public:
     DefaultDriver(const Parameters& p)
-        : stable{p["Simulation"]["driver"]["stable"].get<bool>()},
-          dt{p["Simulation"]["driver"]["dtau"].get<double>()} {}
+        : stable{p["Simulation"]["driver"]["stable"]},
+          dt{stable ? 0 : p["Simulation"]["driver"]["dtau"].get<double>()} {}
 
     const Derived& self() const { return static_cast<const Derived&>(*this); }
     Derived& self() { return static_cast<Derived&>(*this); }
@@ -33,9 +33,9 @@ class DefaultDriver : public TimeEvolution {
             while (state.tau + dt < t_final) {
                 step(state, dt);
             }
-
-            step(state, t_final - state.tau);
         }
+        // Residual step to exactly arrive at the final time
+        step(state, t_final - state.tau);
     }
 };
 

@@ -21,7 +21,7 @@ Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
     // (i) do an allocation for the rotated dimension.
     // (ii) have a complex vector for the evolution operator
     //
-    // (i) turns (ii) into a preformance optimization because we can omit a
+    // (i) turns (ii) into a performance optimization because we can omit a
     // recomputation of the full evolution operator if dt hasn't changed.
     // Note that in d=1 we aim for performance rather than memory efficiency
     // because having kx2 and U as cached versions has O(N) memory.
@@ -33,7 +33,7 @@ Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
 
 // Limit max phase change to pi/2 per step
 double Kinetic::next_dt(const SimState& state) const {
-    return box.L * box.L / (box.N * box.N * M_PI);
+    return box.dx * box.dx / M_PI;
 }
 
 void Kinetic::step(SimState& state, const double dt) const {
@@ -45,6 +45,8 @@ void Kinetic::step(SimState& state, const double dt) const {
         U = exp(-0.5i * kx2 * dt);
     }
     state.psi *= U;
+    state.tau_aux += dt;
+
     // in d > 1 we "recompute" the k2-grid (O(N) in memory) in each step to get
     // around memory allocation. Note that using a raw loop does exactly the
     // same but less expressive.

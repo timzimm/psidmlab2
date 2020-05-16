@@ -1,9 +1,9 @@
-#include "interaction/poisson_fft_epsilon.h"
+#include "interaction/screened_poisson_fft.h"
 #include "parameters.h"
 #include "state.h"
 
-namespace Poisson {
-FFTEpsilon::FFTEpsilon(const Parameters &p, const SimState &state)
+namespace ScreenedPoisson {
+FFT::FFT(const Parameters &p, const SimState &state)
     : box(p),
       epsilon{p["Simulation"]["interaction"]["epsilon"]},
       fwd(nullptr),
@@ -19,15 +19,15 @@ FFTEpsilon::FFTEpsilon(const Parameters &p, const SimState &state)
     // Nothing to do. For 2D, 3D add fully populated k-grids + rotation
 }
 
-void FFTEpsilon::solve(SimState &state) {
+void FFT::solve(SimState &state) {
     // Compute source of Poisson equation
     state.V = delta_from(state);
     // In place computation, i.e. (i) and (ii) discussed below are FALSE
     solve(state.V, state.V);
 }
 
-void FFTEpsilon::solve(blaze::DynamicVector<double> &V,
-                       const blaze::DynamicVector<double> &source) {
+void FFT::solve(blaze::DynamicVector<double> &V,
+                const blaze::DynamicVector<double> &source) {
     // Compute Greens kernel in k-space (no memory allocation!)
     // Note that both odd and even N share the same positive k values
     // if we demand a common upper k-interval boundary. This is different from
@@ -81,6 +81,5 @@ void FFTEpsilon::solve(blaze::DynamicVector<double> &V,
     // Strip of padding
     V.resize(box.N);
 }
-REGISTER(FFTEpsilon);
 
-}  // namespace Poisson
+}  // namespace ScreenedPoisson
