@@ -17,9 +17,10 @@ InteractionPotentialMagnus::InteractionPotentialMagnus(const Parameters& p,
       pot{Interaction::make(p["Simulation"]["interaction"]["name"], p, state)} {
 }
 
-// Non linear phase method with phi_max = pi/2
+// Non linear phase method
 double InteractionPotentialMagnus::next_dt(const SimState& state) const {
-    return M_PI / (2 * cosmo.a_of_tau(state.tau) * max(abs(state.V)));
+    const double phi_max = 0.1;
+    return phi_max / (cosmo.a_of_tau(state.tau) * max(abs(state.V)));
 }
 
 void InteractionPotentialMagnus::step(SimState& state, const double dt) const {

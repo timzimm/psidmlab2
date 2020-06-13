@@ -1,6 +1,7 @@
 #ifndef __HDF5_FILE__
 #define __HDF5_FILE__
 
+#include "H5Ppublic.h"
 #include "logging.h"
 
 #include <blaze/math/DynamicVector.h>
@@ -103,8 +104,8 @@ class HDF5File {
 
     /************************* WRITING FUNCTIONS **************************/
 
-    // Write generic vector to file at path ds_path. In this context generic
-    // means:
+    // Write generic vector to file at path ds_path.
+    // In this context generic means:
     //
     // T = double, int
     // TF = blaze::columnVector, blaze::rowVector
@@ -138,6 +139,7 @@ class HDF5File {
             filetype = H5T_STD_I32BE;  // 4-byte integer, big endian
             memtype = H5T_NATIVE_INT;
         }
+
         auto dataset =
             H5Dcreate(parent_group, ds_path.c_str(), filetype, dataspace,
                       H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);

@@ -3,25 +3,14 @@
 #include "logging.h"
 #include "parameters.h"
 
+#include <gsl/gsl_sf_gamma.h>
 #include <boost/math/tools/roots.hpp>
-#include <boost/units/cmath.hpp>
-#include <boost/units/systems/si/codata/electron_constants.hpp>
-#include <boost/units/systems/si/codata/universal_constants.hpp>
-#include <boost/units/systems/si/io.hpp>
-#include <boost/units/systems/si/prefixes.hpp>
 #include <fstream>
 #include <tuple>
-
-using namespace boost::units;
-using namespace boost::units::si;
-using namespace boost::units::si::constants::codata;
-BOOST_UNITS_STATIC_CONSTANT(parsec, astronomical::parsec_base_unit::unit_type);
 
 Cosmology::Cosmology(const Parameters& p)
     : model{static_cast<CosmoModel>(p["Cosmology"]["model"])},
       omega_m0(0),
-      hubble(0),
-      mu(0),
       a_start(0),
       a_end(0),
       delta_a(0),
@@ -33,8 +22,6 @@ Cosmology::Cosmology(const Parameters& p)
         std::cout << INFOTAG("Initialize time lookup table from cosmology...")
                   << std::flush;
         omega_m0 = p_cosmo["omega_m0"];
-        hubble = p_cosmo["h"];
-        mu = p_cosmo["mu"];
         A = p_cosmo["a_grid_N"];
 
         a_start = a_of_z(p_cosmo["z_start"]);
@@ -84,12 +71,14 @@ Cosmology::Cosmology(const Parameters& p)
 
 double Cosmology::omega_m(double a) const {
     if (model == CosmoModel::Artificial) return omega_m0;
-    return omega_m0 / (omega_m0 + (1 - omega_m0) * a * a * a);
+    return omega_m0 / (a * a * a * std::pow(E(a), 2));
 }
-double Cosmology::Dplus(double a) const {
-    double om = omega_m(a);
-    return 5.0 * a / 2 * om /
-           (pow(om, 4.0 / 7) - (1 - om) + (1 + 0.5 * om) * (1 + (1 - om) / 70));
+double Cosmology::D(double a) const {
+    const double omega_l0 = 1 - omega_m0;
+    const double x = omega_l0 / std::pow(E(a), 2);
+    return 5.0 / 6 * std::pow(omega_m0 / omega_l0, 1.0 / 3) *
+           std::sqrt(1 + omega_m0 / (omega_l0 * a * a * a)) *
+           gsl_sf_beta(5.0 / 6, 2.0 / 3) * gsl_sf_beta_inc(5.0 / 6, 2.0 / 3, x);
 }
 
 double Cosmology::E(const double a) const {
@@ -150,51 +139,3 @@ double Cosmology::a_of_tau(double tau) const {
 }
 
 bool Cosmology::operator==(const CosmoModel& m) const { return model == m; }
-
-double Cosmology::chi_of_x(
-    const quantity<astronomical::parsec_base_unit::unit_type> x) const {
-    using phasevolume = derived_dimension<length_base_dimension, 2,
-                                          time_base_dimension, -1>::type;
-
-    const quantity<energy> eV = e_over_m_e * m_e * volt;
-    const quantity<unit<phasevolume, si::system>> mu_si =
-        mu * hbar / (1e-22 * eV) * pow<2>(c);
-    const auto H0 = static_cast<quantity<frequency>>(
-        hubble * 100 * kilo * meter / (second * mega * parsec));
-    const auto alpha = 1.0 / root<2>(1.5 * pow<2>(H0) * omega_m0);
-
-    return 1.0 / root<2>(mu_si * alpha) * static_cast<quantity<length>>(x);
-}
-
-double Cosmology::x_of_chi(double chi) const {
-    using phasevolume = derived_dimension<length_base_dimension, 2,
-                                          time_base_dimension, -1>::type;
-
-    const quantity<energy> eV = e_over_m_e * m_e * volt;
-    const quantity<unit<phasevolume, si::system>> mu_si =
-        mu * hbar / (1e-22 * eV) * pow<2>(c);
-    const auto H0 = static_cast<quantity<frequency>>(
-        hubble * 100 * kilo * meter / (second * mega * parsec));
-    const auto alpha = 1.0 / root<2>(1.5 * pow<2>(H0) * omega_m0);
-
-    return root<2>(mu_si * alpha) / static_cast<quantity<length>>(1.0 * parsec);
-}
-
-Parameters& operator<<(Parameters& p, const Cosmology& cosmo) {
-    const bool convert = p["General"]["physical_units"].get<bool>();
-    if (convert) {
-        const auto L = p["Simulation"]["L"].get<double>() * parsec;
-        p["Simulation"]["L_phys"] = L.value();
-        p["Simulation"]["L"] = cosmo.chi_of_x(L);
-
-        for (auto& observable : p["Observables"]) {
-            if (auto result = observable.find("sigma_x");
-                result != observable.end()) {
-                const auto sigma_x = result->get<double>() * parsec;
-                observable["sigma_phys"] = sigma_x.value();
-                observable["sigma_x"] = cosmo.chi_of_x(sigma_x);
-            }
-        }
-    }
-    return p;
-}

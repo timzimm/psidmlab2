@@ -3,13 +3,16 @@
 #include "cosmology.h"
 #include "fftw.h"
 #include "hdf5_file.h"
+#include "interaction/periodic_convolution.h"
 #include "interfaces.h"
 #include "io.h"
 #include "logging.h"
 #include "parameters.h"
+#include "parameters_fwd.h"
 #include "state.h"
 
 #include <algorithm>
+#include <boost/math/interpolators/cardinal_cubic_b_spline.hpp>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -21,51 +24,60 @@ using namespace blaze;
 
 ICGenerator::ICGenerator(const Parameters& p)
     : type{static_cast<ICType>(p["Initial Conditions"]["ic_type"])},
-      data_N{0},
+      data_N(0),
       box{p},
-      seed{p["Initial Conditions"]["seed"]},
-      compute_velocity{p["Initial Conditions"]["compute_velocity"]},
-      param{},
+      seed(0),
+      compute_velocity(false),
       filename{p["Initial Conditions"]["source_file"]} {
-    // Check data integrity
-    switch (type) {
-        case ICType::ExternalRealImag... ICType::ExternalModulusPhase: {
-            param = p;
-            ic_file = std::ifstream(filename);
-            data_N = std::count(std::istreambuf_iterator<char>(ic_file),
-                                std::istreambuf_iterator<char>(), '\n');
-            if (data_N != box.N) {
-                std::cerr << ERRORTAG("#lines in source_file(" << data_N
-                                                               << ") != N")
-                          << std::endl;
-                exit(1);
-            }
-            ic_file.seekg(0);
-            break;
+    if (type != ICType::PreviousSimulation) {
+        ic_file = std::ifstream(filename);
+        data_N = std::count(std::istreambuf_iterator<char>(ic_file),
+                            std::istreambuf_iterator<char>(), '\n');
+        ic_file.seekg(0);
+    }
+    if (type < ICType::Powerspectrum) {
+        if (data_N != box.N) {
+            std::cerr << ERRORTAG("#lines in source_file(" << data_N
+                                                           << ") != N")
+                      << std::endl;
+            exit(1);
         }
-        case ICType::PreviousSimulation: {
-            auto result = H5Fis_hdf5(filename.c_str());
-            if (result <= 0) {
-                std::cerr << ERRORTAG("No valid HDF5 file found") << std::endl;
-                exit(1);
-            }
-            HDF5File file(filename, HDF5File::Access::Read);
+        if (p["Initial Conditions"]["compute_velocity"] == true) {
+            std::cout << WARNINGTAG(
+                             "psi0 fully specified. compute_velocity "
+                             "will be ignored")
+                      << std::endl;
+        }
+    }
+    if (type == ICType::Powerspectrum) {
+        if (p["Domain"]["physical_units"] == false) {
+            std::cerr << ERRORTAG(
+                             "psi0 from power spectrum requires physical units")
+                      << std::endl;
+            exit(1);
+        }
+        compute_velocity = p["Initial Conditions"]["compute_velocity"];
+        seed = p["Initial Conditions"]["seed"];
 
-            std::vector<std::string> paths = file.ls("/WaveFunction/");
-            if (paths.size() == 0) {
-                std::cerr << ERRORTAG("No wavefunction found.") << std::endl;
-                exit(1);
-            }
-            for (auto& path : paths) {
-                psis.push_back(path);
-                auto tau = file.read_scalar_attribute<double>(path, "tau");
-                known_tau.push_back(tau);
-            }
-            break;
+    } else if (type == ICType::PreviousSimulation) {
+        auto isHDF5 = H5Fis_hdf5(filename.c_str());
+        if (isHDF5 <= 0) {
+            std::cerr << ERRORTAG("No valid HDF5 file found") << std::endl;
+            exit(1);
         }
-        default:
-            break;
-    };
+        HDF5File file(filename, HDF5File::Access::Read);
+
+        std::vector<std::string> paths = file.ls("/WaveFunction/");
+        if (paths.size() == 0) {
+            std::cerr << ERRORTAG("No wavefunction found.") << std::endl;
+            exit(1);
+        }
+        for (auto& path : paths) {
+            psis.push_back(path);
+            auto tau = file.read_scalar_attribute<double>(path, "tau");
+            known_tau.push_back(tau);
+        }
+    }
 }
 
 void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
@@ -103,10 +115,14 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
 
         // Set psis modulus before we override delta. For cold conditions
         // that's all that is left to do.
-        psi = sqrt(1.0 + delta);
+        psi = blaze::sqrt(1.0 + delta);
 
         // Cosmological initial velocity field
         if (compute_velocity) {
+            const Parameters p(
+                {{"Domain",
+                  {{"N", box.N}, {"L", box.L}, {"physical_units", false}}},
+                 {"Simulation", {{"interaction", {{"type", 0}}}}}});
             const double a_init = cosmo.a_of_tau(0);
             const double prefactor =
                 -std::sqrt(2.0 / 3 * a_init / cosmo.omega_m(a_init));
@@ -114,7 +130,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
             std::cout << INFOTAG("Initial Velocity Field from Poisson @ a = ")
                       << a_init << std::endl;
 
-            auto pot = Interaction::make("Poisson::FFT", param, state);
+            auto pot = Interaction::make("PeriodicConvolution", p, state);
             pot->solve(phase, prefactor * delta);
 
             // Madelung Representation.
@@ -123,8 +139,8 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
     }
 }
 
-// Populate SimState with stored wavefunction if the requested tau greater than
-// the stored tau.
+// Populate SimState with stored wavefunction if the requested tau is greater
+// than the stored tau.
 void ICGenerator::psi_from_state(SimState& state, const Cosmology& cosmo,
                                  const double tau) const {
     static bool quick_exit = false;
@@ -155,8 +171,7 @@ void ICGenerator::psi_from_state(SimState& state, const Cosmology& cosmo,
     } else {
         double tau_up = *tau_up_iter;
         size_t idx_to_tau_up = std::distance(known_tau.begin(), tau_up_iter);
-        double tau_low = *(tau_up_iter - 1);
-        // Load upper bound if difference is so small (but possibbly negative)
+        // Load upper bound if difference is so small (but possibly negative)
         // that we would not integrate anyways. This happens if new
         // observables are computed at values of tau where the wavefunction is
         // already known
@@ -166,6 +181,7 @@ void ICGenerator::psi_from_state(SimState& state, const Cosmology& cosmo,
             // Load lower bound if observables need to be stored at
             // values of tau at which no psi was previously stored.
         } else {
+            double tau_low = *(tau_up_iter - 1);
             next_tau = tau_low;
             path_to_next_psi = psis[idx_to_tau_up - 1];
         }
@@ -202,64 +218,88 @@ void ICGenerator::modulus_phase_from_file(SimState& state) const {
 
 void ICGenerator::delta_from_power(SimState& state,
                                    const Cosmology& cosmo) const {
-    std::vector<double> k_data(data_N);
-    std::vector<double> powerspectrum(data_N);
-    std::map<double, double> discrete_P;
-    fill_from_file(ic_file, k_data, powerspectrum);
+    using namespace boost::math::interpolators;
+    // First line is a header. Ignore it.
+    ic_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    size_t start = ic_file.tellg();
+    int Nk = data_N - 1;
 
-    std::transform(k_data.begin(), k_data.end(), powerspectrum.begin(),
-                   std::inserter(discrete_P, discrete_P.end()),
-                   std::make_pair<const double&, const double&>);
+    std::vector<double> Pk(Nk);
+    fill_from_file(ic_file, Pk, Pk);
 
-    // Linear interpolant for non-uniform data.
-    // boost::barycentric_interpolation yields nonsense and B-Splines
-    // require uniform data.
+    ic_file.seekg(start);
+    double k0, k1;
+    ic_file >> k0;
+    ic_file >> k1 >> k1;
+    const double logk0 = std::log10(k0);
+    const double delta_logk = std::log10(k1) - logk0;
 
-    auto P = [&](double k) {
-        auto k1_i = discrete_P.lower_bound(k);
-        auto k0_i = k1_i--;
-        const double k0 = k0_i->first;
-        const double P0 = k0_i->second;
-        const double k1 = k1_i->first;
-        const double P1 = k1_i->second;
-
-        return P0 + (k - k0) * (P1 - P0) / (k1 - k0);
+    // Cubic interpolation of 3D CDM spectrum in logk
+    // CAMB returns P(k/h) in units of h^{-3} * Mpc^3
+    // P_3d returns P(k) in units of Mpc^3
+    // Note that both arguments have unit Mpc^{-1}
+    auto P_3d = [P = cardinal_cubic_b_spline<double>(Pk.begin(), Pk.end(),
+                                                     logk0, delta_logk),
+                 kmin_div_h = k0,
+                 kmax_div_h = std::pow(10, logk0 + (Nk - 1) * delta_logk),
+                 h = box.hubble](double k) {
+        const double k_div_h = k / h;
+        const double h3 = 1.0 / (h * h * h);
+        // Power law extrapolation before kmin. Assume P(k) = A*k
+        if (k_div_h < kmin_div_h) {
+            return h3 * P(std::log10(kmin_div_h)) / (kmin_div_h * h) * k;
+        }
+        // Power law extrapolation past kmax. Assume P(k) = A*k^-3
+        if (k_div_h > kmax_div_h) {
+            return h3 * P(std::log10(kmax_div_h)) *
+                   std::pow(kmax_div_h * h, 3) * std::pow(k, -3);
+        }
+        return h3 * P(std::log10(k_div_h));
     };
 
     // Store fourier representation of delta in state.psis (complex vector)
     auto delta_k = subvector(state.psi, 0, box.N / 2 + 1);
-    auto k = subvector(state.V, 0, box.N / 2 + 1);
-    std::iota(k.begin(), k.end(), 0);
-
-    // physical box size in Mpc h-1
-    const double L_phys = cosmo.x_of_chi(box.L) / 1e6;
-    k *= 2 * M_PI / L_phys;
+    double L_Mpc = box.L_phys;
+    // Modes in units of Mpc^-1
+    auto k =
+        blaze::linspace(box.N / 2 + 1, 0.0, 2 * M_PI / L_Mpc * (box.N / 2));
 
     // Independent number generators for modulus and phase.
     // Seed chosen at random.
-    auto uniform_rayleigh =
+    auto uniform1 =
         std::bind(std::uniform_real_distribution<>{0, 1}, std::mt19937(seed));
-    auto uniform_phase =
+    auto uniform2 =
         std::bind(std::uniform_real_distribution<>{0, 1}, std::mt19937(seed));
-
     const double a_init = cosmo.a_of_tau(0);
-    const double G = cosmo.Dplus(1) / cosmo.Dplus(a_init);
+    const double G = cosmo.D(a_init) / cosmo.D(1);
 
     auto sigma = [&](double k) {
-        return sqrt(k * k / (4 * M_PI * L_phys * G * G) * P(k));
+        double kJeq = 9 * std::sqrt(box.m22);
+        double x = 1.61 * std::pow(box.m22, 1.0 / 18) * k / kJeq;
+        double TFDM = std::cos(x * x * x) / (1 + std::pow(x, 8));
+        return sqrt(k * k * G * G * TFDM * TFDM * L_Mpc / (4 * M_PI) * P_3d(k));
     };
 
-    delta_k = map(delta_k, k, [&](std::complex<double> d, double k) {
+    delta_k = map(k, [&](double k) {
         // Exact inversion yields transformation formulas for modulus and
         // phase.
-        return std::polar(sigma(k) * sqrt(-2 * log(uniform_rayleigh())),
-                          2 * M_PI * uniform_phase());
+        return std::polar(sigma(k) * std::sqrt(-2 * std::log(uniform1())),
+                          2 * M_PI * uniform2());
     });
+    if (box.N % 2 == 0) {
+        delta_k[box.N / 2] = std::sqrt(2) * sigma(k[box.N / 2]) *
+                             std::sqrt(-2 * std::log(uniform1())) *
+                             std::cos(2 * M_PI * uniform2());
+    }
 
+    // Store delta in state.V for convenience (real vector)
+    auto& delta = state.V;
     auto in = reinterpret_cast<fftw_complex*>(delta_k.data());
-    // Store delta in V for convenience (real vector vs complex vector);
+
     fftw_plan_ptr c2r(
-        fftw_plan_dft_c2r_1d(box.N, in, state.V.data(), FFTW_ESTIMATE));
+        fftw_plan_dft_c2r_1d(box.N, in, delta.data(), FFTW_ESTIMATE));
     fftw_execute(c2r.get());
-    fftw_destroy_plan(c2r.get());
+    // Note that delta_k has dimensions of L. It is related to the DFT
+    // coeffcient via delta_k = delta_k_DFT * L_Mpc
+    delta /= L_Mpc;
 }

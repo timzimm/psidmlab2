@@ -44,7 +44,6 @@ int main(int argc, char **argv) {
     }
 
     const Cosmology cosmo(param);
-    param << cosmo;
 
     // Holds psi, V, n, tau
     SimState state(Domain{param});
@@ -169,11 +168,12 @@ int main(int argc, char **argv) {
     double runtime_old = 0;
 
     // For fresh runs (no step performed yet) dump parameters into file
-    if (state.tau == 0) {
+    if (state.tau == 0 && ic.type != ICType::PreviousSimulation) {
         file.write_scalar_attribute("/", "parameters", param.dump());
-    } else {
-        runtime_old = file.read_scalar_attribute<double>("/", "runtime");
     }
+    /* else { */
+    /*     runtime_old = file.read_scalar_attribute<double>("/", "runtime"); */
+    /* } */
 
     const auto start = high_resolution_clock::now();
     while (!checkpoints.empty()) {

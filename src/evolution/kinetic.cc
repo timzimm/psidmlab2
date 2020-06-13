@@ -31,9 +31,10 @@ Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
     kx2 = box.dk * box.dk * kx2 * kx2;
 }
 
-// Limit max phase change to pi/2 per step
+// Limit max phase change
 double Kinetic::next_dt(const SimState& state) const {
-    return box.dx * box.dx / M_PI;
+    const double phi_max = 0.1;
+    return 2 * phi_max * box.dx * box.dx / (M_PI * M_PI);
 }
 
 void Kinetic::step(SimState& state, const double dt) const {

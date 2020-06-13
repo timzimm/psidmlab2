@@ -31,7 +31,6 @@ class ICGenerator {
     const Domain box;
     int seed;
     bool compute_velocity;
-    Parameters param;  // This is awfull!
     std::string filename;
     mutable std::ifstream ic_file;
     mutable std::vector<std::string> psis;

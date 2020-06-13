@@ -63,14 +63,16 @@ if __name__ == "__main__":
         axs[0].plot(x,np.abs(psi)**2, label=label)
         axs[1].plot(x,np.real(psi))
         axs[2].plot(x,np.imag(psi))
-        axs[3].plot(x,np.angle(psi))
-        axs[4].plot(x,np.clip(np.gradient(np.angle(psi), L/N), -10, 10))
+        phase = np.unwrap(np.angle(psi))
+        axs[3].plot(x,phase)
+        axs[4].plot(x,np.gradient(phase, L/N))
 
     axs[0].set(ylabel=r"$|\psi|^2$")
     axs[1].set(ylabel=r"$Re(\psi)$")
     axs[2].set(ylabel=r"$Im(\psi)$")
     axs[3].set(ylabel=r"$\Phi(\psi)$")
     axs[4].set(ylabel=r"$\partial_x\Phi(\psi)$")
+    # axs[0].set_xlim(x[0],x[-1])
 
     for ax in axs:
         ax.grid()

@@ -22,8 +22,6 @@ target_sources(psidm
             evolution/concrete_splittings.cc
             "${OBSERVABLES_CXX}"
 )
-
-
 # don't use -isystem, just -I
 set_target_properties(psidm PROPERTIES 
     NO_SYSTEM_FROM_IMPORTED TRUE
