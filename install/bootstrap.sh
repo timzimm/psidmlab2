@@ -10,4 +10,6 @@ vcpkg install fftw3[avx2]
 vcpkg install hdf5
 vcpkg install --head blaze
 vcpkg install nlohmann-json
+vcpkg install gsl
+vcpkg install gtest
 vcpkg install intel-mkl
