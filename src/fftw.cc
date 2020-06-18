@@ -1,4 +1,5 @@
 #include "fftw.h"
+#include <random>
 
 #ifdef PSIDMLAB_SMP
 #include <omp.h>
@@ -65,4 +66,21 @@ fftw_plan_ptr make_fftw_plan_r2r_1d(int n, const double* vin,
 #endif
 
     return fftw_plan_ptr(fftw_plan_r2r_1d(n, in, out, kind, flags));
+}
+
+// Real-to-Real transform (advanced interface)
+fftw_plan_ptr make_fftw_plan_many_r2r(
+    int rank, const int* n, int howmany, const double* vin, const int* inembed,
+    int istride, int idist, const double* vout, const int* onembed, int ostride,
+    int odist, const fftw_r2r_kind* kind, unsigned flags) {
+    auto in = const_cast<double*>(vin);
+    auto out = const_cast<double*>(vout);
+#ifdef PSIDMLAB_SMP
+    const int max_N_per_thread = 1 << 15;
+    const int nthreads = std::min(n / max_N_per_thread, omp_get_max_threads());
+    fftw_plan_with_nthreads(nthreads);
+#endif
+    return fftw_plan_ptr(fftw_plan_many_r2r(rank, n, howmany, in, inembed,
+                                            istride, idist, out, onembed,
+                                            ostride, odist, kind, flags));
 }

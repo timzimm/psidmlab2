@@ -17,9 +17,9 @@ find_package(GSL REQUIRED)
 # MKL ships with FFTW3 wrappers. In this case we can omit the external FFTW
 # dependency. Note that MKL does not provide all the functionality of FFTW.
 # See https://software.intel.com/en-us/mkl-developer-reference-c-using-fftw3-wrappers
-if(NOT DEFINED ENV{MKLROOT})
-    find_package(FFTW3 CONFIG REQUIRED)
-endif()
+# if(NOT DEFINED ENV{MKLROOT})
+find_package(FFTW3 CONFIG REQUIRED)
+# endif()
 
 # Get rid of any predefined OpenMP dependencies. Default blaze is now serial.
 set_property(TARGET blaze::blaze 

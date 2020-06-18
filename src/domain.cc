@@ -1,5 +1,6 @@
 #include "domain.h"
 #include "boost/units/systems/detail/constants.hpp"
+#include "logging.h"
 #include "parameters.h"
 
 #include <boost/math/tools/roots.hpp>
@@ -15,33 +16,53 @@ using namespace boost::units::si::constants::codata;
 BOOST_UNITS_STATIC_CONSTANT(parsec, astronomical::parsec_base_unit::unit_type);
 
 Domain::Domain(const Parameters& p)
-    : physical{p["Domain"]["physical_units"]},
+    : bc{static_cast<BoundaryCondition>(p["Domain"]["boundary_type"])},
+      physical{p["Domain"]["physical_units"]},
       hubble(0),
       m22(0),
       omega_m0(0),
       N{p["Domain"]["N"]},
       L_phys{p["Domain"]["L"]},
       L(L_phys) {
+    if (L <= 0) {
+        std::cerr << ERRORTAG("Box has negative length") << std::endl;
+        exit(1);
+    }
+    if (N <= 0) {
+        std::cerr << ERRORTAG("Box has negative number of grid points")
+                  << std::endl;
+        exit(1);
+    }
     if (physical) {
+        if (m22 <= 0) {
+            std::cerr << ERRORTAG("mass parameter is negtive") << std::endl;
+            exit(1);
+        }
+        if (hubble <= 0) {
+            std::cerr << ERRORTAG("Box has negative number of grid points")
+                      << std::endl;
+            exit(1);
+        }
         hubble = p["Domain"]["h"];
         m22 = p["Domain"]["m22"];
         omega_m0 = p["Cosmology"]["omega_m0"];
         L = chi_of_x(L_phys * 1e6 * parsec);
     }
-    dx = L / N;
-    dk = 2 * M_PI / L;
-    xmin = -L / 2;
-    xmax = -xmin - dx;
-    // Recall that k is also periodic so we can equally adjust the
-    // right boundary:
-    //
-    // [-dk*(N/2), dk*(N/2)] if N is odd
-    // [-dk*(N/2), dk*(N/2) - dk] if N is even
-    //
-    // We do this to have a "common lower boundary" for both the even and odd
-    // case.
-    kmin = -dk * (N / 2);
-    kmax = (N % 2) ? -kmin : -kmin - dk;
+    if (bc == BoundaryCondition::Periodic) {
+        dx = L / N;
+        dk = 2 * M_PI / L;
+        xmin = -L / 2;
+        xmax = -xmin - dx;
+        kmin = -dk * (N / 2);
+        kmax = (N % 2) ? -kmin : -kmin - dk;
+    } else if (bc == BoundaryCondition::HomogeneousDirichlet) {
+        dx = L / (N + 1);
+        dk = M_PI / L;
+        xmin = dx;
+        xmax = L - dx;
+        kmin = dk;
+        kmax = N * dk;
+    }
 }
 
 double Domain::chi_of_x(

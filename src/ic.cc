@@ -1,6 +1,7 @@
 #include "ic.h"
 #include "config.h"
 #include "cosmology.h"
+#include "domain.h"
 #include "fftw.h"
 #include "hdf5_file.h"
 #include "interaction/periodic_convolution.h"
@@ -50,6 +51,13 @@ ICGenerator::ICGenerator(const Parameters& p)
         }
     }
     if (type == ICType::Powerspectrum) {
+        if (box.bc == Domain::BoundaryCondition::HomogeneousDirichlet) {
+            std::cout << ERRORTAG(
+                             "Radial Problem cannot be initialized from power "
+                             "spectrum")
+                      << std::endl;
+            exit(1);
+        }
         if (p["Domain"]["physical_units"] == false) {
             std::cerr << ERRORTAG(
                              "psi0 from power spectrum requires physical units")
@@ -103,6 +111,12 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
         case ICType::PreviousSimulation:
             std::cout << INFOTAG("Load psi from state") << std::flush;
             psi_from_state(state, cosmo, tau);
+    }
+
+    if (type < ICType::Powerspectrum &&
+        box.bc == Domain::BoundaryCondition::HomogeneousDirichlet) {
+        auto r = linspace(box.N, box.xmin, box.xmax);
+        state.psi *= 2 * std::sqrt(M_PI) * r;
     }
 
     // Velocity Initialization

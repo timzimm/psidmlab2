@@ -29,4 +29,12 @@ fftw_plan_ptr make_fftw_plan_r2r_1d(int n, const double* vin,
                                     const double* vout, fftw_r2r_kind kind,
                                     unsigned flags);
 
+// Real-to-Real transform (advanced interface)
+fftw_plan_ptr make_fftw_plan_many_r2r(int rank, const int* n, int howmany,
+                                      const double* in, const int* inembed,
+                                      int istride, int idist, const double* out,
+                                      const int* onembed, int ostride,
+                                      int odist, const fftw_r2r_kind* kind,
+                                      unsigned flags);
+
 #endif

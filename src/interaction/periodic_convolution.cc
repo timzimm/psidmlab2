@@ -8,6 +8,10 @@
 PeriodicConvolution::PeriodicConvolution(const Parameters &p,
                                          const SimState &state)
     : box(p), G_k(2 * (box.N / 2)), fwd(nullptr), bwd(nullptr) {
+    if (box.bc != Domain::BoundaryCondition::Periodic) {
+        std::cout << ERRORTAG("Wrong Boundary Conditions") << std::endl;
+        exit(1);
+    }
     // By default, we assume in-place transforms
     auto in_c = reinterpret_cast<const double *>(state.V.data());
     auto out_c = reinterpret_cast<const fftw_complex *>(state.V.data());

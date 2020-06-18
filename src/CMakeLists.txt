@@ -9,10 +9,8 @@ target_sources(psidm
             cosmology.cc
             ic.cc
             convolution_functions.cc
-            interaction/poisson_fc.cc
-            interaction/screened_poisson_fc.cc
+            interaction/poisson_radial_free_space.cc
             interaction/periodic_convolution.cc
-            interaction/nonlocal_gp.cc
             evolution/kinetic.cc
             evolution/bfsp.cc
             evolution/bffp.cc
@@ -57,6 +55,6 @@ target_link_libraries(psidm
             GSL::gsl
 )
 
-if(NOT DEFINED ENV{MKLROOT})
-    target_link_libraries(psidm FFTW3::fftw3)
-endif()
+# if(NOT DEFINED ENV{MKLROOT})
+target_link_libraries(psidm FFTW3::fftw3)
+# endif()
