@@ -79,7 +79,6 @@ void SimState::transform(const SimState::Representation target) {
     // interface
     if (target == Representation::Momentum) {
         N_transform++;
-        /* fftw_execute_dft(position_to_momentum.get(), in, in); */
         fftw_execute(position_to_momentum.get());
         // FFTW transforms are denormalized
         if (box.bc == Domain::BoundaryCondition::Periodic) {
@@ -89,7 +88,6 @@ void SimState::transform(const SimState::Representation target) {
         }
     } else {
         N_transform++;
-        /* fftw_execute_dft(momentum_to_position.get(), in, in); */
         fftw_execute(momentum_to_position.get());
         // Renormalize state to fight numerical errors that crop up after many
         // subsequent FFTs.

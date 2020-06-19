@@ -15,15 +15,18 @@ RadialFreeSpace::RadialFreeSpace(const Parameters &p, const SimState &state)
     // FFTW only stores non-redundant modes. Using
     //              phi_i  = phi_N+i    (periodicity) (i)
     //              phi_i  = -phi_(N-i) (oddness)     (ii)
-    // This implies only the first box.N integers with N=2(box.N+1) are
+    // This implies only the first box.N integers with DFT_size=2(box.N+1) are
     // non-redundant. box.N starts counting from i=1 because i=0 must be zero
     // due to both conditions above. We use the DST to enforce homogeneous
     // Dirichlet at i=0 and i=box.N+1.
-    // ________________________ DFT size _______________________
+    // ________________________ DFT_size _______________________
     // |                                                        |       x0 (i)
     // x0       x1      x2      x3      x4      x5      x6      x7      x8
     // 0       |                  |    -x4     -x3     -x2     -x1     -x0 (ii)
     //         ------ box.N -------
+    //
+    // Transformations are most efficient if DFT_size is a power of two
+    // implying box.N = 2*k - 1. However ANY box.N can be used
     //
     // Also note that RODFT00 is its own inverse. Hence one plan is enough.
     dst = make_fftw_plan_r2r_1d(box.N, source_k.data(), source_k.data(),

@@ -13,21 +13,11 @@ namespace Observable {
 // ====================================
 // converts it into a (2*box.N + 2) real vector of the form
 //
-// [ 1/(4π box.L)            ] <- from boundary condition
-// [ V(-box.xmax)            ]
-// [ V(-box.xmax + box.dx)   ]
-// [        ...              ]
-// [ V(-box.dx)              ]
 // [ V(0)                    ] <- from regularity (see below)
 // [ V(box.dx)               ]
 // [        ...              ]
 // [ V(box.xmax-box.dx)      ]
 // [ V(box.xmax)             ]
-//
-// i.e. we use the nonredundant half of the radial problem to extend V to a
-// symmetric array. This allows other observables to use one common
-// implementation for both boundary condition types by reusing the
-// Observable::Potential (at the expense of twice as much memory and runtime)
 
 class Potential : public ObservableFunctor {
     const Domain box;
@@ -39,8 +29,8 @@ class Potential : public ObservableFunctor {
     Potential(const Parameters& p, const Cosmology&)
         : box(p), t_prev(-1), dst(nullptr), V(0, 0) {
         if (box.bc == Domain::BoundaryCondition::HomogeneousDirichlet) {
-            V.resize(2 * box.N + 2);
-            auto ptr = V.data() + (box.N + 2);
+            V.resize(box.N + 1);
+            auto ptr = V.data() + 1;
             dst = make_fftw_plan_r2r_1d(box.N, ptr, ptr, FFTW_RODFT00,
                                         FFTW_ESTIMATE);
         }
@@ -69,16 +59,13 @@ class Potential : public ObservableFunctor {
                 // which we compute by a spectral derivative.
 
                 auto r = linspace(box.N, box.xmin, box.xmax);
-                auto V_r = subvector(V, box.N + 2, box.N);
+                auto V_r = subvector(V, 1, box.N);
                 V_r = 4 * M_PI * r * state.V;
                 fftw_execute(dst.get());
                 auto k = linspace(box.N, box.kmin, box.kmax);
                 V_r *= k / (box.N + 1);
-                V[box.N + 1] = 1.0 / (4 * M_PI) * sum(V_r);
+                V[0] = 1.0 / (4 * M_PI) * sum(V_r);
                 V_r = state.V;
-                auto V_mr = subvector(V, 1, box.N);
-                V_mr = reverse(V_r);
-                V[0] = 1 / (4 * M_PI * box.L);
             }
         }
         if (box.bc == Domain::BoundaryCondition::Periodic) {
