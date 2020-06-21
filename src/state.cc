@@ -29,6 +29,8 @@ SimState::SimState(const Domain& box_)
     auto in = reinterpret_cast<fftw_complex*>(psi.data());
     psi_ptr = reinterpret_cast<double*>(in);
 
+    std::cout << INFOTAG("Generating transformation plans for psi")
+              << std::endl;
     if (box.bc == Domain::BoundaryCondition::Periodic) {
         position_to_momentum =
             make_fftw_plan_dft(N_plan, in, in, FFTW_FORWARD, FFTW_MEASURE);

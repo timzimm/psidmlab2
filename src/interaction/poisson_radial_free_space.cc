@@ -12,6 +12,8 @@ RadialFreeSpace::RadialFreeSpace(const Parameters &p, const SimState &state)
         std::cout << ERRORTAG("Wrong Boundary Conditions") << std::endl;
         exit(1);
     }
+    std::cout << INFOTAG("Generating transformation plans for Poisson equation")
+              << std::endl;
     // FFTW only stores non-redundant modes. Using
     //              phi_i  = phi_N+i    (periodicity) (i)
     //              phi_i  = -phi_(N-i) (oddness)     (ii)
@@ -39,11 +41,10 @@ void RadialFreeSpace::solve(SimState &state) {
 
 void RadialFreeSpace::solve(blaze::DynamicVector<double> &V,
                             const blaze::DynamicVector<double> &source) {
-    const int M = box.N + 1;
     static auto r = linspace(box.N, box.xmin, box.xmax);
 
     // DST is unnormalized
-    source_k = 1.0 / (M * r) * source;
+    source_k = 1.0 / (2 * (box.N + 1) * r) * source;
     fftw_execute(dst.get());
     auto kx = linspace(box.N, box.kmin, box.kmax);
     source_k /= -1.0 * kx * kx;

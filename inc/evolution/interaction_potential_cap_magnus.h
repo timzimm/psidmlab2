@@ -1,5 +1,5 @@
-#ifndef __SCHROEDINGER_CAP_INTERACTION__
-#define __SCHROEDINGER_CAP_INTERACTION__
+#ifndef __SCHROEDINGER_CAP_MAGNUS__
+#define __SCHROEDINGER_CAP_MAGNUS__
 
 #include "domain.h"
 #include "driver.h"
@@ -12,23 +12,22 @@ namespace Schroedinger {
 // Hamiltonian:
 // i ∂_t psi(x,t) =  a(t) U[|psi(x,t)|^2] psi(x,t) - i/2 phi(x) psi(x,t)
 
-class InteractionPotentialCAPTrapezodial
-    : public DefaultDriver<InteractionPotentialCAPTrapezodial> {
+class InteractionPotentialCAPMagnus
+    : public DefaultDriver<InteractionPotentialCAPMagnus> {
     const Cosmology& cosmo;
     const Domain box;
-    std::unique_ptr<Interaction> pot;
     mutable double dt_last;
-    blaze::DynamicVector<double> CAP;
+    std::unique_ptr<Interaction> pot;
+    blaze::DynamicVector<double> phi;
     mutable blaze::DynamicVector<double> attenuator;
 
    public:
-    InteractionPotentialCAPTrapezodial(const Parameters& p,
-                                       const SimState& state,
-                                       const Cosmology& cosmo_);
+    InteractionPotentialCAPMagnus(const Parameters& p, const SimState& state,
+                                  const Cosmology& cosmo_);
     double next_dt(const SimState& state) const;
     void step(SimState& state, const double dt) const;
 
-    REGISTER(InteractionPotentialCAPTrapezodial);
+    REGISTER(InteractionPotentialCAPMagnus);
 };
 }  // namespace Schroedinger
 #endif

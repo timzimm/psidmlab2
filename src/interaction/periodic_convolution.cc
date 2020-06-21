@@ -12,6 +12,9 @@ PeriodicConvolution::PeriodicConvolution(const Parameters &p,
         std::cout << ERRORTAG("Wrong Boundary Conditions") << std::endl;
         exit(1);
     }
+    std::cout << INFOTAG(
+                     "Generating transformation plans for periodic convolution")
+              << std::endl;
     // By default, we assume in-place transforms
     auto in_c = reinterpret_cast<const double *>(state.V.data());
     auto out_c = reinterpret_cast<const fftw_complex *>(state.V.data());

@@ -50,7 +50,7 @@ class WaveFunction : public ObservableFunctor {
                                           istride, idist, ptr, nullptr, ostride,
                                           odist, kinds, FFTW_ESTIMATE);
         }
-    };
+    }
 
     ReturnType compute(
         const SimState& state,
@@ -104,6 +104,6 @@ class WaveFunction : public ObservableFunctor {
     }
 
     REGISTER(WaveFunction)
-};  // namespace Observable
+};
 
 }  // namespace Observable

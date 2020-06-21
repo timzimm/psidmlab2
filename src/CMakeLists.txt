@@ -16,7 +16,7 @@ target_sources(psidm
             evolution/bffp.cc
             evolution/interaction_potential.cc
             evolution/interaction_potential_magnus.cc
-            evolution/interaction_potential_cap_trapezodial.cc
+            evolution/interaction_potential_cap_magnus.cc
             evolution/concrete_splittings.cc
             "${OBSERVABLES_CXX}"
 )
@@ -54,7 +54,6 @@ target_link_libraries(psidm
             nlohmann_json::nlohmann_json
             GSL::gsl
 )
-
 # if(NOT DEFINED ENV{MKLROOT})
 target_link_libraries(psidm FFTW3::fftw3)
 # endif()

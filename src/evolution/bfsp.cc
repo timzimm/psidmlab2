@@ -28,8 +28,10 @@ BFSP::BFSP(const Parameters& p, const SimState& state, const Cosmology& cosmo_)
         std::cout << ERRORTAG("Wrong Boundary Conditions") << std::endl;
         exit(1);
     }
+    std::cout << INFOTAG("Generating transformation plan for Gradient Descent")
+              << std::endl;
     dst = make_fftw_plan_r2r_1d(box.N, phi.data(), phi.data(), FFTW_RODFT00,
-                                FFTW_ESTIMATE);
+                                FFTW_MEASURE);
 }
 
 // As stated in W.Bao Journal of Compuatational Physics 219 (2006) 836-854
