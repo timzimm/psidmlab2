@@ -5,6 +5,8 @@
 #include "observables_common.h"
 #include "state.h"
 
+#include <blaze/math/Columns.h>
+
 using namespace std::complex_literals;
 
 namespace Observable {
@@ -41,7 +43,7 @@ class EnergyDensity : public ObservableFunctor {
     // (iii) virial density
     DynamicMatrix<double> energies;
     DynamicVector<std::complex<double>> gradient;
-    fftw_plan_ptr c2c_f, c2c_b, c2r, r2c, dst_cmplx, dct_cmplx, dst;
+    fftw_plan_ptr c2c_f, c2c_b, c2r, r2c, dst_cmplx, dct_cmplx, dst, dct;
 
     void compute_periodic_energies(const SimState& state) {
         // positive and negative k-multipliers combined with FFT
@@ -92,19 +94,13 @@ class EnergyDensity : public ObservableFunctor {
         auto dpsi_r = subvector(gradient, 1, box.N);
         std::complex<double>& dpsi_0 = gradient[0];
         std::complex<double>& dpsi_Np1 = gradient[box.N + 1];
-        dpsi_r = state.psi / (box.N + 1);
-        std::cout << subvector(gradient, 1, 8) << std::endl;
+        dpsi_r = state.psi / (2 * (box.N + 1));
         fftw_execute(dst_cmplx.get());
-        std::cout << subvector(gradient, 1, 8) << std::endl;
         dpsi_r *= k;
-        /* dpsi_0 = sum(dpsi_r); */
         dpsi_0 = 0;
         dpsi_Np1 = 0;
-        std::cout << subvector(gradient, 1, 8) << std::endl;
         fftw_execute(dct_cmplx.get());
-        std::cout << subvector(gradient, 1, 8) << std::endl;
-        auto grad = subvector(gradient, 0, box.N + 1);
-        E_kinetic = trans(0.5 * real(conj(grad) * grad));
+        E_kinetic = trans(0.5 * real(conj(gradient) * gradient));
 
         // (ii) Potential energy density
         auto E_pot = row(energies, 1);
@@ -112,7 +108,9 @@ class EnergyDensity : public ObservableFunctor {
         // Luckily psi_0 = 0 and we get away by just knowing V_r = state.V
         auto E_pot_r = subvector(E_pot, 1, box.N);
         double& E_pot_0 = E_pot[0];
-        E_pot_0 = 0;
+        double& E_pot_Np1 = E_pot[box.N + 1];
+        E_pot_0 = 0;    // V(0) is non-zero but psi(0) = 0
+        E_pot_Np1 = 0;  // V(box.L)=0 and psi(box.L)=0 (Dirichlet conditions)
         E_pot_r = trans(state.V * rho_from(state));
 
         // (iii) Virial
@@ -120,11 +118,13 @@ class EnergyDensity : public ObservableFunctor {
         auto virial = row(energies, 2);
         auto virial_r = subvector(virial, 1, box.N);
         auto& virial_0 = virial[0];
-        virial_0 = 0;
-        virial_r = trans(4 * M_PI * r * state.V / (box.N + 1));
+        auto& virial_Np1 = virial[box.N + 1];
+        virial_r = trans(state.V / (2 * (box.N + 1)));
         fftw_execute(dst.get());
         virial_r *= trans(k);
-        fftw_execute(dst.get());
+        virial_0 = 0;    // psi(0) = 0
+        virial_Np1 = 0;  // psi(box.L) = 0
+        fftw_execute(dct.get());
 
         virial_r *= trans(r * rho_from(state));
     };
@@ -143,7 +143,8 @@ class EnergyDensity : public ObservableFunctor {
           r2c(nullptr),
           dst_cmplx(nullptr),
           dct_cmplx(nullptr),
-          dst(nullptr) {
+          dst(nullptr),
+          dct(nullptr) {
         if (box.bc == Domain::BoundaryCondition::Periodic) {
             auto grad_p = reinterpret_cast<fftw_complex*>(gradient.data());
             auto energy_p = &energies(2, 0);
@@ -156,7 +157,7 @@ class EnergyDensity : public ObservableFunctor {
             c2r =
                 make_fftw_plan_dft_c2r(box.N, grad_p, energy_p, FFTW_ESTIMATE);
         } else if (box.bc == Domain::BoundaryCondition::HomogeneousDirichlet) {
-            energies.resize(3, box.N + 1);
+            energies.resize(3, box.N + 2);
             gradient.resize(box.N + 2);
             const int howmany = 2;
             const int n[] = {box.N, box.N};
@@ -170,17 +171,23 @@ class EnergyDensity : public ObservableFunctor {
             const fftw_r2r_kind dct_kinds[] = {FFTW_REDFT00, FFTW_REDFT00};
             auto grad_cmplx_p =
                 reinterpret_cast<fftw_complex*>(gradient.data());
-            auto grad_real_p =
-                reinterpret_cast<double*>(grad_cmplx_p) + istride * 1;
-            auto energy_p = &energies(2, 1);
+            auto grad_real_p_dct = reinterpret_cast<double*>(grad_cmplx_p);
+            auto grad_real_p_dst = grad_real_p_dct + istride * 1;
+            auto energy_p_dct = &energies(2, 0);
+            auto energy_p_dst = energy_p_dct + 1;
+
             dst_cmplx = make_fftw_plan_many_r2r(
-                rank, n, howmany, grad_real_p, nullptr, istride, idist,
-                grad_real_p, nullptr, ostride, odist, dst_kinds, FFTW_ESTIMATE);
+                rank, n, howmany, grad_real_p_dst, nullptr, istride, idist,
+                grad_real_p_dst, nullptr, ostride, odist, dst_kinds,
+                FFTW_ESTIMATE);
             dct_cmplx = make_fftw_plan_many_r2r(
-                rank, n_dct, howmany, grad_real_p, nullptr, istride, idist,
-                grad_real_p, nullptr, ostride, odist, dct_kinds, FFTW_ESTIMATE);
-            dst = make_fftw_plan_r2r_1d(box.N, energy_p, energy_p, FFTW_RODFT00,
-                                        FFTW_ESTIMATE);
+                rank, n_dct, howmany, grad_real_p_dct, nullptr, istride, idist,
+                grad_real_p_dct, nullptr, ostride, odist, dct_kinds,
+                FFTW_ESTIMATE);
+            dst = make_fftw_plan_r2r_1d(box.N, energy_p_dst, energy_p_dst,
+                                        FFTW_RODFT00, FFTW_ESTIMATE);
+            dct = make_fftw_plan_r2r_1d(box.N, energy_p_dct, energy_p_dct,
+                                        FFTW_REDFT00, FFTW_ESTIMATE);
         }
     }
 
@@ -218,7 +225,14 @@ class Energy : public ObservableFunctor {
 
    public:
     Energy(const Parameters& p_, const Cosmology& cosmo_)
-        : p(p_), cosmo(cosmo_), box(p), t_prev(-1), energies(3, 0) {}
+        : p(p_), cosmo(cosmo_), box(p), t_prev(-1), energies(3, 0) {
+        if (box.bc == Domain::BoundaryCondition::HomogeneousDirichlet &&
+            (box.N + 1) % 2 != 0) {
+            std::cout
+                << ERRORTAG("Energy Observable requires odd N for integration.")
+                << std::endl;
+        }
+    }
 
     ReturnType compute(
         const SimState& state,
@@ -236,11 +250,27 @@ class Energy : public ObservableFunctor {
                 obs[name] = ObservableFunctor::make(full_name, p, cosmo);
             }
             ObservableFunctor* edensity = obs[name].get();
-            ReturnType energy_density = edensity->compute(state, obs);
-            // Trapezodial integration in x-space
-            energies =
-                box.dx * sum<rowwise>(boost::get<const DynamicMatrix<double>&>(
-                             energy_density));
+            const DynamicMatrix<double>& energy_density =
+                boost::get<const DynamicMatrix<double>>(
+                    edensity->compute(state, obs));
+            if (box.bc == Domain::BoundaryCondition::Periodic) {
+                // Trapezodial integration in x-space
+                energies = box.dx * sum<rowwise>(energy_density);
+            } else if (box.bc ==
+                       Domain::BoundaryCondition::HomogeneousDirichlet) {
+                auto odd_edensity =
+                    columns(energy_density, [](int i) { return 2 * i + 1; },
+                            box.N / 2 + 1);
+                auto even_edensity =
+                    columns(energy_density, [](int i) { return 2 * i + 2; },
+                            box.N - (box.N / 2 + 1));
+                auto e_density_0 = column(energy_density, 0);
+                auto e_density_Np1 = column(energy_density, box.N + 1);
+                energies = box.dx / 3.0 *
+                           (e_density_0 + e_density_Np1 +
+                            2 * sum<rowwise>(even_edensity) +
+                            4 * sum<rowwise>(odd_edensity));
+            }
         }
 
         return energies;
