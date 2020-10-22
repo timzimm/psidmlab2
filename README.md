@@ -41,7 +41,7 @@ equation. Assuming a collisionless setting, this can be shown to be true even
 for the one-particle distribution function $`f(x,p,t)`$. Unfortunately, solving
 VP is hard both numerically and analytically. Therefore, people (almost always)
 rely on N-Body simulations yielding a noisy sample from the true phase space
-distributionn. Partial analytical results, however, show a good correspondence
+distribution. Partial analytical results, however, show a good correspondence
 between SP and VP which is not fully understood. Numerical results support those
 analytical findings. For instance, the associated potential of the wavefunction
 was shown to converge to the classical potential $`\propto{\left(\frac{\hbar}{m}\right)^2}`$.
@@ -60,7 +60,7 @@ Currently psiDMLab depends on:
 * **[nlohmann's json library](https://github.com/nlohmann/json)**: 
     For simulation parameter management.
 * **[HDF5 1.10.5](https://www.hdfgroup.org/solutions/hdf5/)**: 
-    A high-performance data management and storage suite for I/O
+    A data management and storage suite for I/O
 * **[Intel MKL](https://software.intel.com/en-us/mkl)**: 
     For BLAS and LAPACK(E).
 * **C++17 compiler**: like **[clang++](https://llvm.org),
@@ -68,7 +68,7 @@ Currently psiDMLab depends on:
 * **cmake 3.14**: build file generator
 
 ## How to Install
-### macOS
+### Linux/macOS
 
 Apple's Clang compiler works out of the box with psiDMLab. You only have to
 install cmake as well as Intel MKL or any other BLAS/LAPACKE library. For the
@@ -101,26 +101,9 @@ You can now generate the makefile with cmake by executing
 ~/psidm2$ cd build
 ~/psidm2/build$ make
 ```
-### Linux
-Theoretically, the procedure above works for Linux as well. However, we also
-provide a Singularity recipe file to build a container that holds all requried
-dependencies including clang 8.0.0 and gcc 9.1.0. If you choose to use the
-containerized version, install [singularity](https://sylabs.io/docs) first. After that:
-```bash
-~$ git clone git@gitlab.com:ttz/psidm2.git
-~$ cd psidm2/install
-~/psidm2/install$ sudo singularity build psidmlab psiDMLab.def
-```
-This creates a SIF-container in the install directory. Next, spawn a shell
-inside the container to configure and compile psiDMLab as follows:
-```bash
-~/psidm2/install$ singularity shell psidmlab
-~/psidm2/install$ mkdir ../build; cd ..
-~/psidm2$ cmake -DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake \
-                -DCBLAS_INCLUDE_DIRS=/opt/intel/include -DCMAKE_BUILD_TYPE=Release .. -B build
-~/psidm2$ cd build
-~/psidm2/build$ make
-```
+### Windows
+Not tested. Should work though.
+
 ### Cluster
 TODO
 
