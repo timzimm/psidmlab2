@@ -73,8 +73,9 @@ tags
 scratch/
 debug/
 build/
-tools/
 .clangd/
+.cache/
+.vim/
 run
 run.nosync
 
