@@ -8,8 +8,9 @@ namespace Schroedinger {
 using namespace blaze;
 using namespace std::complex_literals;
 
-Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
-    : DefaultDriver(p), box(p), dt_last{-1}, kx2(box.N), U(box.N) {
+Kinetic::Kinetic(const Parameters &p, const SimState &state, const Cosmology &)
+    : DefaultDriver(p), box(p), dt_last{-1}, k2_max(M_PI / box.dx), kx2(box.N),
+      U(box.N) {
     // Next even number NN at least N
     const int NN = (box.N % 2) ? box.N + 1 : box.N;
     // FFTW reorders frequencies. The upper half starts at the most negative
@@ -31,26 +32,30 @@ Kinetic::Kinetic(const Parameters& p, const SimState& state, const Cosmology&)
     kx2 = box.dk * box.dk * kx2 * kx2;
 }
 
-// Limit max phase change
-double Kinetic::next_dt(const SimState& state) const {
-    const double phi_max = 0.1;
-    return 2 * phi_max * box.dx * box.dx / (M_PI * M_PI);
+// Limit max phase change to pi
+double Kinetic::next_dt(const SimState &state) const {
+    return 2 * M_PI / k2_max;
 }
 
-void Kinetic::step(SimState& state, const double dt) const {
+void Kinetic::step(SimState &state, const double dt) const {
     state.transform(SimState::Representation::Momentum);
 
-    // We only need to update the matrix exponential if an altered time step
+    // There is no point in evolving modes with no significant power
+    const double psi_k_min = 1e-12;
+    for (int i = 0; i <= box.N / 2; ++i) {
+        if (std::abs(state.psi[i]) < psi_k_min) {
+            k2_max = kx2[i];
+            break;
+        }
+    }
+
+    // We only need to update the matrix exponential, if an altered time step
     // size is required
-    if (dt - dt_last != 0) {  // FP compare is ok since we assign dt_last to dt
+    if (dt - dt_last != 0) { // FP compare is ok since we assign dt_last to dt
         U = exp(-0.5i * kx2 * dt);
     }
     state.psi *= U;
     state.tau_aux += dt;
-
-    // in d > 1 we "recompute" the k2-grid (O(N) in memory) in each step to get
-    // around memory allocation. Note that using a raw loop does exactly the
-    // same but less expressive.
 
     // State is now @ state.tau + dtau
     state.tau += dt;
@@ -58,4 +63,4 @@ void Kinetic::step(SimState& state, const double dt) const {
     dt_last = dt;
 }
 
-}  // namespace Schroedinger
+} // namespace Schroedinger

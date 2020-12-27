@@ -27,8 +27,12 @@ ICGenerator::ICGenerator(const Parameters &p)
       data_N(0), box{p}, seed(0),
       compute_velocity(false), filename{
                                    p["Initial Conditions"]["source_file"]} {
+    ic_file = std::ifstream(filename);
+    if (!ic_file.good()) {
+        std::cerr << ERRORTAG("Source file bad or non-existent") << std::endl;
+        exit(1);
+    }
     if (type != ICType::PreviousSimulation) {
-        ic_file = std::ifstream(filename);
         data_N = std::count(std::istreambuf_iterator<char>(ic_file),
                             std::istreambuf_iterator<char>(), '\n');
         ic_file.seekg(0);
@@ -52,6 +56,7 @@ ICGenerator::ICGenerator(const Parameters &p)
         seed = p["Initial Conditions"]["seed"];
 
     } else if (type == ICType::PreviousSimulation) {
+        ic_file.close();
         auto isHDF5 = H5Fis_hdf5(filename.c_str());
         if (isHDF5 <= 0) {
             std::cerr << ERRORTAG("No valid HDF5 file found") << std::endl;

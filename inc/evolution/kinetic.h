@@ -23,16 +23,17 @@ namespace Schroedinger {
 class Kinetic : public DefaultDriver<Kinetic> {
     const Domain box;
     mutable double dt_last;
+    mutable double k2_max;
     blaze::DynamicVector<double> kx2;
     mutable blaze::DynamicVector<std::complex<double>> U;
 
-   public:
-    Kinetic(const Parameters& p, const SimState& state,
-            const Cosmology& cosmo_);
-    double next_dt(const SimState& state) const;
-    void step(SimState& state, const double dt) const;
+  public:
+    Kinetic(const Parameters &p, const SimState &state,
+            const Cosmology &cosmo_);
+    double next_dt(const SimState &state) const;
+    void step(SimState &state, const double dt) const;
 
     REGISTER(Kinetic)
 };
-}  // namespace Schroedinger
+} // namespace Schroedinger
 #endif

@@ -5,18 +5,10 @@
 #include "fftw3.h"
 #include "parameters.h"
 
-SimState::SimState(const Domain& box)
-    : n(0u),
-      tau(0),
-      tau_aux(0),
-      V(0ul),
-      psi(0ul),
-      representation(Representation::Position),
-      position_to_momentum(nullptr),
-      momentum_to_position(nullptr),
-      N_plan(0),
-      N_transform(0),
-      norm(0),
+SimState::SimState(const Domain &box)
+    : n(0u), tau(0), dtau(0), tau_aux(0), V(0ul), psi(0ul),
+      representation(Representation::Position), position_to_momentum(nullptr),
+      momentum_to_position(nullptr), N_plan(0), N_transform(0), norm(0),
       psi_ptr(nullptr) {
     psi.reserve(box.N);
     V.reserve(2 * (box.N / 2 + 1));
@@ -26,10 +18,11 @@ SimState::SimState(const Domain& box)
 
 void SimState::transform(const SimState::Representation target) {
     // Identity transform
-    if (target == representation) return;
+    if (target == representation)
+        return;
 
-    auto in = reinterpret_cast<fftw_complex*>(psi.data());
-    auto in_real = reinterpret_cast<double*>(in);
+    auto in = reinterpret_cast<fftw_complex *>(psi.data());
+    auto in_real = reinterpret_cast<double *>(in);
 
     // Update transformation plans if necessary, i.e.
     //

@@ -14,34 +14,32 @@
 #include <vector>
 
 // Type Traits
-template <typename T>
-struct is_string : public std::false_type {};
-template <>
-struct is_string<std::string> : public std::true_type {};
+template <typename T> struct is_string : public std::false_type {};
+template <> struct is_string<std::string> : public std::true_type {};
 
 class HDF5File {
-   private:
-    hid_t file;  // Handle to HDF5 file
+  private:
+    hid_t file; // Handle to HDF5 file
 
     // Computes correct memory dataspace due to potential padding of blaze
     // matrices.
     template <typename T>
-    void matrix_dataspace_dim(const blaze::DynamicMatrix<T, blaze::rowMajor>& M,
-                              hsize_t* dims) const {
+    void matrix_dataspace_dim(const blaze::DynamicMatrix<T, blaze::rowMajor> &M,
+                              hsize_t *dims) const {
         dims[0] = M.rows();
         dims[1] = M.spacing();
     }
 
     template <typename T>
-    void matrix_dataspace_dim(
-        const blaze::DynamicMatrix<T, blaze::columnMajor>& M,
-        hsize_t* dims) const {
+    void
+    matrix_dataspace_dim(const blaze::DynamicMatrix<T, blaze::columnMajor> &M,
+                         hsize_t *dims) const {
         dims[0] = M.columns();
         dims[1] = M.spacing();
     }
 
     // mkdir -p. Caller is responsible to close group!
-    hid_t create_groups_along_path(const std::string& path) {
+    hid_t create_groups_along_path(const std::string &path) {
         size_t end = 0;
         herr_t status;
         std::string subpath = "/";
@@ -57,7 +55,7 @@ class HDF5File {
         return H5Gopen(file, subpath.c_str(), H5P_DEFAULT);
     }
 
-   public:
+  public:
     // File access types. We distinguish:
     // Access::Read     =   Read access to existing file.
     //                      Fails if file is damaged or does not exist.
@@ -67,10 +65,10 @@ class HDF5File {
     //                      Truncates content if file already exists.
     enum class Access { Read, Write, NewFile };
 
-    HDF5File(const std::string& filename, const Access& strategy) {
+    HDF5File(const std::string &filename, const Access &strategy) {
         // Store old error handler
-        herr_t (*old_func)(void*);
-        void* old_client_data;
+        herr_t (*old_func)(void *);
+        void *old_client_data;
         H5Eget_auto1(&old_func, &old_client_data);
         // Turn off error stack printing
         H5Eset_auto1(nullptr, nullptr);
@@ -82,7 +80,7 @@ class HDF5File {
             if (file < 0) {
                 std::cerr << ERRORTAG(
                                  "Cannot create file for writing. Check the "
-                                 "path to \n" +
+                                 "path to " +
                                  filename)
                           << std::endl;
                 exit(1);
@@ -122,8 +120,8 @@ class HDF5File {
     //
     // If groups along ds_path are missing, we generate them in the process
     template <typename T, bool TF>
-    void write(const std::string& ds_path,
-               const blaze::DynamicVector<T, TF>& data) {
+    void write(const std::string &ds_path,
+               const blaze::DynamicVector<T, TF> &data) {
         // We only deal with Ts as specified above
         static_assert(blaze::IsDouble_v<T> ||
                           (blaze::IsInteger_v<T> && std::is_signed_v<T>),
@@ -143,10 +141,10 @@ class HDF5File {
         // Select correct memory and file types
         hid_t filetype, memtype;
         if constexpr (blaze::IsDouble_v<T>) {
-            filetype = H5T_IEEE_F64BE;  // 8-byte float, big endian
+            filetype = H5T_IEEE_F64BE; // 8-byte float, big endian
             memtype = H5T_NATIVE_DOUBLE;
         } else {
-            filetype = H5T_STD_I32BE;  // 4-byte integer, big endian
+            filetype = H5T_STD_I32BE; // 4-byte integer, big endian
             memtype = H5T_NATIVE_INT;
         }
 
@@ -174,8 +172,8 @@ class HDF5File {
     // If groups along ds_path are missing, we generate them in the process
 
     template <typename T, bool SO>
-    void write(const std::string& ds_path,
-               const blaze::DynamicMatrix<T, SO>& data) {
+    void write(const std::string &ds_path,
+               const blaze::DynamicMatrix<T, SO> &data) {
         // We only deal with Ts as specified above
         static_assert(blaze::IsDouble_v<T> ||
                           (blaze::IsInteger_v<T> && std::is_signed_v<T>),
@@ -247,8 +245,8 @@ class HDF5File {
     // If the object does not exist yet, we generate a group and attach the
     // attribute to it. If the attribute exists, it gets overwritten.
     template <typename T>
-    void write_scalar_attribute(const std::string& path,
-                                const std::string& name, const T& value,
+    void write_scalar_attribute(const std::string &path,
+                                const std::string &name, const T &value,
                                 hid_t loc = -1) {
         // We only deal with Ts as specified above
         static_assert(blaze::IsDouble_v<T> || blaze::IsInteger_v<T> ||
@@ -262,7 +260,8 @@ class HDF5File {
         if (loc == -1) {
             auto exists = H5Lexists(file, path.c_str(), H5P_DEFAULT);
             // Open object whatever it is
-            if (exists) loc = H5Oopen(file, path.c_str(), H5P_DEFAULT);
+            if (exists)
+                loc = H5Oopen(file, path.c_str(), H5P_DEFAULT);
             // Assume caller wants a group
             else {
                 loc = create_groups_along_path(path + "/");
@@ -275,7 +274,7 @@ class HDF5File {
 
         hid_t attr_type = H5T_NATIVE_INT;
 
-        auto c_ptr = reinterpret_cast<const void*>(&value);
+        auto c_ptr = reinterpret_cast<const void *>(&value);
 
         // Select correct memory and file types
         hid_t filetype, memtype;
@@ -296,7 +295,7 @@ class HDF5File {
             auto status = H5Tset_size(str_type, value.size() + 1);
             filetype = str_type;
             memtype = filetype;
-            c_ptr = reinterpret_cast<const void*>(value.c_str());
+            c_ptr = reinterpret_cast<const void *>(value.c_str());
         }
 
         // Overwrite if attribute exists
@@ -313,13 +312,14 @@ class HDF5File {
             H5Tclose(memtype);
         }
         H5Aclose(attr);
-        if (!ext_managed) H5Oclose(loc);
+        if (!ext_managed)
+            H5Oclose(loc);
     }
 
     /************************* READING FUNCTIONS **************************/
 
     // Reads vector at path into double precision blaze column-vector
-    blaze::DynamicVector<double> read_vector(const std::string& path) const {
+    blaze::DynamicVector<double> read_vector(const std::string &path) const {
         hid_t ds = H5Dopen(file, path.c_str(), H5P_DEFAULT);
 
         // Vector => rank=1
@@ -344,7 +344,7 @@ class HDF5File {
 
     // Reads row-major matrix at path into double precision row-major blaze
     // matrix
-    blaze::DynamicMatrix<double> read_matrix(const std::string& path) const {
+    blaze::DynamicMatrix<double> read_matrix(const std::string &path) const {
         hid_t ds = H5Dopen(file, path.c_str(), H5P_DEFAULT);
 
         // Matrix => rank=2
@@ -378,8 +378,8 @@ class HDF5File {
     //
     // T = double, (unsigned) int,
     template <typename T>
-    T read_scalar_attribute(const std::string& path,
-                            const std::string& name) const {
+    T read_scalar_attribute(const std::string &path,
+                            const std::string &name) const {
         // We only deal with Ts as specified above
         static_assert(blaze::IsDouble_v<T> || blaze::IsInteger_v<T>,
                       "Datatype not supported");
@@ -411,7 +411,7 @@ class HDF5File {
 
     // Return vector of absolute paths to all object names linked to root
     // Behaves like UNIX ls /some/path
-    std::vector<std::string> ls(const std::string& path) const {
+    std::vector<std::string> ls(const std::string &path) const {
         std::vector<std::string> content;
         // Does root even exist?
         size_t end = 0;
@@ -419,15 +419,16 @@ class HDF5File {
         while ((end = path.find("/", end + 1)) != std::string::npos) {
             subpath = path.substr(0, end);
             auto exists = H5Lexists(file, subpath.c_str(), H5P_DEFAULT);
-            if (!exists) return {};
+            if (!exists)
+                return {};
         }
         // Root exists, open it and iterate through its contents
         const std::string root = subpath;
 
         hid_t root_obj = H5Oopen(file, root.c_str(), H5P_DEFAULT);
-        auto push_back_names = [](hid_t, const char* name, const H5L_info_t*,
-                                  void* data) {
-            auto ptr = reinterpret_cast<std::vector<std::string>*>(data);
+        auto push_back_names = [](hid_t, const char *name, const H5L_info_t *,
+                                  void *data) {
+            auto ptr = reinterpret_cast<std::vector<std::string> *>(data);
             ptr->push_back(name);
             return 0;
         };
@@ -435,7 +436,7 @@ class HDF5File {
                    push_back_names, &content);
 
         std::string newroot = (root == "/") ? "" : root;
-        for (auto& s : content) {
+        for (auto &s : content) {
             s = newroot + "/" + s;
         }
 

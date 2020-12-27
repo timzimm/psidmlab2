@@ -11,9 +11,10 @@ struct SimState {
     // Representation tags for the stored wavefunction
     enum class Representation { Position, Momentum };
 
-    unsigned int n;  // time step number
-    double tau;      // current time
-    double tau_aux;  // auxillary time
+    unsigned int n; // time step number
+    double tau;     // current time
+    double dtau;    // last time increment
+    double tau_aux; // auxillary time
     blaze::DynamicVector<double> V;
 
     blaze::DynamicVector<std::complex<double>> psi;
@@ -21,7 +22,7 @@ struct SimState {
     void transform(const Representation target);
     SimState(const Domain &box);
 
-   private:
+  private:
     Representation representation;
     fftw_plan_ptr position_to_momentum;
     fftw_plan_ptr momentum_to_position;

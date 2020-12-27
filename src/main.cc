@@ -224,6 +224,7 @@ int main(int argc, char **argv) {
 
                 // Supplement informations to the observable
                 file.write_scalar_attribute(path_to_ds, "tau", state.tau);
+                file.write_scalar_attribute(path_to_ds, "dtau", state.dtau);
                 file.write_scalar_attribute(path_to_ds, "a", a);
                 file.write_scalar_attribute(path_to_ds, "z", z);
                 file.write_scalar_attribute(path_to_ds, "n", state.n);
