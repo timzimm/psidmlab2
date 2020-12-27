@@ -31,15 +31,6 @@ target_compile_options(psidm
     PRIVATE $<$<CONFIG:Release>:
             -ffast-math
             -march=native>
-            $<$<CONFIG:Debug>:
-            -fsanitize=undefined
-            -fsanitize=address>
-)
-
-target_link_options(psidm
-    PRIVATE $<$<CONFIG:Debug>:
-            -fsanitize=undefined
-            -fsanitize=address>
 )
 
 if(${PSIDMLAB_SMP})
