@@ -22,13 +22,11 @@
 
 using namespace blaze;
 
-ICGenerator::ICGenerator(const Parameters& p)
+ICGenerator::ICGenerator(const Parameters &p)
     : type{static_cast<ICType>(p["Initial Conditions"]["ic_type"])},
-      data_N(0),
-      box{p},
-      seed(0),
-      compute_velocity(false),
-      filename{p["Initial Conditions"]["source_file"]} {
+      data_N(0), box{p}, seed(0),
+      compute_velocity(false), filename{
+                                   p["Initial Conditions"]["source_file"]} {
     if (type != ICType::PreviousSimulation) {
         ic_file = std::ifstream(filename);
         data_N = std::count(std::istreambuf_iterator<char>(ic_file),
@@ -41,12 +39,6 @@ ICGenerator::ICGenerator(const Parameters& p)
                                                            << ") != N")
                       << std::endl;
             exit(1);
-        }
-        if (p["Initial Conditions"]["compute_velocity"] == true) {
-            std::cout << WARNINGTAG(
-                             "psi0 fully specified. compute_velocity "
-                             "will be ignored")
-                      << std::endl;
         }
     }
     if (type == ICType::Powerspectrum) {
@@ -72,7 +64,7 @@ ICGenerator::ICGenerator(const Parameters& p)
             std::cerr << ERRORTAG("No wavefunction found.") << std::endl;
             exit(1);
         }
-        for (auto& path : paths) {
+        for (auto &path : paths) {
             psis.push_back(path);
             auto tau = file.read_scalar_attribute<double>(path, "tau");
             known_tau.push_back(tau);
@@ -80,38 +72,38 @@ ICGenerator::ICGenerator(const Parameters& p)
     }
 }
 
-void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
+void ICGenerator::generate(SimState &state, const Cosmology &cosmo,
                            const double tau) const {
     // modulus initialization
     switch (type) {
-        case ICType::ExternalRealImag:
-            std::cout << INFOTAG("Load Re(psi0) and Im(psi0) from file")
-                      << std::flush;
-            real_imag_from_file(state);
-            std::cout << " ... done" << std::endl;
-            break;
-        case ICType::ExternalModulusPhase:
-            std::cout << INFOTAG("Load psi0 from file") << std::flush;
-            modulus_phase_from_file(state);
-            std::cout << " ... done" << std::endl;
-            break;
-        case ICType::Powerspectrum:
-            std::cout << INFOTAG("Generate delta0 from P(k)") << std::flush;
-            delta_from_power(state, cosmo);
-            std::cout << " ... done" << std::endl;
-            break;
-        case ICType::PreviousSimulation:
-            std::cout << INFOTAG("Load psi from state") << std::flush;
-            psi_from_state(state, cosmo, tau);
+    case ICType::ExternalRealImag:
+        std::cout << INFOTAG("Load Re(psi0) and Im(psi0) from file")
+                  << std::flush;
+        real_imag_from_file(state);
+        std::cout << " ... done" << std::endl;
+        break;
+    case ICType::ExternalModulusPhase:
+        std::cout << INFOTAG("Load psi0 from file") << std::flush;
+        modulus_phase_from_file(state);
+        std::cout << " ... done" << std::endl;
+        break;
+    case ICType::Powerspectrum:
+        std::cout << INFOTAG("Generate delta0 from P(k)") << std::flush;
+        delta_from_power(state, cosmo);
+        std::cout << " ... done" << std::endl;
+        break;
+    case ICType::PreviousSimulation:
+        std::cout << INFOTAG("Load psi from state") << std::flush;
+        psi_from_state(state, cosmo, tau);
     }
 
     // Velocity Initialization
     if (type == ICType::Powerspectrum) {
         // state.V holds delta at this point. But we will use it in an
         // in-place manner. Hence we define...
-        auto& delta = state.V;
-        auto& phase = state.V;
-        auto& psi = state.psi;
+        auto &delta = state.V;
+        auto &phase = state.V;
+        auto &psi = state.psi;
 
         // Set psis modulus before we override delta. For cold conditions
         // that's all that is left to do.
@@ -141,7 +133,7 @@ void ICGenerator::generate(SimState& state, const Cosmology& cosmo,
 
 // Populate SimState with stored wavefunction if the requested tau is greater
 // than the stored tau.
-void ICGenerator::psi_from_state(SimState& state, const Cosmology& cosmo,
+void ICGenerator::psi_from_state(SimState &state, const Cosmology &cosmo,
                                  const double tau) const {
     static bool quick_exit = false;
     if (quick_exit) {
@@ -201,11 +193,11 @@ void ICGenerator::psi_from_state(SimState& state, const Cosmology& cosmo,
               << ", t = " << state.tau << " ... done" << std::endl;
 }
 
-void ICGenerator::real_imag_from_file(SimState& state) const {
+void ICGenerator::real_imag_from_file(SimState &state) const {
     fill_from_file(ic_file, state.psi);
 }
 
-void ICGenerator::modulus_phase_from_file(SimState& state) const {
+void ICGenerator::modulus_phase_from_file(SimState &state) const {
     fill_from_file(ic_file, state.psi);
     state.psi = map(state.psi, [](std::complex<double> p) {
         return std::polar(p.real(), p.imag());
@@ -216,8 +208,8 @@ void ICGenerator::modulus_phase_from_file(SimState& state) const {
     }
 }
 
-void ICGenerator::delta_from_power(SimState& state,
-                                   const Cosmology& cosmo) const {
+void ICGenerator::delta_from_power(SimState &state,
+                                   const Cosmology &cosmo) const {
     using namespace boost::math::interpolators;
     // First line is a header. Ignore it.
     ic_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -293,8 +285,8 @@ void ICGenerator::delta_from_power(SimState& state,
     }
 
     // Store delta in state.V for convenience (real vector)
-    auto& delta = state.V;
-    auto in = reinterpret_cast<fftw_complex*>(delta_k.data());
+    auto &delta = state.V;
+    auto in = reinterpret_cast<fftw_complex *>(delta_k.data());
 
     fftw_plan_ptr c2r(
         fftw_plan_dft_c2r_1d(box.N, in, delta.data(), FFTW_ESTIMATE));

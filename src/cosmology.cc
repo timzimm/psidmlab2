@@ -3,20 +3,14 @@
 #include "logging.h"
 #include "parameters.h"
 
-#include <gsl/gsl_sf_gamma.h>
 #include <boost/math/tools/roots.hpp>
 #include <fstream>
+#include <gsl/gsl_sf_gamma.h>
 #include <tuple>
 
-Cosmology::Cosmology(const Parameters& p)
-    : model{static_cast<CosmoModel>(p["Cosmology"]["model"])},
-      omega_m0(0),
-      a_start(0),
-      a_end(0),
-      delta_a(0),
-      A(0),
-      a_grid{},
-      tau_a_map{} {
+Cosmology::Cosmology(const Parameters &p)
+    : model{static_cast<CosmoModel>(p["Cosmology"]["model"])}, omega_m0(0),
+      a_start(0), a_end(0), delta_a(0), A(0), a_grid{}, tau_a_map{} {
     auto p_cosmo = p["Cosmology"];
     if (model == CosmoModel::Dynamic) {
         std::cout << INFOTAG("Initialize time lookup table from cosmology...")
@@ -70,7 +64,8 @@ Cosmology::Cosmology(const Parameters& p)
 }
 
 double Cosmology::omega_m(double a) const {
-    if (model == CosmoModel::Artificial) return omega_m0;
+    if (model == CosmoModel::Artificial)
+        return omega_m0;
     return omega_m0 / (a * a * a * std::pow(E(a), 2));
 }
 double Cosmology::D(double a) const {
@@ -120,10 +115,12 @@ double Cosmology::a_of_tau(double tau) const {
     using namespace boost::math::tools;
 
     // Simulation start
-    if (tau <= tau_a_map.at(a_grid[0])) return a_start;
+    if (tau <= tau_a_map.at(a_grid[0]))
+        return a_start;
 
     // Simulation end
-    if (tau >= tau_a_map.at(a_grid[A - 1])) return a_end;
+    if (tau >= tau_a_map.at(a_grid[A - 1]))
+        return a_end;
 
     // in between start and end
     auto tau_offset = [&](double a) { return tau_of_a(a) - tau; };
@@ -138,4 +135,4 @@ double Cosmology::a_of_tau(double tau) const {
     return root.second;
 }
 
-bool Cosmology::operator==(const CosmoModel& m) const { return model == m; }
+bool Cosmology::operator==(const CosmoModel &m) const { return model == m; }

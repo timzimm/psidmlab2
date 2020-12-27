@@ -7,15 +7,16 @@
 #include "state.h"
 
 #include <algorithm>
-#include <chrono>   //runtime measurement
-#include <fstream>  //loading the json file
+#include <chrono>  //runtime measurement
+#include <fstream> //loading the json file
 #include <limits>
-#include <queue>  //priority queue to select to next checkpoint
-#include <set>    //building the union of all checkpoints
+#include <queue> //priority queue to select to next checkpoint
+#include <set>   //building the union of all checkpoints
 #include <unordered_map>
 #include <vector>
 
 int main(int argc, char **argv) {
+
     using namespace std::chrono;
 
 #ifdef PSIDMLAB_SMP
@@ -169,7 +170,8 @@ int main(int argc, char **argv) {
 
     // For fresh runs (no step performed yet) dump parameters into file
     if (state.tau == 0 && ic.type != ICType::PreviousSimulation) {
-        file.write_scalar_attribute("/", "parameters", param.dump());
+        auto p = param.dump();
+        file.write_scalar_attribute("/", "parameters", p);
     }
     /* else { */
     /*     runtime_old = file.read_scalar_attribute<double>("/", "runtime"); */
