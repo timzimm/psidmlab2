@@ -79,13 +79,23 @@ class HDF5File {
         if (strategy == Access::NewFile) {
             file = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT,
                              H5P_DEFAULT);
+            if (file < 0) {
+                std::cerr << ERRORTAG(
+                                 "Cannot create file for writing. Check the "
+                                 "path to \n" +
+                                 filename)
+                          << std::endl;
+                exit(1);
+            }
         }
         // Open existing file
         if (strategy == Access::Write) {
             file = H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
             if (file < 0) {
-                std::cerr << ERRORTAG("Cannot open file for writing. Damaged?")
-                          << std::endl;
+                std::cerr
+                    << ERRORTAG(
+                           "Cannot open file for writing. Damaged? Locked?")
+                    << std::endl;
                 exit(1);
             }
         }
@@ -283,7 +293,7 @@ class HDF5File {
             memtype = filetype;
         } else if constexpr (is_string<T>()) {
             hid_t str_type = H5Tcopy(H5T_C_S1);
-            H5Tset_size(str_type, value.size());
+            auto status = H5Tset_size(str_type, value.size() + 1);
             filetype = str_type;
             memtype = filetype;
             c_ptr = reinterpret_cast<const void*>(value.c_str());
