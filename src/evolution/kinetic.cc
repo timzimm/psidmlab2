@@ -15,7 +15,7 @@ Kinetic::Kinetic(const Parameters &p, const SimState &state, const Cosmology &)
     const int NN = (box.N % 2) ? box.N + 1 : box.N;
     // FFTW reorders frequencies. The upper half starts at the most negative
     // frequency and increases for increasing index.
-    //          f0 f1 ... fN/2, f-N/2+1 ... f-1
+    //          f_0 f_1 ... f_box.N/2, f_-NN/2+1 ... f_-1
     // This rotation makes it hard to generate a blaze expression at compile
     // time. If we still want to get around a raw loop it seems best to:
     //
@@ -32,10 +32,8 @@ Kinetic::Kinetic(const Parameters &p, const SimState &state, const Cosmology &)
     kx2 = box.dk * box.dk * kx2 * kx2;
 }
 
-// Limit max phase change to pi
-double Kinetic::next_dt(const SimState &state) const {
-    return 2 * M_PI / k2_max;
-}
+// Limit max phase change to pi/2
+double Kinetic::next_dt(const SimState &state) const { return M_PI / k2_max; }
 
 void Kinetic::step(SimState &state, const double dt) const {
     state.transform(SimState::Representation::Momentum);

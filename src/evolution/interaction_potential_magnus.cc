@@ -15,9 +15,9 @@ InteractionPotentialMagnus::InteractionPotentialMagnus(const Parameters &p,
       box(p), pot{Interaction::make(p["Simulation"]["interaction"]["name"], p,
                                     state)} {}
 
-// Limit max phase change to pi
+// Limit max phase change to pi/2
 double InteractionPotentialMagnus::next_dt(const SimState &state) const {
-    return M_PI / (cosmo.a_of_tau(state.tau) * max(abs(state.V)));
+    return M_PI / (2 * cosmo.a_of_tau(state.tau) * max(abs(state.V)));
 }
 
 void InteractionPotentialMagnus::step(SimState &state, const double dt) const {

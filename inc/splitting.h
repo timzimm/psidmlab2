@@ -7,55 +7,53 @@
 template <typename FlowMapA, typename FlowMapB>
 class PRK : public DefaultDriver<PRK<FlowMapA, FlowMapB>> {
     // Subproblem time evolution operators (A, B possible nonlinear)
-    FlowMapA phiA;  // integrator for del_t psi = A(psi)
-    FlowMapB phiB;  // integrator for del_t psi = B(psi)
+    FlowMapA phiA; // integrator for del_t psi = A(psi)
+    FlowMapB phiB; // integrator for del_t psi = B(psi)
     const int order;
     blaze::DynamicVector<double> a;
     blaze::DynamicVector<double> b;
     const bool stable;
     double dt;
 
-   public:
-    PRK(const Parameters& p, const SimState& state, const Cosmology& cosmo_)
-        : DefaultDriver<PRK<FlowMapA, FlowMapB>>(p),
-          phiA(p, state, cosmo_),
-          phiB(p, state, cosmo_),
-          order{p["Simulation"]["stepper"]["order"]},
+  public:
+    PRK(const Parameters &p, const SimState &state, const Cosmology &cosmo_)
+        : DefaultDriver<PRK<FlowMapA, FlowMapB>>(p), phiA(p, state, cosmo_),
+          phiB(p, state, cosmo_), order{p["Simulation"]["stepper"]["order"]},
           stable{p["Simulation"]["driver"]["stable"]},
           dt{p["Simulation"]["driver"]["dtau"].get<double>()} {
         switch (order) {
-            case 2:
-                // Strang Splitting
-                b = {0.5, 0.5};
-                a = {1};
-                break;
-            case 4:
-                // Blanes, Moan symmetric PRK splitting
-                a = {
-                    0.209515106613361891,  -0.143851773179818077,
-                    0.434336666566456186,  0.434336666566456186,
-                    -0.143851773179818077, 0.209515106613361891,
-                };
-                b = {
-                    0.0792036964311954608,  0.353172906049773948,
-                    -0.0420650803577191948, 0.219376955753499572,
-                    -0.0420650803577191948, 0.353172906049773948,
-                    0.0792036964311954608,
-                };
-                break;
-            default:
-                std::cout << ERRORTAG("Order not supported") << std::endl;
-                exit(1);
+        case 2:
+            // Strang Splitting
+            b = {0.5, 0.5};
+            a = {1};
+            break;
+        case 4:
+            // Blanes, Moan symmetric PRK splitting
+            a = {
+                0.209515106613361891,  -0.143851773179818077,
+                0.434336666566456186,  0.434336666566456186,
+                -0.143851773179818077, 0.209515106613361891,
+            };
+            b = {
+                0.0792036964311954608,  0.353172906049773948,
+                -0.0420650803577191948, 0.219376955753499572,
+                -0.0420650803577191948, 0.353172906049773948,
+                0.0792036964311954608,
+            };
+            break;
+        default:
+            std::cout << ERRORTAG("Order not supported") << std::endl;
+            exit(1);
         }
     }
     // Next time step for total problem determined by stability of the
-    // subproblems A and B, i.e. taking the minium of both
-    double next_dt(const SimState& state) const {
-        return std::min({phiA.next_dt(state), phiB.next_dt(state)});
+    // subproblems A, B and the artificial upper bound dt
+    double next_dt(const SimState &state) const {
+        return std::min({phiA.next_dt(state), phiB.next_dt(state), dt});
     }
 
     // Evolution operator for i del_t psi = (A + B) psi
-    void step(SimState& state, const double dt) const {
+    void step(SimState &state, const double dt) const {
         const double t = state.tau;
         const int n = state.n;
         for (int stage = 0; stage < a.size(); ++stage) {
