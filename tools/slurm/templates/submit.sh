@@ -4,9 +4,9 @@ for job in $@
 do
     LINK_COUNT=1
     # Check if job is a chain job
-    echo $job | gsed '/chain/!{q1}' > /dev/null
+    echo $job | sed '/chain/!{q1}' > /dev/null
     if [[ $? == 0 ]]; then
-        LINK_COUNT=$(echo $job | gsed -r 's/.*chain_([0-9]*)\.sh/\1/g')
+        LINK_COUNT=$(echo $job | sed -r 's/.*chain_([0-9]*)\.sh/\1/g')
     fi
 
     CURRENT_LINK=0
@@ -20,7 +20,7 @@ do
     fi
     echo "sbatch --export=LINK=$CURRENT_LINK $SLURM_OPT $job"|tee -a manifest.txt
     ID=$CURRENT_LINK
-    # ID=$(sbatch --export=LINK=$CURRENT_LINK $SLURM_OPT $job 2>&1|sed 's/[S,a-z]* //g')
+    ID=$(sbatch --export=LINK=$CURRENT_LINK $SLURM_OPT $job 2>&1|sed 's/[S,a-z]* //g')
 
     ## Check if ERROR occured
     if [[ "$jobID" =~ "ERROR" ]] ; then
