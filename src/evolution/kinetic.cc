@@ -9,8 +9,8 @@ using namespace blaze;
 using namespace std::complex_literals;
 
 Kinetic::Kinetic(const Parameters &p, const SimState &state, const Cosmology &)
-    : DefaultDriver(p), box(p), dt_last{-1}, k2_max(M_PI / box.dx), kx2(box.N),
-      U(box.N) {
+    : DefaultDriver(p), box(p), dt_last{-1},
+      k2_max(M_PI * M_PI / (box.dx * box.dx)), kx2(box.N), U(box.N) {
     // Next even number NN at least N
     const int NN = (box.N % 2) ? box.N + 1 : box.N;
     // FFTW reorders frequencies. The upper half starts at the most negative
@@ -32,8 +32,10 @@ Kinetic::Kinetic(const Parameters &p, const SimState &state, const Cosmology &)
     kx2 = box.dk * box.dk * kx2 * kx2;
 }
 
-// Limit max phase change to pi/2
-double Kinetic::next_dt(const SimState &state) const { return M_PI / k2_max; }
+// Limit max phase change to pi/10
+double Kinetic::next_dt(const SimState &state) const {
+    return 2 * M_PI / (10 * k2_max);
+}
 
 void Kinetic::step(SimState &state, const double dt) const {
     state.transform(SimState::Representation::Momentum);
