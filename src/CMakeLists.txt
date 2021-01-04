@@ -32,12 +32,19 @@ target_compile_options(psidm
             -ffast-math
             -march=native>
 )
+target_include_directories(psidm PRIVATE inc)
 
 if(${PSIDMLAB_SMP})
     target_compile_definitions(psidm PRIVATE PSIDMLAB_SMP) 
 endif()
 
-target_include_directories(psidm PRIVATE inc)
+# The order matters at this point! If we would first link against blaze::blaze
+# and not FFTW MKLs version of FFTW would be used!
+if(${PSIDMLAB_SMP})
+    target_link_libraries(psidm FFTW3::DoubleOpenMP)
+else()
+    target_link_libraries(psidm FFTW3::Double)
+endif()
 
 target_link_libraries(psidm 
             Boost::boost
@@ -48,6 +55,3 @@ target_link_libraries(psidm
             GSL::gsl
 )
 
-if(NOT DEFINED ENV{MKLROOT})
-    target_link_libraries(psidm FFTW3::fftw3)
-endif()

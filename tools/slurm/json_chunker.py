@@ -25,7 +25,7 @@ def dtda(t, a, om, ol):
 parser = argparse.ArgumentParser(
     description="Chunk psidm json into multiple parts")
 parser.add_argument("chunks",
-                    help="number of equal size chunks or list of chunk start times"
+                    help="number of equal size chunks or list of chunk end times"
                     )
 parser.add_argument("file", help="json file to process")
 

@@ -8,10 +8,9 @@
 #SBATCH --output={jobname}.log 
 #SBATCH --partition={queue}   
 
-module load compiler/gnu/9.3
+module load compiler/gnu/8.3.1
 module load numlib/mkl/2020
-module load devel/cmake/3.18
 
-cd $HOME/psidm2/build/src
+cd $HOME/psidm2/build2/src
 
 

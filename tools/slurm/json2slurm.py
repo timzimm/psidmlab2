@@ -27,8 +27,9 @@ def sorted_nicely(l):
     l -- The iterable to be sorted.
 
     """
-    convert = lambda text: int(text) if text.isdigit() else text
-    alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
+    def convert(text): return int(text) if text.isdigit() else text
+    def alphanum_key(key): return [convert(c)
+                                   for c in re.split("([0-9]+)", key)]
     return sorted(l, key=alphanum_key)
 
 
@@ -41,7 +42,7 @@ def memory(config):
 def walltime(config):
     """Computes wall clock time of the simulation scenario specified in config"""
     # TODO: Make measurements, construct a mathematical model
-    return 60 * 60 * 24
+    return 60 * 60 * 72
 
 
 def topology(config):
@@ -57,7 +58,7 @@ def topology(config):
     """
     nodeN = 1
     taskN = 1
-    coresN = 1
+    coresN = 8
     return (nodeN, taskN, coresN)
 
 
@@ -76,9 +77,9 @@ def partition(config):
         print("Thin node only has 80 cores per node")
         exit(1)
     wtime = walltime(config)
-    if wtime < 30:
+    if wtime <= 30:
         partition_name = "dev_single"
-    elif wtime < 60 * 60 * 72:
+    elif wtime <= 60 * 60 * 72:
         partition_name = "single"
     else:
         print(f"{sec_to_hhmmss(wtime)} is too long.")
