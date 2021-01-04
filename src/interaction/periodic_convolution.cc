@@ -1,5 +1,6 @@
 #include "interaction/periodic_convolution.h"
 #include "fftw3.h"
+#include "logging.h"
 #include "parameters.h"
 #include "state.h"
 
@@ -11,8 +12,11 @@ PeriodicConvolution::PeriodicConvolution(const Parameters &p,
     // By default, we assume in-place transforms
     auto in_c = reinterpret_cast<const double *>(state.V.data());
     auto out_c = reinterpret_cast<const fftw_complex *>(state.V.data());
-    fwd = make_fftw_plan_dft_r2c(box.N, in_c, out_c, FFTW_MEASURE);
-    bwd = make_fftw_plan_dft_c2r(box.N, out_c, in_c, FFTW_MEASURE);
+
+    std::cout << INFOTAG("Planning In-place Interaction FFTs...") << std::flush;
+    fwd = make_fftw_plan_dft_r2c(box.N, in_c, out_c, FFTW_PATIENT);
+    bwd = make_fftw_plan_dft_c2r(box.N, out_c, in_c, FFTW_PATIENT);
+    std::cout << "...done" << std::endl;
 
     // Compute and store Greens kernel in k-space
     // Note that both odd and even N share the same positive k values
@@ -73,8 +77,13 @@ void PeriodicConvolution::solve(blaze::DynamicVector<double> &V,
     // (ii) V.data() has different alignment than state.V
     if (s_ptr != V_ptr ||
         fftw_alignment_of(s_ptr) != fftw_alignment_of(real_ptr)) {
+
+        std::cout << INFOTAG("Re-planning Forward Interaction FFT...")
+                  << std::flush;
         auto fwd_new =
-            make_fftw_plan_dft_r2c(box.N, s_ptr, s_k_ptr, FFTW_MEASURE);
+            make_fftw_plan_dft_r2c(box.N, s_ptr, s_k_ptr, FFTW_ESTIMATE);
+        std::cout << "...done" << std::endl;
+
         fftw_execute(fwd_new.get());
     } else {
         fftw_execute_dft_r2c(fwd.get(), s_ptr, s_k_ptr);
@@ -90,8 +99,12 @@ void PeriodicConvolution::solve(blaze::DynamicVector<double> &V,
     // Backward FFT is always an in-place transform, so only (ii) needs to be
     // checked
     if (fftw_alignment_of(V_ptr) != fftw_alignment_of(real_ptr)) {
+
+        std::cout << INFOTAG("Re-planning Backward Interaction FFT...")
+                  << std::flush;
         auto bwd_new =
-            make_fftw_plan_dft_c2r(box.N, s_k_ptr, V_ptr, FFTW_MEASURE);
+            make_fftw_plan_dft_c2r(box.N, s_k_ptr, V_ptr, FFTW_ESTIMATE);
+        std::cout << "...done" << std::endl;
         fftw_execute(bwd_new.get());
     } else {
         fftw_execute_dft_c2r(bwd.get(), s_k_ptr, V_ptr);

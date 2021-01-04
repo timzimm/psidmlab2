@@ -3,6 +3,7 @@
 #include "config.h"
 #include "cosmology.h"
 #include "fftw3.h"
+#include "logging.h"
 #include "parameters.h"
 
 SimState::SimState(const Domain &box)
@@ -24,21 +25,24 @@ void SimState::transform(const SimState::Representation target) {
     auto in = reinterpret_cast<fftw_complex *>(psi.data());
     auto in_real = reinterpret_cast<double *>(in);
 
-    // Update transformation plans if necessary, i.e.
-    //
-    // (i) ICs with a different number of spatial points were generated OR
-    // (ii) raw pointer changed AND alignment changed
-    //
+    // Update transformation plans if necessary, i.e. raw pointer changed AND
+    // alignment changed
     if (psi.size() != N_plan ||
         (psi_ptr != in_real &&
          fftw_alignment_of(psi_ptr) != fftw_alignment_of(in_real))) {
         N_plan = psi.size();
         psi_ptr = in_real;
 
+        blaze::DynamicVector<std::complex<double>> tmp = psi;
+
+        std::cout << INFOTAG("Planning Psi FFTs...") << std::flush;
         position_to_momentum =
-            make_fftw_plan_dft(N_plan, in, in, FFTW_FORWARD, FFTW_MEASURE);
+            make_fftw_plan_dft(N_plan, in, in, FFTW_FORWARD, FFTW_PATIENT);
         momentum_to_position =
-            make_fftw_plan_dft(N_plan, in, in, FFTW_BACKWARD, FFTW_MEASURE);
+            make_fftw_plan_dft(N_plan, in, in, FFTW_BACKWARD, FFTW_PATIENT);
+        std::cout << "...done" << std::endl;
+
+        psi = tmp;
 
         // Cache the norm of the state for which new plans are constructed
         norm = std::real(blaze::l2Norm(psi));
