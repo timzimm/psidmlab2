@@ -42,7 +42,7 @@ def memory(config):
 def walltime(config):
     """Computes wall clock time of the simulation scenario specified in config"""
     # TODO: Make measurements, construct a mathematical model
-    return 60 * 60 * 72
+    return 60 * 60 * 24
 
 
 def topology(config):
@@ -52,13 +52,10 @@ def topology(config):
     taskN   -   number of tasks/processes available to job (i.e. MPI processes)
                 Currently only taskN = 1 supported
     coresN  -   Number of cores per task. Used for shared memory parallelization
-                Note:   bwunicluster2 allows hyperthreading. Thus if job is
-                        exepcted to use N threads set coresN = 2*N and
-                        OMP_NUM_THREADS=coresN/2
     """
     nodeN = 1
     taskN = 1
-    coresN = 8
+    coresN = 2
     return (nodeN, taskN, coresN)
 
 

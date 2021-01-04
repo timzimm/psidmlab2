@@ -16,7 +16,6 @@
 #include <vector>
 
 int main(int argc, char **argv) {
-
     using namespace std::chrono;
 
 #ifdef PSIDMLAB_SMP
@@ -25,7 +24,8 @@ int main(int argc, char **argv) {
                   << std::endl;
         exit(1);
     }
-    std::cout << INFOTAG("Threading active") << std::endl;
+    std::cout << INFOTAG("Threading active. ") << omp_get_max_threads()
+              << " threads available" << std::endl;
 #endif
 
     // We need a input file. Otherwise, we give up...
@@ -170,8 +170,7 @@ int main(int argc, char **argv) {
 
     // For fresh runs (no step performed yet) dump parameters into file
     if (state.tau == 0 && ic.type != ICType::PreviousSimulation) {
-        auto p = param.dump();
-        file.write_scalar_attribute("/", "parameters", p);
+        file.write_scalar_attribute("/", "parameters", param.dump());
     }
     /* else { */
     /*     runtime_old = file.read_scalar_attribute<double>("/", "runtime"); */
