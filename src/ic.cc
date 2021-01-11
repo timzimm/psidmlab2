@@ -42,6 +42,9 @@ ICGenerator::ICGenerator(const Parameters &p)
             std::cerr << ERRORTAG("#lines in source_file(" << data_N
                                                            << ") != N")
                       << std::endl;
+            std::cout << WARNINGTAG(
+                             "compute_velocity (if specified) will be ignored")
+                      << std::endl;
             exit(1);
         }
     }
@@ -53,6 +56,8 @@ ICGenerator::ICGenerator(const Parameters &p)
             exit(1);
         }
         compute_velocity = p["Initial Conditions"]["compute_velocity"];
+        if (compute_velocity) {
+        }
         seed = p["Initial Conditions"]["seed"];
 
     } else if (type == ICType::PreviousSimulation) {
@@ -79,6 +84,18 @@ ICGenerator::ICGenerator(const Parameters &p)
 
 void ICGenerator::generate(SimState &state, const Cosmology &cosmo,
                            const double tau) const {
+    std::unique_ptr<Interaction> pot = nullptr;
+
+    if (compute_velocity) {
+        std::cout << INFOTAG("Initial Velocity Field from Poisson @ a = ")
+                  << cosmo.a_of_tau(0) << std::endl;
+        const Parameters p(
+            {{"Domain",
+              {{"N", box.N}, {"L", box.L}, {"physical_units", false}}},
+             {"Simulation", {{"interaction", {{"type", 0}}}}}});
+        pot = Interaction::make("PeriodicConvolution", p, state);
+    }
+
     // modulus initialization
     switch (type) {
     case ICType::ExternalRealImag:
@@ -116,18 +133,10 @@ void ICGenerator::generate(SimState &state, const Cosmology &cosmo,
 
         // Cosmological initial velocity field
         if (compute_velocity) {
-            const Parameters p(
-                {{"Domain",
-                  {{"N", box.N}, {"L", box.L}, {"physical_units", false}}},
-                 {"Simulation", {{"interaction", {{"type", 0}}}}}});
             const double a_init = cosmo.a_of_tau(0);
             const double prefactor =
                 -std::sqrt(2.0 / 3 * a_init / cosmo.omega_m(a_init));
 
-            std::cout << INFOTAG("Initial Velocity Field from Poisson @ a = ")
-                      << a_init << std::endl;
-
-            auto pot = Interaction::make("PeriodicConvolution", p, state);
             pot->solve(phase, prefactor * delta);
 
             // Madelung Representation.
